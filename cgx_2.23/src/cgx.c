@@ -19,14 +19,16 @@
 /*     along with this program; if not, write to the Free Software       */
 /*     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.         */
 /* --------------------------------------------------------------------  */
-/*  Addendum / Modernization:                                            */
+/*  Addendum / Translation to GLFW and extras:                           */
 /*  CalculiX GraphiX (GLFW Edition)                                      */
-/*  Academic exercise in agentic programming by Carlo Monjaraz-Tec (2026)*/
+/*  Didactic exercise in agentic programming by Carlo Monjaraz-Tec (2026)*/
 /* --------------------------------------------------------------------  */
 
 #include <cgx.h>
 #include <time.h>
+#ifndef WIN32
 #include <sys/utsname.h>
+#endif
 
 #define     TEST            0
 
@@ -7475,11 +7477,11 @@ int main( int argc, char **argv )
   printf("                     CalculiX GraphiX (CGX) - GLFW Edition                      \n");
   printf("================================================================================\n");
   printf("  Original Authors : Copyright (C) 1996-2024 Klaus Wittig and contributors\n");
-  printf("  Modernization    : Carlo Monjaraz-Tec (2026)\n");
-  printf("  Frameworks       : Pure GLFW3, Modern OpenGL & stb_truetype (Zero GLUT / Zero X11)\n");
+  printf("  GLFW Translation : Carlo Monjaraz-Tec (2026)\n");
+  printf("  Frameworks       : GLFW3 and OpenGL\n");
   printf("  OS Platform      : %s %s (%s)\n\n", cursys->sysname, cursys->release, cursys->machine);
-  printf("  An academic exercise for learning agentic programming based on the great\n");
-  printf("  work of CalculiX GraphiX original authors and contributors.\n\n");
+  printf("  A didactic exercise for learning agentic programming based on the great\n");
+  printf("  work of CalculiX original authors and contributors.\n\n");
   printf("  Disclaimer:\n");
   printf("  Provided AS IS for academic exploration with NO WARRANTY of any kind.\n");
   printf("================================================================================\n\n");
