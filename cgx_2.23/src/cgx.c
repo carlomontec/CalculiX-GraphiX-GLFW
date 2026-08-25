@@ -7952,7 +7952,18 @@ int main( int argc, char **argv )
 #endif
 
   glutMainLoop ();
+#ifdef WIN32
+  /* The stdin listener thread (cgx_glut_glfw.c) blocks indefinitely in
+     fgets(stdin) so users can type CGX commands into the terminal
+     alongside the GUI. Under Windows - especially MSYS2/mintty's pty
+     layer - a background thread parked in a blocking console read can
+     keep the terminal session attached even after the graceful CRT
+     exit path finishes. TerminateProcess bypasses that and kills
+     everything outright, immediately. */
+  TerminateProcess(GetCurrentProcess(), 0);
+#else
   return(1);
+#endif
 }
 
 

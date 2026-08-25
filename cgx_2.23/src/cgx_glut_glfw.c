@@ -1572,15 +1572,17 @@ static void glfw_scroll_callback(GLFWwindow *window, double xoffset, double yoff
 static void glfw_framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
   (void)window;
-  int win_w, win_h;
-  glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
 
+  /* width/height here are already the framebuffer's physical pixel size
+     (guaranteed by GLFW) - don't re-query glfwGetWindowSize(), which
+     returns the logical/window size and only matches the framebuffer
+     when display scaling is 100%. */
   CGXWindow *root = get_window(1);
   if (root)
   {
-    root->width = win_w;
-    root->height = win_h;
-    if (root->reshape_func) root->reshape_func(win_w, win_h);
+    root->width = width;
+    root->height = height;
+    if (root->reshape_func) root->reshape_func(width, height);
   }
   g_need_redisplay = 1;
 }
