@@ -30,7 +30,8 @@ else ifneq ($(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstr
   # Windows MinGW-w64 / MSYS2 configuration
   CFLAGS += -DWIN32 $(shell pkg-config --cflags glfw3 2>/dev/null)
   CXXFLAGS += -DWIN32 $(shell pkg-config --cflags glfw3 2>/dev/null)
-  LFLAGS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw3") -lopengl32 -lglu32 -lgdi32 -luser32 -lkernel32 -lm -lpthread
+  LFLAGS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw3") -lopengl32 -lglu32 -lgdi32 -luser32 -lkernel32 -lm \
+          -static-libgcc -static-libstdc++ -static -lpthread
   OUT = ../../../bin/cgx_glfw.exe
 else
   # Linux configuration (Native Wayland & X11 via GLFW)
@@ -72,7 +73,7 @@ CPP_OBJS = $(CPP_SRC:.cpp=.o)
 all: $(OUT)
 
 $(OUT): $(OBJS) $(CPP_OBJS)
-	@mkdir -p ../../bin
+	@mkdir -p $(dir $(OUT))
 	$(CXX) $(CFLAGS) $(OBJS) $(CPP_OBJS) -o $(OUT) $(LFLAGS)
 	@mkdir -p ../../../bin && cp -f $(OUT) ../../../bin/cgx_glfw 2>/dev/null || true
 	@echo ">>> SUCCESS: Built $(OUT) <<<"

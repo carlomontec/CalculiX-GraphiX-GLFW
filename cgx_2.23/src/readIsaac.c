@@ -15,7 +15,9 @@ This function uses the following empirical functions (si units)
 
 
 #include <extUtil.h>
+#ifndef WIN32
 #include <sys/utsname.h>
+#endif
 
 #define MAXIDENTIFIER  12 
 #define MAXINTEGER 2147483647
