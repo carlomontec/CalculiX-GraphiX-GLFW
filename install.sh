@@ -216,6 +216,9 @@ do_fast_install() {
     
     if curl -fSL --progress-bar -o "${TARGET_BIN}" "${DOWNLOAD_URL}"; then
         chmod +x "${TARGET_BIN}"
+        if [ "${OS}" = "Darwin" ]; then
+            xattr -d com.apple.quarantine "${TARGET_BIN}" 2>/dev/null || true
+        fi
         echo -e "${GREEN}[OK] Successfully installed: ${TARGET_BIN}${NC}"
     else
         echo -e "${YELLOW}Notice: Pre-compiled binary not found on GitHub Releases yet (${DOWNLOAD_URL}).${NC}"
