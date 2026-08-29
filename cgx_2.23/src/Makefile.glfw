@@ -19,12 +19,23 @@ CXXFLAGS = $(OPT) -std=c++11 -Wall -Wno-narrowing -Wno-register -DTETLIBRARY -DU
 ifeq ($(UNAME_S),Darwin)
   # macOS native configuration (Zero X11 / Zero XQuartz / Zero GLUT)
   GLFW_CFLAGS := $(shell pkg-config --cflags glfw3 2>/dev/null || echo "-I/opt/homebrew/include -I/usr/local/include")
-  GLFW_LIBS := $(shell pkg-config --libs glfw3 2>/dev/null || echo "-L/opt/homebrew/lib -L/usr/local/lib -lglfw")
+  ifeq ($(STATIC_GLFW),1)
+    GLFW_STATIC_LIB := $(shell pkg-config --variable=libdir glfw3 2>/dev/null)/libglfw3.a
+    ifeq ($(wildcard $(GLFW_STATIC_LIB)),)
+      GLFW_STATIC_LIB := $(shell brew --prefix glfw 2>/dev/null)/lib/libglfw3.a
+    endif
+    ifeq ($(wildcard $(GLFW_STATIC_LIB)),)
+      GLFW_STATIC_LIB := /opt/homebrew/lib/libglfw3.a
+    endif
+    GLFW_LIBS := $(GLFW_STATIC_LIB)
+  else
+    GLFW_LIBS := $(shell pkg-config --libs glfw3 2>/dev/null || echo "-L/opt/homebrew/lib -L/usr/local/lib -lglfw")
+  endif
   INCLUDES += $(GLFW_CFLAGS)
   CFLAGS += $(GLFW_CFLAGS)
   CXXFLAGS += $(GLFW_CFLAGS)
   LFLAGS = $(GLFW_LIBS) \
-           -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo \
+           -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -framework QuartzCore \
            -lm -lpthread
 else ifneq ($(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstring CYGWIN,$(UNAME_S))$(findstring Windows,$(OS)),)
   # Windows MinGW-w64 / MSYS2 configuration

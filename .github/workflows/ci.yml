@@ -1,0 +1,116 @@
+name: CI Matrix Build & Headless Tests
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build-test-macos-arm64:
+    name: macOS (Apple Silicon arm64)
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          brew install glfw pkg-config cmake
+
+      - name: Configure CMake (Standalone Static GLFW)
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DSTATIC_GLFW=ON
+
+      - name: Build binary
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Inspect binary dependencies
+        run: |
+          echo "=== Dynamic link check (should contain ZERO Homebrew dylibs) ==="
+          otool -L bin/cgx_glfw
+          if otool -L bin/cgx_glfw | grep -q "libglfw"; then
+            echo "ERROR: libglfw was dynamically linked instead of statically baked."
+            exit 1
+          fi
+
+      - name: Run headless regression test (-bg)
+        run: |
+          ./bin/cgx_glfw -bg test/test_vtu.fbl
+
+      - name: Validate generated VTU & PVD outputs
+        run: |
+          test -s all.vtu
+          test -s all.pvd
+          echo "[OK] Headless batch execution and VTU export validated successfully on macOS."
+
+  build-test-linux-x86_64:
+    name: Linux (x86_64 / glibc)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies & fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libglfw3-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            fonts-dejavu-core \
+            fonts-liberation
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build binary
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Run headless regression test (-bg)
+        run: |
+          ./bin/cgx_glfw -bg test/test_vtu.fbl
+
+      - name: Validate generated VTU & PVD outputs
+        run: |
+          test -s all.vtu
+          test -s all.pvd
+          echo "[OK] Headless batch execution and VTU export validated successfully on Linux."
+
+  build-test-windows-x64:
+    name: Windows (x64 / MinGW-w64)
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2 & MinGW-w64 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-glfw
+            mingw-w64-x86_64-cmake
+            make
+
+      - name: Configure and Build with CMake
+        shell: msys2 {0}
+        run: |
+          cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel
+
+      - name: Run headless regression test (-bg)
+        shell: msys2 {0}
+        run: |
+          ./bin/cgx_glfw.exe -bg test/test_vtu.fbl
+          test -s all.vtu
+          test -s all.pvd
+          echo "[OK] Headless batch execution and VTU export validated successfully on Windows."
