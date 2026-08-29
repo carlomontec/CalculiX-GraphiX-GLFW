@@ -74,6 +74,8 @@ if [ "${OS}" = "Darwin" ]; then
 elif [ "${OS}" = "Linux" ]; then
     if [ "${ARCH}" = "x86_64" ]; then
         BINARY_NAME="cgx_glfw-linux-x86_64"
+    elif [ "${ARCH}" = "aarch64" ] || [ "${ARCH}" = "arm64" ]; then
+        BINARY_NAME="cgx_glfw-linux-arm64"
     else
         echo -e "${RED}Error: Linux '${ARCH}' architecture is not supported yet (future work).${NC}"
         exit 1
