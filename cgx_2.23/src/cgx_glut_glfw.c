@@ -611,8 +611,83 @@ int glutGet(GLenum type)
 }
 
 int glutDeviceGet(GLenum type) { (void)type; return 0; }
-int glutGetModifiers(void) { return 0; }
+
+static int g_current_mods = 0;
+static int g_right_down = 0;
+static double g_right_down_x = 0.0;
+static double g_right_down_y = 0.0;
+static int g_right_dragging = 0;
+static int g_left_mapped_btn = GLUT_LEFT_BUTTON;
+
+int glutGetModifiers(void)
+{
+  int m = 0;
+  if (g_current_mods & GLFW_MOD_SHIFT) m |= GLUT_ACTIVE_SHIFT;
+  if (g_current_mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER)) m |= GLUT_ACTIVE_CTRL;
+  if (g_current_mods & GLFW_MOD_ALT) m |= GLUT_ACTIVE_ALT;
+  return m;
+}
+
 int glutLayerGet(GLenum type) { (void)type; return 0; }
+
+/* DPI and Line Width Utilities */
+float cgx_get_fb_scale(void)
+{
+  if (!g_glfw_window) return 1.0f;
+  int win_w = 1, win_h = 1, fb_w = 1, fb_h = 1;
+  glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
+  glfwGetFramebufferSize(g_glfw_window, &fb_w, &fb_h);
+  if (win_w <= 0) win_w = 1;
+  float scale = (float)fb_w / (float)win_w;
+  return (scale > 0.5f) ? scale : 1.0f;
+}
+
+void cgx_glLineWidth(float width)
+{
+  float scale = cgx_get_fb_scale();
+  float final_w = width * scale;
+  if (final_w < 1.0f) final_w = 1.0f;
+  glLineWidth(final_w);
+}
+
+void cgx_glPointSize(float size)
+{
+  float scale = cgx_get_fb_scale();
+  float final_sz = size * scale * 1.5f;
+  if (final_sz < 2.0f) final_sz = 2.0f;
+  glPointSize(final_sz);
+  glEnable(GL_POINT_SMOOTH);
+  glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+}
+
+void cgx_enable_smooth_lines(int enable)
+{
+  if (enable)
+  {
+    glEnable(GL_LINE_SMOOTH);
+    glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  }
+  else
+  {
+    glDisable(GL_LINE_SMOOTH);
+  }
+}
+
+static char g_gui_status_msg[128] = {0};
+static double g_gui_status_time = 0.0;
+
+void cgx_set_gui_status(const char *msg)
+{
+  if (!msg) { g_gui_status_msg[0] = '\0'; return; }
+  strncpy(g_gui_status_msg, msg, sizeof(g_gui_status_msg) - 1);
+  g_gui_status_msg[sizeof(g_gui_status_msg) - 1] = '\0';
+  g_gui_status_time = glfwGetTime();
+  g_need_redisplay = 1;
+}
 
 /* --------------------------------------------------------------------  */
 /* Execute Command from Command Bar                                      */
@@ -1229,14 +1304,18 @@ static void render_command_bar(int win_w, int win_h)
   /* Prompt Symbol (Bright Cyan >) */
   draw_ui_text_dynamic(12, baseline_y, ">", 0.25f, 0.80f, 1.0f, win_h);
 
-  /* Input Text or Placeholder */
+  /* Input Text, Status Feedback, or Placeholder */
   if (g_cmd_len > 0)
   {
     draw_ui_text_dynamic(30, baseline_y, g_cmd_buf, 1.0f, 1.0f, 1.0f, win_h);
   }
+  else if ((glfwGetTime() - g_gui_status_time) < 6.0 && g_gui_status_msg[0] != '\0')
+  {
+    draw_ui_text_dynamic(30, baseline_y, g_gui_status_msg, 1.0f, 0.78f, 0.35f, win_h);
+  }
   else
   {
-    draw_ui_text_dynamic(30, baseline_y, "Type command (e.g. ds 4 e 4, plot fv all, anim real, view persp)...", 0.38f, 0.46f, 0.56f, win_h);
+    draw_ui_text_dynamic(30, baseline_y, "Type command (e.g. ds 1 e 4, plot f all, view sh, frame, help)...", 0.38f, 0.46f, 0.56f, win_h);
   }
 
   /* Send Button */
@@ -1343,6 +1422,7 @@ static void glfw_key_callback(GLFWwindow *window, int key, int scancode, int act
     }
   }
 
+  g_current_mods = mods;
   CGXWindow *win = get_window(g_current_window_id);
   if (!win) win = get_window(1);
   if (!win) return;
@@ -1393,6 +1473,7 @@ static void glfw_char_callback(GLFWwindow *window, unsigned int codepoint)
   {
     if (g_cmd_bar_visible && g_cmd_focused && g_cascade_depth <= 0)
     {
+      g_gui_status_msg[0] = '\0';
       if (g_cmd_len < (int)sizeof(g_cmd_buf) - 2)
       {
         g_cmd_buf[g_cmd_len++] = (char)codepoint;
@@ -1447,6 +1528,32 @@ static void glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypo
 
   if (g_cmd_bar_visible && ypos >= win_h - bar_h) return;
 
+  /* Check right-button drag threshold */
+  if (g_right_down && !g_right_dragging)
+  {
+    double rdx = xpos - g_right_down_x;
+    double rdy = ypos - g_right_down_y;
+    double thresh = 4.0 * (double)cgx_get_fb_scale();
+    if ((rdx * rdx + rdy * rdy) > (thresh * thresh))
+    {
+      g_right_dragging = 1;
+      g_mouse_buttons[GLUT_RIGHT_BUTTON] = GLUT_DOWN;
+
+      CGXWindow *start_win = find_window_at((int)g_right_down_x, (int)g_right_down_y);
+      if (start_win && start_win->mouse_func)
+      {
+        int sx, sy, sw, sh;
+        get_window_screen_rect(start_win, &sx, &sy, &sw, &sh);
+        int local_sx = (int)g_right_down_x - sx;
+        int local_sy = (int)g_right_down_y - sy;
+        int prev_win_id = g_current_window_id;
+        g_current_window_id = start_win->id;
+        start_win->mouse_func(GLUT_RIGHT_BUTTON, GLUT_DOWN, local_sx, local_sy);
+        g_current_window_id = prev_win_id;
+      }
+    }
+  }
+
   CGXWindow *win = find_window_at((int)xpos, (int)ypos);
   if (!win) return;
 
@@ -1460,7 +1567,8 @@ static void glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypo
 
   int any_btn_down = (g_mouse_buttons[0] == GLUT_DOWN ||
                       g_mouse_buttons[1] == GLUT_DOWN ||
-                      g_mouse_buttons[2] == GLUT_DOWN);
+                      g_mouse_buttons[2] == GLUT_DOWN ||
+                      g_right_dragging);
 
   if (any_btn_down && win->motion_func)
   {
@@ -1478,13 +1586,8 @@ static void glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypo
 
 static void glfw_mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 {
-  (void)window; (void)mods;
-  int glut_btn = GLUT_LEFT_BUTTON;
-  if (button == GLFW_MOUSE_BUTTON_RIGHT) glut_btn = GLUT_RIGHT_BUTTON;
-  else if (button == GLFW_MOUSE_BUTTON_MIDDLE) glut_btn = GLUT_MIDDLE_BUTTON;
-
-  int glut_state = (action == GLFW_PRESS) ? GLUT_DOWN : GLUT_UP;
-  g_mouse_buttons[glut_btn] = glut_state;
+  (void)window;
+  g_current_mods = mods;
 
   int win_w, win_h;
   glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
@@ -1516,23 +1619,76 @@ static void glfw_mouse_button_callback(GLFWwindow *window, int button, int actio
   CGXWindow *win = find_window_at((int)g_last_mouse_x, (int)g_last_mouse_y);
   if (!win) return;
 
-  /* Right-Click anywhere triggers Multi-Level Cascade Menu */
-  if (glut_btn == GLUT_RIGHT_BUTTON && glut_state == GLUT_DOWN)
-  {
-    int menu_to_open = (mainmenu > 0) ? mainmenu : win->attached_menu[glut_btn];
-    if (menu_to_open <= 0 && g_num_menus > 0) menu_to_open = g_menus[g_num_menus - 1].id;
-
-    if (menu_to_open > 0)
-    {
-      open_cascade_root(menu_to_open, (int)g_last_mouse_x, (int)g_last_mouse_y, win_w, win_h);
-      return;
-    }
-  }
-
   int sx, sy, sw, sh;
   get_window_screen_rect(win, &sx, &sy, &sw, &sh);
   int local_x = (int)g_last_mouse_x - sx;
   int local_y = (int)g_last_mouse_y - sy;
+
+  /* Right-Click Handling: Drag vs Menu */
+  if (button == GLFW_MOUSE_BUTTON_RIGHT)
+  {
+    if (action == GLFW_PRESS)
+    {
+      g_right_down = 1;
+      g_right_down_x = g_last_mouse_x;
+      g_right_down_y = g_last_mouse_y;
+      g_right_dragging = 0;
+      return;
+    }
+    else if (action == GLFW_RELEASE)
+    {
+      g_right_down = 0;
+      if (g_right_dragging)
+      {
+        g_right_dragging = 0;
+        g_mouse_buttons[GLUT_RIGHT_BUTTON] = GLUT_UP;
+        int prev_win_id = g_current_window_id;
+        g_current_window_id = win->id;
+        if (win->mouse_func) win->mouse_func(GLUT_RIGHT_BUTTON, GLUT_UP, local_x, local_y);
+        g_current_window_id = prev_win_id;
+        g_need_redisplay = 1;
+      }
+      else
+      {
+        int menu_to_open = (mainmenu > 0) ? mainmenu : win->attached_menu[GLUT_RIGHT_BUTTON];
+        if (menu_to_open <= 0 && g_num_menus > 0) menu_to_open = g_menus[g_num_menus - 1].id;
+        if (menu_to_open > 0)
+        {
+          open_cascade_root(menu_to_open, (int)g_right_down_x, (int)g_right_down_y, win_w, win_h);
+        }
+      }
+      return;
+    }
+  }
+
+  int glut_btn = GLUT_LEFT_BUTTON;
+  if (button == GLFW_MOUSE_BUTTON_MIDDLE)
+  {
+    glut_btn = GLUT_MIDDLE_BUTTON;
+  }
+  else if (button == GLFW_MOUSE_BUTTON_LEFT)
+  {
+    if (action == GLFW_PRESS)
+    {
+      if ((mods & GLFW_MOD_ALT) ||
+          ((mods & GLFW_MOD_SHIFT) && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER))))
+      {
+        g_left_mapped_btn = GLUT_MIDDLE_BUTTON; /* Zoom */
+      }
+      else if (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER | GLFW_MOD_SHIFT))
+      {
+        g_left_mapped_btn = GLUT_RIGHT_BUTTON; /* Pan */
+      }
+      else
+      {
+        g_left_mapped_btn = GLUT_LEFT_BUTTON; /* Rotate */
+      }
+    }
+    glut_btn = g_left_mapped_btn;
+  }
+
+  int glut_state = (action == GLFW_PRESS) ? GLUT_DOWN : GLUT_UP;
+  g_mouse_buttons[glut_btn] = glut_state;
 
   int prev_win_id = g_current_window_id;
   g_current_window_id = win->id;
@@ -1569,20 +1725,34 @@ static void glfw_scroll_callback(GLFWwindow *window, double xoffset, double yoff
   g_current_window_id = prev_win_id;
 }
 
-static void glfw_framebuffer_size_callback(GLFWwindow *window, int width, int height)
+static void glfw_window_size_callback(GLFWwindow *window, int width, int height)
 {
   (void)window;
-
-  /* width/height here are already the framebuffer's physical pixel size
-     (guaranteed by GLFW) - don't re-query glfwGetWindowSize(), which
-     returns the logical/window size and only matches the framebuffer
-     when display scaling is 100%. */
+  if (width < 10) width = 10;
+  if (height < 10) height = 10;
   CGXWindow *root = get_window(1);
   if (root)
   {
     root->width = width;
     root->height = height;
     if (root->reshape_func) root->reshape_func(width, height);
+  }
+  g_need_redisplay = 1;
+}
+
+static void glfw_framebuffer_size_callback(GLFWwindow *window, int width, int height)
+{
+  (void)window; (void)width; (void)height;
+  int win_w = 1, win_h = 1;
+  if (g_glfw_window) glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
+  if (win_w < 10) win_w = 10;
+  if (win_h < 10) win_h = 10;
+  CGXWindow *root = get_window(1);
+  if (root)
+  {
+    root->width = win_w;
+    root->height = win_h;
+    if (root->reshape_func) root->reshape_func(win_w, win_h);
   }
   g_need_redisplay = 1;
 }
@@ -1595,12 +1765,13 @@ void glutMainLoop(void)
 {
   if (!g_glfw_window) return;
 
+  glfwSetWindowSizeCallback(g_glfw_window, glfw_window_size_callback);
+  glfwSetFramebufferSizeCallback(g_glfw_window, glfw_framebuffer_size_callback);
   glfwSetKeyCallback(g_glfw_window, glfw_key_callback);
   glfwSetCharCallback(g_glfw_window, glfw_char_callback);
   glfwSetCursorPosCallback(g_glfw_window, glfw_cursor_pos_callback);
   glfwSetMouseButtonCallback(g_glfw_window, glfw_mouse_button_callback);
   glfwSetScrollCallback(g_glfw_window, glfw_scroll_callback);
-  glfwSetFramebufferSizeCallback(g_glfw_window, glfw_framebuffer_size_callback);
 
   int win_w, win_h, fb_w, fb_h;
 

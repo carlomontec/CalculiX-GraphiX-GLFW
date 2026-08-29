@@ -319,9 +319,9 @@ void drawNodes_plot( int num, int *name, Nodes *node , int col, char type, int w
   static int flag2;
 
   glutSetWindow( w1);
-  glLineWidth(1);
-  if(width>0) glPointSize(width);
-  else glPointSize(4);
+  cgx_glLineWidth(1);
+  if(width>0) cgx_glPointSize(width);
+  else cgx_glPointSize(3.5f);
 
   glColor3f ( entitycol[col].r, entitycol[col].g, entitycol[col].b  );
 
@@ -3336,7 +3336,8 @@ void drawFaces_edge( int num, int *name, Nodes *node, Faces *face, int color, ch
   if ( ipuf[0] == GL_FRONT ) dsloc*=-1;
   //printf("dsloc:%e\n",dsloc);
   glColor3d(color,color,color);
-  glLineWidth(1.4f);
+  cgx_glLineWidth(0.8f);
+  cgx_enable_smooth_lines(1);
 
   for (i=0; i<num; i++ )
   {
@@ -3439,7 +3440,8 @@ void drawElem_edge( int num, int *name, Nodes *node, Elements *e_enqire, int col
   register int i;
 
   glColor3d(color,color,color);
-  glLineWidth(1.4f);
+  cgx_glLineWidth(0.8f);
+  cgx_enable_smooth_lines(1);
 
 #if TEST
   printf ("in drawElemEdges\n");
@@ -3726,7 +3728,7 @@ void drawElemNodes_plot( int num, int *name, Nodes *node, Elements *e_enqire, in
   /* draw all selected nodes */
   glColor3d  ( 0.5,0.5,0. );
   glLoadName('n');
-  glPointSize(1);
+  cgx_glPointSize(2.0f);
   for (i=0; i<=anz->nmax; i++ )
   {
     if(nodnr[i])
@@ -3786,7 +3788,7 @@ void drawFaceNodes_plot( int num, int *name, Nodes *node, Faces *face, int col, 
   /* draw all selected nodes */
   glColor3d  ( 0.5,0.5,0. );
   glLoadName('n');
-  glPointSize(1);
+  cgx_glPointSize(2.0f);
   for (i=0; i<=anz->nmax; i++ )
   {
     if(nodnr[i])
@@ -3807,8 +3809,8 @@ void drawPoints_plot( int num, int *name, Points *point , int col, char type, in
 {
   int i;
 
-  if(width>0) glPointSize(width);
-  else glPointSize(4);
+  if(width>0) cgx_glPointSize(width);
+  else cgx_glPointSize(3.5f);
 
     glColor3f ( entitycol[col].r, entitycol[col].g, entitycol[col].b  );
     glLoadName('p');
@@ -3840,8 +3842,8 @@ void drawLines_plot( int num, int *name, Lines *line , Points *point, int col, c
   int *pnt_indx=NULL;
 
   if(width<1) width=1;
-  glLineWidth(width);
-  glPointSize(width+2);
+  cgx_glLineWidth(width);
+  cgx_glPointSize(width+1.5f);
   glColor3f ( entitycol[col].r, entitycol[col].g, entitycol[col].b  );
   glLoadName('l');
   for (i=0; i<num; i++ )

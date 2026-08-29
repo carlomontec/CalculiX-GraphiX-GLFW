@@ -1488,7 +1488,7 @@ void frame(void)
   if(anzGeo && anzGeo->p > 0 && point) scalPoints ( anzGeo->p, point, scale );
   if(anz && anz->n > 0 && node) scalNodes ( anz->n, node, scale );
   if(anzGeo && anzGeo->s > 0 && surf) scalSurfs( anzGeo->s, surf, scale);
-  dtx=0.; dty=0.; dtz=0.; ds=0.5;
+  dtx=0.; dty=0.; dtz=0.; ds=1.18;
   for (i=0; i<4; i++) vmem[i]=0; /* reset all kompensations (center()) */
   /* recalculate the line-shapes */
   if(anzGeo && anzGeo->l > 0 && line) for (i=0; i<anzGeo->l; i++) repLine(i);
@@ -4245,7 +4245,7 @@ void selectView( int selection )
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE );
     break;
   case 5:
-    glPointSize (1);
+    cgx_glPointSize(2.0f);
     glGetIntegerv( GL_POLYGON_MODE, ipuf );
     if ( ipuf[1] != GL_POINT )
       glPolygonMode( GL_FRONT_AND_BACK, GL_POINT );
@@ -4395,6 +4395,7 @@ void selectView( int selection )
     break;
   case 14:
     illumResultFlag=!illumResultFlag;
+    updateDispLists();
     redraw();
     break;
   case 15:
@@ -4628,8 +4629,8 @@ void pre_view(char *string)
   else if (compare(type, "point", 2)==2)
   {
     i=atoi(param);
-    if(i<1) glPointSize(1);
-    else glPointSize(i);
+    if(i<1) cgx_glPointSize(2.0f);
+    else cgx_glPointSize((float)i);
     glPolygonMode( GL_FRONT_AND_BACK, GL_POINT );
     redraw();
   }
@@ -4774,6 +4775,7 @@ void pre_view(char *string)
   {
     illumResultFlag=1;
     if(length==2) { if (compare(param, "off", 2)==2) illumResultFlag=0; }
+    updateDispLists();
     redraw();
   }
   else if (compare(type, "ill", 2)==2)
@@ -4781,6 +4783,13 @@ void pre_view(char *string)
     glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
     if(length==2) { if (compare(param, "off", 2)==2) glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_oneside); }
     redraw();
+  }
+  else
+  {
+    printf(" [ERROR] Unknown view option '%s'. (Valid: sh, elem, edge, surf, volu, bg, ru, ill, front, back)\n", type);
+    char buf[128];
+    snprintf(buf, sizeof(buf), "Unknown 'view %s' (valid: sh, elem, surf, volu...)", type);
+    cgx_set_gui_status(buf);
   }
   glutPostRedisplay();
   glutSetWindow( w2 );
@@ -5803,6 +5812,59 @@ void Keyboard( unsigned char gkey, int x, int y )
   }
 }
 
+static int levenshtein_dist(const char *s1, const char *s2)
+{
+  int l1 = (int)strlen(s1);
+  int l2 = (int)strlen(s2);
+  if (l1 > 32 || l2 > 32) return 99;
+  int d[33][33];
+  for (int i = 0; i <= l1; i++) d[i][0] = i;
+  for (int j = 0; j <= l2; j++) d[0][j] = j;
+  for (int i = 1; i <= l1; i++)
+  {
+    for (int j = 1; j <= l2; j++)
+    {
+      int cost = (tolower(s1[i - 1]) == tolower(s2[j - 1])) ? 0 : 1;
+      int del = d[i - 1][j] + 1;
+      int ins = d[i][j - 1] + 1;
+      int sub = d[i - 1][j - 1] + cost;
+      int min = (del < ins) ? del : ins;
+      d[i][j] = (min < sub) ? min : sub;
+    }
+  }
+  return d[l1][l2];
+}
+
+const char *cgx_get_command_suggestion(const char *cmd)
+{
+  if (!cmd || strlen(cmd) < 1) return NULL;
+  static const char *known_cmds[] = {
+    "help", "frame", "plot", "plus", "view", "zoom", "orient", "quit", "exit",
+    "ds", "scal", "seta", "setr", "seto", "del", "rep", "graph", "prnt", "wsize",
+    "qadd", "qdel", "qenq", "qlin", "qpnt", "qsur", "qbod", "qmsh", "qcut",
+    "qcnt", "qflp", "qmov", "qseq", "qshp", "qspl", "qtxt", "qali", "qbia",
+    "area", "volu", "length", "node", "elem", "line", "surf", "body", "proj",
+    "move", "rot", "tra", "flip", "comp", "msh", "read", "send", "step", "col",
+    "anim", "val", "max", "min", "mesh", "font", "sh", "ruler", "bg", "capt"
+  };
+  int count = (int)(sizeof(known_cmds) / sizeof(known_cmds[0]));
+  int best_dist = 99;
+  const char *best_match = NULL;
+  for (int i = 0; i < count; i++)
+  {
+    int dist = levenshtein_dist(cmd, known_cmds[i]);
+    if (dist < best_dist)
+    {
+      best_dist = dist;
+      best_match = known_cmds[i];
+    }
+  }
+  int len = (int)strlen(cmd);
+  int max_allowed = (len <= 3) ? 1 : 2;
+  if (best_dist <= max_allowed) return best_match;
+  return NULL;
+}
+
 /* Directly execute a command string from the GLFW command bar or terminal */
 void cgx_execute_command_string(const char *cmd_str)
 {
@@ -5868,8 +5930,9 @@ void cgx_execute_command_string(const char *cmd_str)
   else if (compare(prognam, "QTXT", 4) == 4) qtxt();
   else
   {
-    commandoInterpreter(prognam, &k_ptr, pos, 0, 0, 0, &gtolFlag);
+    int res = commandoInterpreter(prognam, &k_ptr, pos, 0, 0, 0, &gtolFlag);
     if (compare(prognam, "ELEM", 4) == 4) new_elems = 1;
+    (void)res;
   }
 
   if (new_elems)
@@ -5957,8 +6020,8 @@ void moveModel()
   {
     double aspect = (aspectRatio_w1 > 0.001) ? aspectRatio_w1 : 1.0;
     double fov = 40.0;
-    double cam_dist = ds * 2.0;
-    if (cam_dist < 0.0001) cam_dist = 0.0001;
+    double half_fov_rad = (fov * 0.5) * (M_PI / 180.0);
+    double cam_dist = (ds > 0.0001) ? (ds / tan(half_fov_rad)) : 2.5;
     gluPerspective(fov, aspect, 0.001, 1000.0);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -7222,11 +7285,16 @@ void setWindowPos(char *string)
 
 void reshape( int width, int height )
 {
+  if (width < 10) width = 10;
+  if (height < 10) height = 10;
   width_w0=width; 
   height_w0=height; 
   width_w1=width - width_menu; 
   height_w1=height - height_menu; 
+  if (width_w1 < 10) width_w1 = 10;
+  if (height_w1 < 10) height_w1 = 10;
   aspectRatio_w1=(double)width_w1/(double)height_w1;
+  if (aspectRatio_w1 < 0.001) aspectRatio_w1 = 1.0;
 
   /* MAIN WINDOW */
   glutSetWindow( w0 );
