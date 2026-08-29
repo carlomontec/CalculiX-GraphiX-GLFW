@@ -109,13 +109,13 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-glfw
             mingw-w64-x86_64-cmake
-            make
+            mingw-w64-x86_64-ninja
 
       - name: Configure and Build with CMake
         shell: msys2 {0}
         run: |
-          cmake -B build -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-          cmake --build build --config Release --parallel
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
 
       - name: Headless sanity test
         shell: msys2 {0}
