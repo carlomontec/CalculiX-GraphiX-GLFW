@@ -1,2 +1,4 @@
 read test/beam10p.frd
+send all vtu
+read test/beam_modal.frd
 send all vtu all
