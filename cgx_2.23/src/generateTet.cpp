@@ -20,11 +20,8 @@
 /*     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.         */
 /* --------------------------------------------------------------------  */
 
-/* TO DO  */
-
 #ifndef CGXCDSM_H
 #define CGXCDSM_H
-
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,24 +32,30 @@ extern "C" {
 #endif
 
 #endif
-  #undef max
-  #undef min
+#undef max
+#undef min
+#undef NODES
+#undef MESH
+#undef OUTSIDE
+#undef PI
+
+#include "tetgen/tetgen.h"
+#include <iostream>
 
 extern double     gtol;
+extern char       printFlag;                   /* printf 1:on 0:off */
 
-extern char  printFlag;                   /* printf 1:on 0:off */
+extern Scale      scale[1];
+extern Summen     anz[1];
+extern Nodes      *node;
+extern Faces      *face;
+extern Elements   *e_enqire;
 
-extern Scale     scale[1];
-extern Summen    anz[1];
-extern Nodes     *node;
-extern Faces     *face;
-extern Elements  *e_enqire;
-
-extern SumGeo    anzGeo[1];
-extern Gbod      *body;
-extern Gsur      *surf;
-extern Sets      *set;
-extern Sets      *setx;
+extern SumGeo     anzGeo[1];
+extern Gbod       *body;
+extern Gsur       *surf;
+extern Sets       *set;
+extern Sets       *setx;
 
 using namespace std;
 
@@ -60,50 +63,23 @@ using namespace std;
 int generateTetFromSet(int setNr, double teth, int eattr, int mesherFlag )
 {
   int e,i,j,k,n;
-  int snodSet, np, ne, ngtet[10], cgxtet[10], sumtri3=0, sumtri6=0,n1,n2,nm;
+  int snodSet, np, ne, cgxtet[10], sumtri3=0, sumtri6=0, n1, n2, nm;
   int *ebuf;
   static int *cgxnode=NULL;
   static int *ngnode=NULL;
-  char buffer[1000];
 
   typedef struct {
     int sum, *n2, *nm;
-  }N1nm;
+  } N1nm;
   N1nm *n1nm=NULL;
 
   int nodseq_tr6[]={0,3,1,1,4,2,2,5,0};
   int nodseq_te10[]={0,4,1,1,5,2,2,6,0, 0,7,3,1,8,3,2,9,3};
 
-  Summen    anz_ng[1];
-  Nodes     *node_ng=NULL;
-  Elements  *elem_ng=NULL;
-
-  anz_ng->orign=0;
-  anz_ng->n=0;
-  anz_ng->e=0;
-  anz_ng->f=0;
-  anz_ng->g=0;
-  anz_ng->t=0;
-  anz_ng->l=0;
-  anz_ng->olc=0;
-  anz_ng->orignmax=0;
-  anz_ng->nmax=0;
-  anz_ng->nmin=MAX_INTEGER;
-  anz_ng->emax=0;
-  anz_ng->emin=MAX_INTEGER;
-  anz_ng->sets=0;
-  anz_ng->mats=0;
-  anz_ng->amps=0;
-  anz_ng->nnext=0;
-  anz_ng->enext=0;
-
-  // the address stored in setx could still be in use (ie. set)
-  // therefore a fresh start is needed
   setx=NULL;
 
   // check the consistency of the surface mesh. Either all tr6 or tr3
-  // generate a list of surface nodes which will be passed to NG
-
+  // generate a list of surface nodes which will be passed to TetGen
   delSet("+snodSet");
   delSet("+velemSet");
   snodSet=pre_seta("+snodSet","i",0);
@@ -133,123 +109,80 @@ int generateTetFromSet(int setNr, double teth, int eattr, int mesherFlag )
   if ((ngnode = (int *)realloc((int *)ngnode, (anz->nmax+1)*sizeof(int)) ) == NULL )
     { errMsg("ERROR: realloc failure in generateTet\n"); return(0); }
 
-  FILE *handle = fopen ("nodnr.out", "w");
-  FILE *handle_ng = NULL;
-  if(mesherFlag==0) {
-    handle_ng = fopen ("mesh.ng", "w");
-    fprintf (handle_ng, "%d\n", set[snodSet].anz_n); }
-  else {
-    handle_ng = fopen ("mesh.smesh", "w");
-    fprintf (handle_ng, "%d 3\n", set[snodSet].anz_n); }
- 
+  // Construct in-memory TetGen input structure
+  tetgenio in, out;
+  in.firstnumber = 1;
+  in.numberofpoints = set[snodSet].anz_n;
+  in.pointlist = new REAL[in.numberofpoints * 3];
+
   for (i = 0; i < set[snodSet].anz_n; i++)
   {
-    ngnode[set[snodSet].node[i]]=i+1;
-    if(mesherFlag==0) {
-      fprintf(handle,"ng %d cgx %d\n", i+1,set[snodSet].node[i]);
-      fprintf (handle_ng, "%.12e %.12e %.12e\n", node[set[snodSet].node[i]].nx, node[set[snodSet].node[i]].ny, node[set[snodSet].node[i]].nz); }
-    else {
-      fprintf(handle,"tg %d cgx %d\n", i+1,set[snodSet].node[i]);
-      fprintf (handle_ng, "%d %.12e %.12e %.12e\n", i+1,node[set[snodSet].node[i]].nx, node[set[snodSet].node[i]].ny, node[set[snodSet].node[i]].nz); }
+    int nid = set[snodSet].node[i];
+    ngnode[nid] = i + 1;
+    in.pointlist[i * 3 + 0] = node[nid].nx;
+    in.pointlist[i * 3 + 1] = node[nid].ny;
+    in.pointlist[i * 3 + 2] = node[nid].nz;
   }
-  fclose(handle);
 
-  handle = fopen ("elemnr.out", "w");
-
-  fprintf (handle_ng, "%d\n", set[setNr].anz_e);
+  in.numberoffacets = set[setNr].anz_e;
+  in.facetlist = new tetgenio::facet[in.numberoffacets];
   for (i = 0; i < set[setNr].anz_e; i++)
   {
-    for(k=0; k<3; k++) ngtet[k]=ngnode[e_enqire[set[setNr].elem[i]].nod[k]];
-    fprintf(handle,"ng %d cgx %d\n", i+1,set[setNr].elem[i]);
-    if(mesherFlag==1) fprintf (handle_ng, "3 ");
-    for(k=0; k<3; k++) fprintf (handle_ng, " %d",ngnode[e_enqire[set[setNr].elem[i]].nod[k]]);
-    fprintf (handle_ng, "\n");
+    tetgenio::facet *f = &in.facetlist[i];
+    f->numberofpolygons = 1;
+    f->polygonlist = new tetgenio::polygon[1];
+    f->numberofholes = 0;
+    f->holelist = NULL;
+    tetgenio::polygon *p = &f->polygonlist[0];
+    p->numberofvertices = 3;
+    p->vertexlist = new int[3];
+    for (k = 0; k < 3; k++)
+      p->vertexlist[k] = ngnode[e_enqire[set[setNr].elem[i]].nod[k]];
   }
-  fclose(handle);
-  fclose(handle_ng);
 
-  // mesh, stand alone mesher:
-  if(mesherFlag==0)
+  // Run in-memory tetrahedralization
+  char switches[256];
+  if (teth > 0.0 && teth < 1e5)
   {
-    sprintf(buffer, "ng_vol mesh.ng %f%d", teth/scale->w, 0);
-    system(buffer);
-    printf (" Try to read NG file\n\n");
-    if ( (  readNG( "test.vol", anz_ng, &setx, &node_ng, &elem_ng, NULL)) == -1) 
-    {
-      printf("ERROR: No mesh-file found\n\n");
-      return(0);
-    }
+    double maxvol = (teth/scale->w)*(teth/scale->w)*(teth/scale->w)/5.;
+    sprintf(switches, "pq1.3/17O7a%e", maxvol);
   }
   else
   {
-    sprintf(buffer, "tetgen -qYO%da%e mesh.smesh",5, (teth/scale->w)*(teth/scale->w)*(teth/scale->w)/5.);
-    system(buffer);
-    printf (" Try to read TG file\n\n");
-    sprintf(buffer, "mesh.1.node");
-    if ( (  readTG( buffer, anz_ng, &setx, &node_ng, &elem_ng, NULL)) == -1) 
-    {
-      printf("ERROR: No mesh-file found\n\n");
-      return(0);
-    }
+    sprintf(switches, "pq1.3/17O7");
   }
 
-  for(j=0; j<anz_ng->sets; j++) {  delSetx(setx[j].name); }
-  free(setx); setx=NULL;
-  if(anz_ng->e>0)
-  {
-    if(mesherFlag==0)
-    {
-#ifdef WIN32
-      system("del /f \"mesh.ng\"");
-      system("del /f \"test.vol\"");
-      system("del /f \"test.out\"");
-      system("del /f \"netgen.prof\"");
-      system("del /f \"nodnr.out\" \"elemnr.out\"");
-#else
-      system("rm -rf mesh.ng");
-      system("rm -rf test.vol");
-      system("rm -rf test.out");
-      system("rm -rf netgen.prof");
-      system("rm -rf nodnr.out elemnr.out");
-#endif
-    }
-    else
-    {
-#ifdef WIN32
-      system("del /f \"mesh.smesh\"");
-      system("del /f \"mesh.1.node\"");
-      system("del /f \"mesh.1.ele\"");
-      system("del /f \"mesh.1.face\"");
-      system("del /f \"mesh.1.edge\"");
-      system("del /f \"nodnr.out\" \"elemnr.out\"");
-#else
-      system("rm -rf mesh.smesh");
-      system("rm -rf mesh.1.node");
-      system("rm -rf mesh.1.ele");
-      system("rm -rf mesh.1.face");
-      system("rm -rf mesh.1.edge");
-      system("rm -rf nodnr.out elemnr.out");
-#endif
-    }
+  printf(" Starting in-memory TetGen mesher (switches: %s)...\n", switches);
+  try {
+    tetrahedralize(switches, &in, &out);
   }
-  else
+  catch (int errcode) {
+    printf("ERROR in TetGen: execution failed with error code %d\n\n", errcode);
+    return 0;
+  }
+  catch (...) {
+    printf("ERROR in TetGen: unknown exception caught during tetrahedralization\n\n");
+    return 0;
+  }
+
+  if (out.numberoftetrahedra <= 0)
   {
-    printf("ERROR: No valid mesh found, temporary files still exists for debugging\n\n");
-    return(0);
+    printf("ERROR: No tetrahedral elements were generated\n\n");
+    return 0;
   }
 
   // define new nodes and tets
-  np = anz_ng->n;
+  np = out.numberofpoints;
   if ((cgxnode = (int *)realloc((int *)cgxnode, (np+1)*sizeof(int)) ) == NULL )
     { errMsg("ERROR: realloc failure in generateTet\n"); return(0); }
   for (i = 0; i < np; i++)
   {
-    // store the new nodenr
-    if(i<set[snodSet].anz_n) cgxnode[i+1]=set[snodSet].node[i];
+    if (i < set[snodSet].anz_n)
+      cgxnode[i+1] = set[snodSet].node[i];
     else
     {
-      cgxnode[i+1]=anz->nnext++;
-      nod( anz, &node, 1, cgxnode[i+1], node_ng[i+1].nx, node_ng[i+1].ny, node_ng[i+1].nz, 0 );     
+      cgxnode[i+1] = anz->nnext++;
+      nod( anz, &node, 1, cgxnode[i+1], out.pointlist[i*3+0], out.pointlist[i*3+1], out.pointlist[i*3+2], 0 );     
     } 
   }
   delSet( set[snodSet].name );
@@ -297,10 +230,10 @@ int generateTetFromSet(int setNr, double teth, int eattr, int mesherFlag )
       for (j=0; j<set[setNr].anz_e; j++)
       {
         if(surf[k].elem[n]==set[setNr].elem[j])
-	{
+        {
           face[ face[surf[k].elem[n]].indx[1] ].nr=-1;
           surf[k].elem[n]=0;
-  	}
+        }
       }
     }
     e=0;
@@ -314,7 +247,7 @@ int generateTetFromSet(int setNr, double teth, int eattr, int mesherFlag )
     {
       if(set[k].anz_e<=0) continue;
       if( (ebuf=(int *)calloc((anz->emax+1), sizeof(int) ) )==NULL) 
-	{ printf(" ERROR: calloc failure\n"); return(0); }
+        { printf(" ERROR: calloc failure\n"); return(0); }
       for(j=0; j<set[k].anz_e; j++) ebuf[set[k].elem[j]]=1;
       if(set[k].type==0)
       {
@@ -329,28 +262,20 @@ int generateTetFromSet(int setNr, double teth, int eattr, int mesherFlag )
     }
   }
 
-  ne = anz_ng->e;
-  i=0; for (j = 0; j < ne; j++)
+  ne = out.numberoftetrahedra;
+  i=0;
+  for (j = 0; j < ne; j++)
   {
-    if(elem_ng[j].type != 3) continue;
-    ngtet[0]=elem_ng[j].nod[0];
-    ngtet[2]=elem_ng[j].nod[1];
-    ngtet[1]=elem_ng[j].nod[2];
-    ngtet[3]=elem_ng[j].nod[3];
-    //printf("  n:%d %d %d %d\n", ngtet[0],ngtet[1],ngtet[2],ngtet[3]);
-    
-    cgxtet[0]=cgxnode[ngtet[0]];
-    cgxtet[1]=cgxnode[ngtet[2]];
-    cgxtet[2]=cgxnode[ngtet[1]];
-    cgxtet[3]=cgxnode[ngtet[3]];
+    cgxtet[0] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 0]];
+    cgxtet[1] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 1]];
+    cgxtet[2] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 2]];
+    cgxtet[3] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 3]];
+
     if(i<set[setNr].anz_e) elem_define(anz,&e_enqire, set[setNr].elem[i], 3, cgxtet, 1, eattr );
     else { elem_define(anz,&e_enqire, anz->enext++, 3, cgxtet, 1, eattr ); seta( setNr, "e", anz->emax ); }
     i++;
   }
   ne = i;
-  free(node_ng);
-  free(elem_ng);
-  //printf("set[].flag:%c i:%d e:%d e-i:%d\n", set[setNr].flag, i,set[setNr].anz_e, set[setNr].anz_e-i);
 
   // delete remaining surface elements
   if (i<set[setNr].anz_e) delElem( set[setNr].anz_e-i, &set[setNr].elem[i] ) ;
@@ -364,30 +289,29 @@ int generateTetFromSet(int setNr, double teth, int eattr, int mesherFlag )
     snodSet=pre_seta("+snodSet","i",0);
     for (k = 0; k < set[setNr].anz_e; k++)
     {
-        for (n=0; n<6; n++)
+      for (n=0; n<6; n++)
+      {
+        n1=e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3]];
+        n2=e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+2]];
+
+        /* check if the nm is known */
+        nm=-1;
+        for(i=0; i<n1nm[n1].sum; i++) if(n1nm[n1].n2[i]==n2) nm=n1nm[n1].nm[i];
+        for(i=0; i<n1nm[n2].sum; i++) if(n1nm[n2].n2[i]==n1) nm=n1nm[n2].nm[i];
+
+        if(nm!=-1)
         {
-          n1=e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3]];
-          n2=e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+2]];
-
-          /* check if the nm is known */
-          nm=-1;
-          for(i=0; i<n1nm[n1].sum; i++) if(n1nm[n1].n2[i]==n2) nm=n1nm[n1].nm[i];
-          for(i=0; i<n1nm[n2].sum; i++) if(n1nm[n2].n2[i]==n1) nm=n1nm[n2].nm[i];
-
-          if(nm!=-1)
-	  {
-            /* change node */
-            //printf(" change node:%d to %d\n", e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+1]],nm);
-            seta(snodSet,"n",e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+1]]); 
-            e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+1]]=nm;
-	  }
+          /* change node */
+          seta(snodSet,"n",e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+1]]); 
+          e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+1]]=nm;
         }
+      }
     }
     zap( set[snodSet].name );
     fixMidsideNodes( set[setNr].name, "" );
   }
 
-  printf("tet-mesh done with h:%f\n",teth);
+  printf("tet-mesh done with h:%f (generated %d tetrahedra, %d nodes)\n", teth, ne, np);
   return(ne);
 }
 
@@ -396,50 +320,22 @@ int generateTetFromSet(int setNr, double teth, int eattr, int mesherFlag )
 int generateTetFromBody(int nr, double teth, int eattr, int mesherFlag)
 {
   int i,j,k,n,s,sb;
-  int setNr, snodSet, snodSet2, mnodSet, np, ne, ngtet[10], cgxtet[10], sumtri=0, sumtri3=0, sumtri6=0,n1,n2,nm;
+  int setNr, snodSet, snodSet2, mnodSet, np, ne, cgxtet[10], sumtri=0, sumtri3=0, sumtri6=0, n1, n2, nm;
   static int *cgxnode=NULL;
   static int *ngnode=NULL;
-  char buffer[1000];
   int tryToFlipBody=0;
 
   typedef struct {
     int sum, *n2, *nm;
-  }N1nm;
+  } N1nm;
   N1nm *n1nm=NULL;
 
   int nodseq_tr6[]={0,3,1,1,4,2,2,5,0};
   int nodseq_te10[]={0,4,1,1,5,2,2,6,0, 0,7,3,1,8,3,2,9,3};
 
-  Summen    anz_ng[1];
-  Nodes     *node_ng=NULL;
-  Elements  *elem_ng=NULL;
-
-  anz_ng->orign=0;
-  anz_ng->n=0;
-  anz_ng->e=0;
-  anz_ng->f=0;
-  anz_ng->g=0;
-  anz_ng->t=0;
-  anz_ng->l=0;
-  anz_ng->olc=0;
-  anz_ng->orignmax=0;
-  anz_ng->nmax=0;
-  anz_ng->nmin=MAX_INTEGER;
-  anz_ng->emax=0;
-  anz_ng->emin=MAX_INTEGER;
-  anz_ng->sets=0;
-  anz_ng->mats=0;
-  anz_ng->amps=0;
-  anz_ng->nnext=0;
-  anz_ng->enext=0;
-
-  // the address stored in setx could still be in use (ie. set)
-  // therefore a fresh start is needed
   setx=NULL;
 
   // check the consistency of the surface mesh. Either all tr6 or tr3
-  // generate a list of surface nodes which will be passed to NG
-
   delSet("+snodSet");
   delSet("+mnodSet");
   delSet("+velemSet");
@@ -481,33 +377,29 @@ int generateTetFromBody(int nr, double teth, int eattr, int mesherFlag)
   if ((ngnode = (int *)realloc((int *)ngnode, (anz->nmax+1)*sizeof(int)) ) == NULL )
     { errMsg("ERROR: realloc failure in generateTet\n"); return(0); }
 
- tryToFlipBodyMark:;
-  FILE *handle = fopen ("nodnr.out", "w");
-  FILE *handle_ng = NULL;
-  if(mesherFlag==0) {
-    handle_ng = fopen ("mesh.ng", "w");
-    fprintf (handle_ng, "%d\n", set[snodSet].anz_n); }
-  else {
-    handle_ng = fopen ("mesh.smesh", "w");
-    fprintf (handle_ng, "%d 3\n", set[snodSet].anz_n); }
- 
+tryToFlipBodyMark:;
+
+  // Construct in-memory TetGen input structure
+  tetgenio in, out;
+  in.firstnumber = 1;
+  in.numberofpoints = set[snodSet].anz_n;
+  in.pointlist = new REAL[in.numberofpoints * 3];
+
   for (i = 0; i < set[snodSet].anz_n; i++)
   {
-    ngnode[set[snodSet].node[i]]=i+1;
-    if(mesherFlag==0) {
-      fprintf(handle,"ng %d cgx %d\n", i+1,set[snodSet].node[i]);
-      fprintf (handle_ng, "%.12e %.12e %.12e\n", node[set[snodSet].node[i]].nx, node[set[snodSet].node[i]].ny, node[set[snodSet].node[i]].nz); }
-    else {
-      fprintf(handle,"tg %d cgx %d\n", i+1,set[snodSet].node[i]);
-      fprintf (handle_ng, "%d %.12e %.12e %.12e\n", i+1,node[set[snodSet].node[i]].nx, node[set[snodSet].node[i]].ny, node[set[snodSet].node[i]].nz); }
+    int nid = set[snodSet].node[i];
+    ngnode[nid] = i + 1;
+    in.pointlist[i * 3 + 0] = node[nid].nx;
+    in.pointlist[i * 3 + 1] = node[nid].ny;
+    in.pointlist[i * 3 + 2] = node[nid].nz;
   }
-  fclose(handle);
 
-  handle = fopen ("elemnr.out", "w");
+  n=0;
+  for(sb=0; sb<body[nr].ns; sb++) n+=surf[body[nr].s[sb]].ne;
+  in.numberoffacets = n;
+  in.facetlist = new tetgenio::facet[in.numberoffacets];
 
-  //printf("body:%s\n", body[nr].name);
-  n=0; for(sb=0; sb<body[nr].ns; sb++) n+=surf[body[nr].s[sb]].ne;
-  fprintf (handle_ng, "%d\n", n);
+  int facet_idx = 0;
   for(sb=0; sb<body[nr].ns; sb++)
   {
     s=body[nr].s[sb];
@@ -515,124 +407,85 @@ int generateTetFromBody(int nr, double teth, int eattr, int mesherFlag)
     if(body[nr].o[sb]=='-') n*=-1;
     if(body[nr].ori=='-') n*=-1;
     if(tryToFlipBody) n*=-1;
-    if(n==-1)
-    {
-      printf("-surf:%s\n", surf[s].name);
-      for (i = 0; i < surf[s].ne; i++)
-      {
-        j=2; for(k=0; k<3; k++) ngtet[k]=ngnode[e_enqire[surf[s].elem[i]].nod[j--]];
-        fprintf(handle,"ng %d cgx %d\n", i+1,surf[s].elem[i] );
-        if(mesherFlag==1) fprintf (handle_ng, "3 ");
-        for(k=0; k<3; k++) fprintf (handle_ng, " %d",ngtet[k]);
-        fprintf (handle_ng, "\n");
-      }
-    }
-    else
-    {
-      printf("+surf:%s\n", surf[s].name);
-      for (i = 0; i < surf[s].ne; i++)
-      {
-        for(k=0; k<3; k++) ngtet[k]=ngnode[e_enqire[surf[s].elem[i]].nod[k]];
-        fprintf(handle,"ng %d cgx %d\n", i+1,surf[s].elem[i] );
-        if(mesherFlag==1) fprintf (handle_ng, "3 ");
-        for(k=0; k<3; k++) fprintf (handle_ng, " %d",ngtet[k]);
-        fprintf (handle_ng, "\n");
-      }
-    }
-  }
-  fclose(handle);
-  fclose(handle_ng);
 
-  // mesh, stand alone mesher:
-  if(mesherFlag==0)
-  {
-    sprintf(buffer, "ng_vol mesh.ng %f%d", teth/scale->w, 0);
-    system(buffer);
-    printf (" Try to read NG file\n\n");
-    if ( (  readNG( "test.vol", anz_ng, &setx, &node_ng, &elem_ng, NULL)) == -1) 
+    for (i = 0; i < surf[s].ne; i++)
     {
-      if(tryToFlipBody)
+      tetgenio::facet *f = &in.facetlist[facet_idx++];
+      f->numberofpolygons = 1;
+      f->polygonlist = new tetgenio::polygon[1];
+      f->numberofholes = 0;
+      f->holelist = NULL;
+      tetgenio::polygon *p = &f->polygonlist[0];
+      p->numberofvertices = 3;
+      p->vertexlist = new int[3];
+
+      if(n==-1)
       {
-        printf("ERROR: No mesh-file found\n\n");
-        return(0);
+        p->vertexlist[0] = ngnode[e_enqire[surf[s].elem[i]].nod[2]];
+        p->vertexlist[1] = ngnode[e_enqire[surf[s].elem[i]].nod[1]];
+        p->vertexlist[2] = ngnode[e_enqire[surf[s].elem[i]].nod[0]];
       }
-      else { tryToFlipBody=1; goto tryToFlipBodyMark; }
-    }
-  }
-  else
-  {
-    sprintf(buffer, "tetgen -qY mesh.smesh");
-    system(buffer);
-    printf (" Try to read TG file\n\n");
-    sprintf(buffer, "mesh.1.node");
-    if ( (  readTG( buffer, anz_ng, &setx, &node_ng, &elem_ng, NULL)) == -1) 
-    {
-      if(tryToFlipBody)
+      else
       {
-        printf("ERROR: No mesh-file found\n\n");
-        return(0);
+        p->vertexlist[0] = ngnode[e_enqire[surf[s].elem[i]].nod[0]];
+        p->vertexlist[1] = ngnode[e_enqire[surf[s].elem[i]].nod[1]];
+        p->vertexlist[2] = ngnode[e_enqire[surf[s].elem[i]].nod[2]];
       }
-      else { tryToFlipBody=1; goto tryToFlipBodyMark; }
     }
   }
 
-  for(j=0; j<anz_ng->sets; j++) {  delSetx(setx[j].name); }
-  free(setx); setx=NULL;
-  if(anz_ng->e>0)
+  // Run in-memory tetrahedralization
+  char switches[256];
+  if (teth > 0.0 && teth < 1e5)
   {
-    if(mesherFlag==0)
-    {
-#ifdef WIN32
-      system("del /f \"mesh.ng\"");
-      system("del /f \"test.vol\"");
-      system("del /f \"test.out\"");
-      system("del /f \"netgen.prof\"");
-      system("del /f \"nodnr.out\" \"elemnr.out\"");
-#else
-      system("rm -rf mesh.ng");
-      system("rm -rf test.vol");
-      system("rm -rf test.out");
-      system("rm -rf netgen.prof");
-      system("rm -rf nodnr.out elemnr.out");
-#endif
-    }
-    else
-    {
-#ifdef WIN32
-      system("del /f \"mesh.smesh\"");
-      system("del /f \"mesh.1.node\"");
-      system("del /f \"mesh.1.ele\"");
-      system("del /f \"mesh.1.face\"");
-      system("del /f \"mesh.1.edge\"");
-      system("del /f \"nodnr.out\" \"elemnr.out\"");
-#else
-      system("rm -rf mesh.smesh");
-      system("rm -rf mesh.1.node");
-      system("rm -rf mesh.1.ele");
-      system("rm -rf mesh.1.face");
-      system("rm -rf mesh.1.edge");
-      system("rm -rf nodnr.out elemnr.out");
-#endif
-    }
+    // Global max volume constraint
+    double maxvol = (teth/scale->w)*(teth/scale->w)*(teth/scale->w)/5.;
+    sprintf(switches, "pq1.3/17O7a%e", maxvol);
   }
   else
   {
-    printf("ERROR: No valid mesh found, temporary files still exists for debugging\n\n");
-    return(0);
+    // Pure boundary-driven graded Delaunay refinement
+    sprintf(switches, "pq1.3/17O7");
+  }
+
+  printf(" Starting in-memory TetGen mesher for body %s (switches: %s)...\n", body[nr].name, switches);
+  bool meshing_ok = true;
+  try {
+    tetrahedralize(switches, &in, &out);
+  }
+  catch (int errcode) {
+    meshing_ok = false;
+  }
+  catch (...) {
+    meshing_ok = false;
+  }
+
+  if (!meshing_ok || out.numberoftetrahedra <= 0)
+  {
+    if (tryToFlipBody == 0)
+    {
+      printf(" Notice: Retrying body %s with flipped surface orientation...\n", body[nr].name);
+      tryToFlipBody = 1;
+      goto tryToFlipBodyMark;
+    }
+    else
+    {
+      printf("ERROR: TetGen failed to mesh body %s\n\n", body[nr].name);
+      return 0;
+    }
   }
 
   // define new nodes and tets
-  np = anz_ng->n;
+  np = out.numberofpoints;
   if ((cgxnode = (int *)realloc((int *)cgxnode, (np+1)*sizeof(int)) ) == NULL )
     { errMsg("ERROR: realloc failure in generateTet\n"); return(0); }
   for (i = 0; i < np; i++)
   {
-    // store the new nodenr
     if(i<set[snodSet].anz_n) cgxnode[i+1]=set[snodSet].node[i];
     else
     {
       cgxnode[i+1]=anz->nnext++;
-      nod( anz, &node, 1, cgxnode[i+1], node_ng[i+1].nx, node_ng[i+1].ny, node_ng[i+1].nz, 0 );     
+      nod( anz, &node, 1, cgxnode[i+1], out.pointlist[i*3+0], out.pointlist[i*3+1], out.pointlist[i*3+2], 0 );     
     } 
   }
 
@@ -675,7 +528,7 @@ int generateTetFromBody(int nr, double teth, int eattr, int mesherFlag)
     }
   }
 
-  ne = anz_ng->e;
+  ne = out.numberoftetrahedra;
 
   /* allocate memory for embeded elements */
   if((body[nr].elem=(int *)realloc((int *)body[nr].elem, (ne)*sizeof(int)) )==NULL)
@@ -683,26 +536,20 @@ int generateTetFromBody(int nr, double teth, int eattr, int mesherFlag)
   if((body[nr].nod=(int *)realloc((int *)body[nr].nod, (ne)*sizeof(int)) )==NULL)
   { printf(" ERROR: realloc failure in generateTet body:%s can not be meshed\n\n" , body[nr].name); return(0); }
 
-  i=0; for (j = 0; j < ne; j++)
+  i=0;
+  for (j = 0; j < ne; j++)
   {
-    if(elem_ng[j].type != 3) continue;
-    ngtet[0]=elem_ng[j].nod[0];
-    ngtet[2]=elem_ng[j].nod[1];
-    ngtet[1]=elem_ng[j].nod[2];
-    ngtet[3]=elem_ng[j].nod[3];
-    //printf("  n:%d %d %d %d\n", ngtet[0],ngtet[1],ngtet[2],ngtet[3]);
-    
-    cgxtet[0]=cgxnode[ngtet[0]];
-    cgxtet[1]=cgxnode[ngtet[2]];
-    cgxtet[2]=cgxnode[ngtet[1]];
-    cgxtet[3]=cgxnode[ngtet[3]];
+    cgxtet[0] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 0]];
+    cgxtet[1] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 1]];
+    cgxtet[2] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 2]];
+    cgxtet[3] = cgxnode[out.tetrahedronlist[j * out.numberofcorners + 3]];
+
     body[nr].elem[i]=anz->enext;
-    elem_define(anz,&e_enqire, anz->enext++, 3, cgxtet, 1, eattr ); seta( setNr, "e", anz->emax );
+    elem_define(anz,&e_enqire, anz->enext++, 3, cgxtet, 1, eattr );
+    seta( setNr, "e", anz->emax );
     i++;
   }
   ne = i;
-  free(node_ng);
-  free(elem_ng);
   body[nr].ne=ne;
 
   /* generate midside nodes */
@@ -725,12 +572,11 @@ int generateTetFromBody(int nr, double teth, int eattr, int mesherFlag)
         for(i=0; i<n1nm[n2].sum; i++) if(n1nm[n2].n2[i]==n1) nm=n1nm[n2].nm[i];
 
         if(nm!=-1)
-    	{
+        {
           /* change node */
-          //printf(" change node:%d to %d\n", e_enqire[surf[s].elem[k]].nod[nodseq_te10[n*3+1]],nm);
           seta(snodSet2,"n",e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+1]]); 
           e_enqire[set[setNr].elem[k]].nod[nodseq_te10[n*3+1]]=nm;
-    	}
+        }
       }
     }
 
@@ -762,6 +608,6 @@ int generateTetFromBody(int nr, double teth, int eattr, int mesherFlag)
   delSet("+mnodSet");
   delSet("+velemSet");
 
-  printf("tet-mesh done with h:%f\n",teth);
+  printf("tet-mesh done with h:%f (generated %d tetrahedra, %d nodes for body %s)\n", teth, ne, np, body[nr].name);
   return(ne);
 }

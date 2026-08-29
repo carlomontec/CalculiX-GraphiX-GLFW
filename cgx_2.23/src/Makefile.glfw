@@ -12,9 +12,9 @@ CC = gcc
 CXX = g++
 
 OPT ?= -O2
-INCLUDES = -I./ -I../../libSNL/src
+INCLUDES = -I./ -I../../libSNL/src -Itetgen
 CFLAGS = $(OPT) -std=gnu17 -Wall -Wno-narrowing -DUSE_GLFW $(INCLUDES)
-CXXFLAGS = $(OPT) -std=c++11 -Wall -Wno-narrowing -Wno-register -DUSE_GLFW $(INCLUDES)
+CXXFLAGS = $(OPT) -std=c++11 -Wall -Wno-narrowing -Wno-register -DTETLIBRARY -DUSE_GLFW $(INCLUDES)
 
 ifeq ($(UNAME_S),Darwin)
   # macOS native configuration (Zero X11 / Zero XQuartz / Zero GLUT)
@@ -62,19 +62,21 @@ GLFW_LIB = \
 CPP_SRC = \
  uselibSNL.cpp \
  generateTet.cpp \
+ tetgen/tetgen.cxx \
+ tetgen/predicates.cxx \
  $(wildcard ../../libSNL/src/*.cpp)
 
 OUT ?= ../../bin/cgx_glfw
 
 SRCS = $(SLIB) $(ULIB) $(GLFW_LIB)
 OBJS = $(SRCS:.c=.o)
-CPP_OBJS = $(CPP_SRC:.cpp=.o)
+CPP_OBJS = $(patsubst %.cpp,%.o,$(patsubst %.cxx,%.o,$(CPP_SRC)))
 
 all: $(OUT)
 
 $(OUT): $(OBJS) $(CPP_OBJS)
 	@mkdir -p $(dir $(OUT))
-	$(CXX) $(CFLAGS) $(OBJS) $(CPP_OBJS) -o $(OUT) $(LFLAGS)
+	$(CXX) $(CXXFLAGS) $(OBJS) $(CPP_OBJS) -o $(OUT) $(LFLAGS)
 	@mkdir -p ../../../bin && cp -f $(OUT) ../../../bin/cgx_glfw 2>/dev/null || true
 	@echo ">>> SUCCESS: Built $(OUT) <<<"
 
@@ -84,5 +86,8 @@ $(OUT): $(OBJS) $(CPP_OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+%.o: %.cxx
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 clean:
-	rm -f $(OBJS) $(CPP_OBJS) $(OUT)
+	rm -f $(OBJS) $(CPP_OBJS) $(OUT) tetgen/*.o

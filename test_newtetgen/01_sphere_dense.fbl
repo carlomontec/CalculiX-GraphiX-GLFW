@@ -1,0 +1,7 @@
+read cgx_2.23/examples/basic/sphere_vol.fbd
+div all 24
+elty all te10 0.02
+mesh all
+prnt info
+prnt se
+quit
