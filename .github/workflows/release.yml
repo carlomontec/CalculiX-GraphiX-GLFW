@@ -93,6 +93,47 @@ jobs:
           name: cgx_glfw-linux-x86_64
           path: dist/cgx_glfw-linux-x86_64
 
+  build-linux-arm64:
+    name: Build Linux (ARM64 aarch64 / Raspberry Pi)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies & fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libglfw3-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            fonts-dejavu-core \
+            fonts-liberation
+
+      - name: Configure and Build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release --parallel
+
+      - name: Headless sanity test
+        run: |
+          ./bin/cgx_glfw -bg test/test_vtu.fbl
+          test -s all.vtu
+
+      - name: Prepare distribution asset
+        run: |
+          mkdir -p dist
+          cp bin/cgx_glfw dist/cgx_glfw-linux-arm64
+          chmod +x dist/cgx_glfw-linux-arm64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cgx_glfw-linux-arm64
+          path: dist/cgx_glfw-linux-arm64
+
   build-windows-x64:
     name: Build Windows (x64 / MinGW-w64)
     runs-on: windows-latest
@@ -137,7 +178,7 @@ jobs:
 
   publish-release:
     name: Publish GitHub Release
-    needs: [build-macos-arm64, build-linux-x86_64, build-windows-x64]
+    needs: [build-macos-arm64, build-linux-x86_64, build-linux-arm64, build-windows-x64]
     runs-on: ubuntu-latest
     steps:
       - name: Download all build artifacts
@@ -160,6 +201,7 @@ jobs:
           files: |
             dist/cgx_glfw-macos-arm64
             dist/cgx_glfw-linux-x86_64
+            dist/cgx_glfw-linux-arm64
             dist/cgx_glfw-windows-x86_64.exe
             dist/SHA256SUMS.txt
           generate_release_notes: true

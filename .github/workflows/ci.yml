@@ -81,7 +81,44 @@ jobs:
         run: |
           test -s all.vtu
           test -s all.pvd
-          echo "[OK] Headless batch execution and VTU export validated successfully on Linux."
+          echo "[OK] Headless batch execution and VTU export validated successfully on Linux x86_64."
+
+  build-test-linux-arm64:
+    name: Linux (ARM64 aarch64 / Raspberry Pi)
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies & fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libglfw3-dev \
+            libgl1-mesa-dev \
+            libglu1-mesa-dev \
+            fonts-dejavu-core \
+            fonts-liberation
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build binary
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Run headless regression test (-bg)
+        run: |
+          ./bin/cgx_glfw -bg test/test_vtu.fbl
+
+      - name: Validate generated VTU & PVD outputs
+        run: |
+          test -s all.vtu
+          test -s all.pvd
+          echo "[OK] Headless batch execution and VTU export validated successfully on Linux ARM64."
 
   build-test-windows-x64:
     name: Windows (x64 / MinGW-w64)
