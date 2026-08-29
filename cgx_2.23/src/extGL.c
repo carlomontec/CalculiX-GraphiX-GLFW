@@ -1833,7 +1833,17 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
   glDisable(GL_TEXTURE_1D);
   glDisable(GL_TEXTURE_2D);
   glDisable(GL_DEPTH_TEST);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
 
   for (i=0; i<divisions; i++)
   {
@@ -1859,7 +1869,7 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
     glEnd();
 
     glColor3dv ( col );
-    glLineWidth(1.0f);
+    cgx_glLineWidth(1.0f);
     glBegin ( GL_LINE_LOOP );
       glVertex2d ( dx-kb*1., dy+kh*0. );
       glVertex2d ( dx-kb*0., dy+kh*0. );
@@ -1897,6 +1907,11 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
     glRasterPos2d( (dx+kb*0.2), dy-kh*0.1 );
     for ( j=0; j<10; j++) glutBitmapCharacter(glut_font, string[j]);
   }
+
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
   glPopAttrib();
 }
 

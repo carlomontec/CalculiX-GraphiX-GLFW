@@ -22,13 +22,16 @@ The objective is to explore agent-assisted refactoring by modernizing CGX's wind
 
 ## Highlights & New Features
 
-* **100% GLUT-Free & X11-Free**: Free of legacy X11, GLX, and raw GLUT dependencies. Windowing and input events are routed through a modern, native **GLFW3** layer across macOS (Apple Silicon / Intel), Linux (Wayland / X11), and Windows.
-* **Anti-Aliased Vector Typography**: Integrated [`stb_truetype`](https://github.com/nothings/stb) single-header font engine. All  text renders with **smooth, crisp vector typography**.
-* **Signature Dark Mode by Default**: Dark slate aesthetic with high-contrast foreground rendering.
-* **True 3D Perspective Projection**: New implemented Perspective view for 3D Visualization.
-* **Interactive In-Window Command Bar**: New field for commands, with command history navigation (`Up` / `Down` arrows), instant execution, and visual prompt.
-* **Modern Cascading Context Menus**: Updated cascade menus.
+* **100% GLUT-Free & X11-Free**: Free of legacy X11, GLX, and raw GLUT dependencies. Windowing and input events are routed through a modern, native **GLFW3** layer across macOS (Apple Silicon / Intel Cocoa), Linux (Wayland / X11), and Windows.
+* **Anti-Aliased Vector Typography**: Integrated [`stb_truetype`](https://github.com/nothings/stb) vector font engine with dynamic 3-tier font sizing (`Small`, `Medium`, `Big`).
+* **Signature Dark Mode by Default**: Modern dark slate aesthetic (`#0D121A`) with high-contrast text and colormaps.
+* **True 3D Perspective Projection**: Perspective projection active by default with center-anchored geometry framing (`frame`).
+* **Interactive Command Bar with Fuzzy Suggestions**: In-window command line bar with history navigation (<kbd>↑</kbd>/<kbd>↓</kbd>) and intelligent Levenshtein typo suggestions (e.g. `fram` $\rightarrow$ `frame`).
+* **Modern CAD / Blender Navigation Modifiers**: Smooth orbit, <kbd>Shift</kbd>/<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + Left Drag to Pan, and <kbd>Alt</kbd>/<kbd>Option</kbd> + Left Drag to Zoom.
+* **Retina & High-DPI Auto-Scaling**: Wireframes, text, and node points dynamically scale to your monitor's pixel ratio.
 * **Native Base64 Binary VTU/PVD Exporter**: 1-click export of complex 1D, 2D, and 3D meshes and transient results to ParaView (`send all vtu all`).
+
+> 📖 **Deep Dive**: For full details on all graphical enhancements, rendering options, and shortcuts, see [**GUI Extra Features**](GUI_EXTRA_FEATURES.md).
 
 ---
 
@@ -117,12 +120,14 @@ If you prefer to build manually from the cloned repository:
 
 ## Controls & Mouse Gestures
 
-| Gesture | Action |
+| Gesture / Shortcut | Action |
 | :--- | :--- |
-| **Left Click + Drag** | **Rotate 3D Model** (smooth trackball rotation around model center) |
-| **Right Click + Drag** | **Pan / Translate** model horizontally & vertically |
-| **Scroll Wheel** or **Middle Drag** | **Smooth Continuous Zoom** (unbounded zoom range) |
-| **Right Click** (click & release) | **Open Multi-Level Cascading Menu** |
+| **Left Click + Drag** | **Rotate / Orbit 3D Model** (smooth trackball rotation around model center) |
+| **Shift + Left Drag** or **Ctrl/Cmd + Drag** | **Pan / Translate** model horizontally & vertically |
+| **Alt / Option + Left Drag** | **Smooth Continuous Zoom** |
+| **Scroll Wheel** or **Trackpad Pinch** | **Step Zoom** (unbounded zoom range) |
+| **Right Click + Drag** | **Pan** (drag threshold $\ge 4\text{px}$) |
+| **Right Click** (tap & release) | **Open Multi-Level Cascading Context Menu** |
 
 ---
 

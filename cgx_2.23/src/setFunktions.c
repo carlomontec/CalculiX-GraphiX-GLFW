@@ -19297,7 +19297,20 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
   }
   else
   {
-    printf(" key:%s from string %s not known\n", type, string);
+    returnFlag = 0;
+    const char *sug = cgx_get_command_suggestion(type);
+    char status_buf[128];
+    if (sug)
+    {
+      printf(" [ERROR] Unknown command '%s'. Did you mean '%s'? (Type 'help' for commands)\n", string, sug);
+      snprintf(status_buf, sizeof(status_buf), "Unknown '%s' - did you mean '%s'?", string, sug);
+    }
+    else
+    {
+      printf(" [ERROR] Unknown command '%s'. (Type 'help' for available commands)\n", string);
+      snprintf(status_buf, sizeof(status_buf), "Unknown command '%s' (type 'help')", string);
+    }
+    cgx_set_gui_status(status_buf);
   }
 
  checkForError:;

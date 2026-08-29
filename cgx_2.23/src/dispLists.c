@@ -58,7 +58,7 @@ void drawModelEdges( GLuint list_model_edges, int color, double width, int numEd
 
   glNewList( list_model_edges, GL_COMPILE );
   glColor3d(color,color,color);
-  glLineWidth(width);
+  cgx_glLineWidth(width > 0 ? (float)(width * 0.5f) : 0.8f);
    glBegin ( GL_LINES );
    for (i=0; i<numEdges; i++ )
    {
@@ -86,8 +86,7 @@ void drawDispListEdges( GLuint list, int color, double width, char key, Nodes *n
   if(!anzGeo->psets) return;
 
   glNewList( list, GL_COMPILE );
-
-  /* glLineWidth(width) not implemented */
+  cgx_glLineWidth(width > 0 ? (float)(width * 0.5f) : 0.8f);
 
   for (j=0; j<anzGeo->psets; j++ )
   {
