@@ -3325,16 +3325,7 @@ void drawFaces_plot( int num, int *name, Nodes *node, double *colNr, Faces *face
 void drawFaces_edge( int num, int *name, Nodes *node, Faces *face, int color, char type )
 {
   int i;
-  static GLint ipuf[2];
-  double dsloc;
 
-  /* change the offset of the edges to the backside of the elements if */
-  /* the interiour is visible */
-  glGetIntegerv( GL_CULL_FACE_MODE, ipuf );
-  if(ds<MIN_ELEM_EDGE_DISTANCE) dsloc=MIN_ELEM_EDGE_DISTANCE; else
-    dsloc=ds;
-  if ( ipuf[0] == GL_FRONT ) dsloc*=-1;
-  //printf("dsloc:%e\n",dsloc);
   glColor3d(color,color,color);
   cgx_glLineWidth(0.8f);
   cgx_enable_smooth_lines(1);
@@ -3345,91 +3336,46 @@ void drawFaces_edge( int num, int *name, Nodes *node, Faces *face, int color, ch
     {
       case 7:
       glBegin ( GL_LINE_LOOP );
-      glVertex3d ( node[face[name[i]].nod[0]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[0]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[0]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[1]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[1]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[1]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[2]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[2]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[2]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
+      glVertex3dv ( &node[face[name[i]].nod[0]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[1]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[2]].nx );
       glEnd();
       break;
 
       case 8:
       glBegin ( GL_LINE_LOOP );
-      glVertex3d ( node[face[name[i]].nod[0]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[0]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[0]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[3]].nx+face[name[i]].side[2][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[3]].ny+face[name[i]].side[2][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[3]].nz+face[name[i]].side[2][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[1]].nx+face[name[i]].side[3][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[1]].ny+face[name[i]].side[3][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[1]].nz+face[name[i]].side[3][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[4]].nx+face[name[i]].side[2][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[4]].ny+face[name[i]].side[2][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[4]].nz+face[name[i]].side[2][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[2]].nx+face[name[i]].side[1][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[2]].ny+face[name[i]].side[1][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[2]].nz+face[name[i]].side[1][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[5]].nx+face[name[i]].side[2][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[5]].ny+face[name[i]].side[2][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[5]].nz+face[name[i]].side[2][2]*1.e-3*dsloc );
+      glVertex3dv ( &node[face[name[i]].nod[0]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[3]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[1]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[4]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[2]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[5]].nx );
       glEnd();
       break;
 
       case 9:
       glBegin ( GL_LINE_LOOP );
-      glVertex3d ( node[face[name[i]].nod[0]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[0]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[0]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[1]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[1]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[1]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[2]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[2]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[2]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[3]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[3]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[3]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
+      glVertex3dv ( &node[face[name[i]].nod[0]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[1]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[2]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[3]].nx );
       glEnd();	
       break;
 
       case 10:
       glBegin ( GL_LINE_LOOP );
-      glVertex3d ( node[face[name[i]].nod[0]].nx+face[name[i]].side[0][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[0]].ny+face[name[i]].side[0][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[0]].nz+face[name[i]].side[0][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[4]].nx+face[name[i]].side[1][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[4]].ny+face[name[i]].side[1][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[4]].nz+face[name[i]].side[1][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[1]].nx+face[name[i]].side[5][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[1]].ny+face[name[i]].side[5][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[1]].nz+face[name[i]].side[5][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[5]].nx+face[name[i]].side[4][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[5]].ny+face[name[i]].side[4][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[5]].nz+face[name[i]].side[4][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[2]].nx+face[name[i]].side[3][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[2]].ny+face[name[i]].side[3][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[2]].nz+face[name[i]].side[3][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[6]].nx+face[name[i]].side[4][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[6]].ny+face[name[i]].side[4][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[6]].nz+face[name[i]].side[4][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[3]].nx+face[name[i]].side[2][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[3]].ny+face[name[i]].side[2][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[3]].nz+face[name[i]].side[2][2]*1.e-3*dsloc );
-      glVertex3d ( node[face[name[i]].nod[7]].nx+face[name[i]].side[1][0]*1.e-3*dsloc, 
-                   node[face[name[i]].nod[7]].ny+face[name[i]].side[1][1]*1.e-3*dsloc,
-                   node[face[name[i]].nod[7]].nz+face[name[i]].side[1][2]*1.e-3*dsloc );
+      glVertex3dv ( &node[face[name[i]].nod[0]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[4]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[1]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[5]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[2]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[6]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[3]].nx );
+      glVertex3dv ( &node[face[name[i]].nod[7]].nx );
       glEnd();
       break;
     }
   }
-
-  glGetIntegerv( GL_CULL_FACE_MODE, ipuf );
-  if ( ipuf[0] == GL_FRONT ) dsloc*=-1;
 }
 
 
