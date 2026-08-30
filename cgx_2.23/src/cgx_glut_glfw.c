@@ -720,6 +720,113 @@ static void submit_command_bar(void)
   }
 }
 
+/* Handle Clipboard Paste (Cmd+V on macOS, Ctrl+V on Linux/Windows) */
+static void handle_command_bar_paste(void)
+{
+  if (!g_glfw_window) return;
+  const char *clip = glfwGetClipboardString(g_glfw_window);
+  if (!clip || !*clip) return;
+
+  /* Check if clipboard contains any newline characters */
+  int has_newlines = (strchr(clip, '\n') != NULL || strchr(clip, '\r') != NULL);
+
+  if (!has_newlines)
+  {
+    /* Single-line text: append directly into the command bar buffer */
+    g_gui_status_msg[0] = '\0';
+    while (*clip && g_cmd_len < (int)sizeof(g_cmd_buf) - 2)
+    {
+      if ((unsigned char)*clip >= 32 && (unsigned char)*clip < 127)
+      {
+        g_cmd_buf[g_cmd_len++] = *clip;
+      }
+      clip++;
+    }
+    g_cmd_buf[g_cmd_len] = '\0';
+    g_need_redisplay = 1;
+    return;
+  }
+
+  /* Multi-line script paste: sequentially parse and execute line by line */
+  char *clip_copy = strdup(clip);
+  if (!clip_copy) return;
+
+  char *p = clip_copy;
+  int executed_count = 0;
+  char single_line[512];
+
+  while (*p)
+  {
+    /* Find end of line */
+    char *eol = p;
+    while (*eol && *eol != '\n' && *eol != '\r') eol++;
+
+    int is_last_line = (*eol == '\0');
+    char delim = *eol;
+    *eol = '\0';
+
+    /* Trim leading and trailing whitespace */
+    char *start = p;
+    while (*start == ' ' || *start == '\t') start++;
+    int len = (int)strlen(start);
+    while (len > 0 && (start[len - 1] == ' ' || start[len - 1] == '\t' || start[len - 1] == '\r'))
+    {
+      start[--len] = '\0';
+    }
+
+    if (len > 0)
+    {
+      /* Combine with existing command buffer if on the very first line */
+      if (executed_count == 0 && g_cmd_len > 0)
+      {
+        snprintf(single_line, sizeof(single_line), "%s%s", g_cmd_buf, start);
+        g_cmd_buf[0] = '\0';
+        g_cmd_len = 0;
+      }
+      else
+      {
+        strncpy(single_line, start, sizeof(single_line) - 1);
+        single_line[sizeof(single_line) - 1] = '\0';
+      }
+
+      /* Add to command history */
+      if (g_cmd_hist_count < MAX_CMD_HIST)
+      {
+        strncpy(g_cmd_history[g_cmd_hist_count++], single_line, 255);
+      }
+      else
+      {
+        for (int i = 0; i < MAX_CMD_HIST - 1; i++)
+        {
+          strcpy(g_cmd_history[i], g_cmd_history[i + 1]);
+        }
+        strncpy(g_cmd_history[MAX_CMD_HIST - 1], single_line, 255);
+      }
+      g_cmd_hist_pos = g_cmd_hist_count;
+
+      cgx_execute_command_string(single_line);
+      executed_count++;
+    }
+
+    if (is_last_line) break;
+    p = eol + 1;
+    if (delim == '\r' && *p == '\n') p++; /* handle CRLF */
+  }
+
+  free(clip_copy);
+
+  g_cmd_buf[0] = '\0';
+  g_cmd_len = 0;
+
+  if (executed_count > 0)
+  {
+    char status[128];
+    snprintf(status, sizeof(status), "Pasted & executed %d command%s", executed_count, (executed_count == 1) ? "" : "s");
+    cgx_set_gui_status(status);
+  }
+  g_need_redisplay = 1;
+}
+
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
@@ -1371,7 +1478,44 @@ static void glfw_key_callback(GLFWwindow *window, int key, int scancode, int act
 
   if (g_cmd_bar_visible && g_cmd_focused && g_cascade_depth <= 0)
   {
-    if (key == GLFW_KEY_ENTER)
+    /* Clipboard Paste: Cmd+V (macOS) or Ctrl+V (Linux/Windows) */
+    if (key == GLFW_KEY_V && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))
+    {
+      handle_command_bar_paste();
+      return;
+    }
+    /* Clipboard Copy: Cmd+C (macOS) or Ctrl+C (Linux/Windows) */
+    else if (key == GLFW_KEY_C && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))
+    {
+      if (g_cmd_len > 0)
+      {
+        glfwSetClipboardString(g_glfw_window, g_cmd_buf);
+        cgx_set_gui_status("Copied command to clipboard");
+      }
+      return;
+    }
+    /* Clipboard Cut: Cmd+X (macOS) or Ctrl+X (Linux/Windows) */
+    else if (key == GLFW_KEY_X && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))
+    {
+      if (g_cmd_len > 0)
+      {
+        glfwSetClipboardString(g_glfw_window, g_cmd_buf);
+        g_cmd_buf[0] = '\0';
+        g_cmd_len = 0;
+        cgx_set_gui_status("Cut command to clipboard");
+        g_need_redisplay = 1;
+      }
+      return;
+    }
+    /* Clear Line: Ctrl+U or Cmd+Backspace */
+    else if ((key == GLFW_KEY_U && (mods & GLFW_MOD_CONTROL)) || (key == GLFW_KEY_BACKSPACE && (mods & GLFW_MOD_SUPER)))
+    {
+      g_cmd_buf[0] = '\0';
+      g_cmd_len = 0;
+      g_need_redisplay = 1;
+      return;
+    }
+    else if (key == GLFW_KEY_ENTER)
     {
       submit_command_bar();
       return;
@@ -1469,6 +1613,16 @@ static void glfw_key_callback(GLFWwindow *window, int key, int scancode, int act
 static void glfw_char_callback(GLFWwindow *window, unsigned int codepoint)
 {
   (void)window;
+  if (g_glfw_window)
+  {
+    if (glfwGetKey(g_glfw_window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS ||
+        glfwGetKey(g_glfw_window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS ||
+        glfwGetKey(g_glfw_window, GLFW_KEY_LEFT_SUPER) == GLFW_PRESS ||
+        glfwGetKey(g_glfw_window, GLFW_KEY_RIGHT_SUPER) == GLFW_PRESS)
+    {
+      return;
+    }
+  }
   if (codepoint >= 32 && codepoint < 127)
   {
     if (g_cmd_bar_visible && g_cmd_focused && g_cascade_depth <= 0)
