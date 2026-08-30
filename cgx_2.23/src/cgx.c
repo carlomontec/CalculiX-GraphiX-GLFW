@@ -6976,39 +6976,47 @@ void idleFunction(void)
   }
   else
   {
-    descalAll(); // in .cgx entities might habe been generated and scal is set
-    if(inpformat=='a') iniMeshData( datin, "ansl" );
-    if(inpformat=='c') iniMeshData( datin, "ccx" );
-    if(inpformat=='d') iniMeshData( datin, "duns2d" );
-    if(inpformat=='D') iniMeshData( datin, "duns2dl" );
-    if(inpformat=='e') iniMeshData( datin, "duns3d" );
-    if(inpformat=='E') iniMeshData( datin, "duns3dl" );
-    if(inpformat=='y') iniMeshData( datin, "dynl" );
-    if(inpformat=='f') iniMeshData( datin, "foam" );
-    if(inpformat=='i') iniMeshData( datin, "isaac2d" );
-    if(inpformat=='j') iniMeshData( datin, "isaac3d" );
-    if(inpformat=='k') iniMeshData( datin, "vtk" );
-    if(inpformat=='m') iniMeshData( datin, "nas" );
-    if(inpformat=='n') iniMeshData( datin, "ng" );
-    if(inpformat=='s') iniMeshData( datin, "stl" );
-    if(inpformat=='t') iniMeshData( datin, "tg" );
-    if(inpformat=='v') iniMeshData( datin, "frd" );
-
-    /* calc additional entities only if the block was not jumped during read */
-    for (i=0; i<anz->olc; i++)  if (lcase[i].loaded)
-      calcDatasets( i, anz, node, lcase );
-
-    frame();
-    ConfigureAndShowWindow_Light();
-
-    gtol_buf=gtol;
-    if(ccxfile[0]>0)
+    if (datin[0] != '\0')
     {
-      sprintf(buffer, "%s inp nom", ccxfile );
-      pre_read(buffer);
+      descalAll(); // in .cgx entities might habe been generated and scal is set
+      if(inpformat=='a') iniMeshData( datin, "ansl" );
+      if(inpformat=='c') iniMeshData( datin, "ccx" );
+      if(inpformat=='d') iniMeshData( datin, "duns2d" );
+      if(inpformat=='D') iniMeshData( datin, "duns2dl" );
+      if(inpformat=='e') iniMeshData( datin, "duns3d" );
+      if(inpformat=='E') iniMeshData( datin, "duns3dl" );
+      if(inpformat=='y') iniMeshData( datin, "dynl" );
+      if(inpformat=='f') iniMeshData( datin, "foam" );
+      if(inpformat=='i') iniMeshData( datin, "isaac2d" );
+      if(inpformat=='j') iniMeshData( datin, "isaac3d" );
+      if(inpformat=='k') iniMeshData( datin, "vtk" );
+      if(inpformat=='m') iniMeshData( datin, "nas" );
+      if(inpformat=='n') iniMeshData( datin, "ng" );
+      if(inpformat=='s') iniMeshData( datin, "stl" );
+      if(inpformat=='t') iniMeshData( datin, "tg" );
+      if(inpformat=='v') iniMeshData( datin, "frd" );
+
+      /* calc additional entities only if the block was not jumped during read */
+      for (i=0; i<anz->olc; i++)  if (lcase[i].loaded)
+        calcDatasets( i, anz, node, lcase );
+
+      frame();
+      ConfigureAndShowWindow_Light();
+
+      gtol_buf=gtol;
+      if(ccxfile[0]>0)
+      {
+        sprintf(buffer, "%s inp nom", ccxfile );
+        pre_read(buffer);
+      }
+      if(gtol_buf==gtol)
+      { gtol=calcGTOL(setall);  printf ("gtol calculated:%e\n", gtol); }
     }
-    if(gtol_buf==gtol)
-    { gtol=calcGTOL(setall);  printf ("gtol calculated:%e\n", gtol); }
+    else
+    {
+      ConfigureAndShowWindow_Light();
+      printf(" CalculiX GraphiX ready. Use 'read <file>' or command bar to open models.\n");
+    }
   }
 
   /* create the mainmenu */
@@ -7645,8 +7653,17 @@ int main( int argc, char **argv )
 
   if (argc < 2)
   {
-    generalinfo();
-    exit (0);
+    /* Standalone desktop launch: initialize clean interactive workspace */
+    setall=pre_seta("all", "i", 0);
+    pre_seta(specialset->nsave, "i", 0);
+    inpformat='v';
+    datin[0] = '\0';
+    if ( (lcase = (Datasets *)malloc( (anz->l+1) * sizeof(Datasets))) == NULL )
+      printf("\n\n ERROR: malloc failed lcase\n\n") ;
+    if ( (node = (Nodes *)malloc( (anz->n+1) * sizeof(Nodes))) == NULL )
+      printf("\n\n ERROR: malloc failed node\n\n") ;
+    if ( (e_enqire = (Elements *)malloc( (anz->e+1) * sizeof(Elements))) == NULL )
+      printf("\n\n ERROR: malloc failed elem\n\n") ;
   }
   else
   {

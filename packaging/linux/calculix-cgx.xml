@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-calculix-frd">
+    <comment>CalculiX FRD Results File</comment>
+    <icon name="calculix-cgx"/>
+    <glob pattern="*.frd"/>
+    <glob pattern="*.FRD"/>
+  </mime-type>
+  <mime-type type="application/x-calculix-fbl">
+    <comment>CalculiX Batch File</comment>
+    <icon name="calculix-cgx"/>
+    <glob pattern="*.fbl"/>
+    <glob pattern="*.fbd"/>
+  </mime-type>
+  <mime-type type="application/x-calculix-inp">
+    <comment>CalculiX Input File</comment>
+    <icon name="calculix-cgx"/>
+    <glob pattern="*.inp"/>
+    <glob pattern="*.INP"/>
+  </mime-type>
+</mime-info>
