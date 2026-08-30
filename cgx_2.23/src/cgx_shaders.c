@@ -62,6 +62,7 @@ static const char *g_fs_surface =
 "\n"
 "uniform sampler2D u_colormap_tex;\n"
 "uniform int u_use_colormap;\n"
+"uniform int u_use_lighting;\n"
 "uniform vec4 u_base_color;\n"
 "uniform vec3 u_light_dir;\n"
 "uniform vec3 u_specular_color;\n"
@@ -72,21 +73,22 @@ static const char *g_fs_surface =
 "\n"
 "void main()\n"
 "{\n"
+"    /* Base Albedo Color */\n"
+"    vec4 albedo = u_base_color;\n"
+"    if (u_use_colormap != 0) {\n"
+"        float norm_s = clamp(v_scalar, 0.0, 1.0);\n"
+"        albedo = texture2D(u_colormap_tex, vec2(norm_s, 0.5));\n"
+"    }\n"
+"\n"
+"    if (u_use_lighting == 0) {\n"
+"        gl_FragColor = albedo;\n"
+"        return;\n"
+"    }\n"
+"\n"
 "    vec3 N = normalize(v_normal);\n"
 "    vec3 L = normalize(u_light_dir);\n"
 "    vec3 V = normalize(-v_pos_view);\n"
 "    vec3 H = normalize(L + V);\n"
-"\n"
-"    /* Base Albedo Color */\n"
-"    vec4 albedo = u_base_color;\n"
-"    if (u_use_colormap != 0) {\n"
-"        float range = u_max_scalar - u_min_scalar;\n"
-"        float norm_s = 0.5;\n"
-"        if (abs(range) > 1e-7) {\n"
-"            norm_s = clamp((v_scalar - u_min_scalar) / range, 0.0, 1.0);\n"
-"        }\n"
-"        albedo = texture2D(u_colormap_tex, vec2(norm_s, 0.5));\n"
-"    }\n"
 "\n"
 "    /* Two-sided normal for FEA surface rendering */\n"
 "    if (!gl_FrontFacing) {\n"
@@ -175,6 +177,7 @@ static void query_surface_locations(CgxShaderProgram *p)
 
     p->loc_u_colormap_tex      = glGetUniformLocation(p->program, "u_colormap_tex");
     p->loc_u_use_colormap      = glGetUniformLocation(p->program, "u_use_colormap");
+    p->loc_u_use_lighting      = glGetUniformLocation(p->program, "u_use_lighting");
     p->loc_u_base_color        = glGetUniformLocation(p->program, "u_base_color");
     p->loc_u_light_dir         = glGetUniformLocation(p->program, "u_light_dir");
     p->loc_u_specular_color    = glGetUniformLocation(p->program, "u_specular_color");

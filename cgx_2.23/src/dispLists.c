@@ -25,6 +25,7 @@ TODO:
 */
 
 #include <cgx.h>
+#include "cgx_vbo.h"
 
 #define     TEST            0
 
@@ -116,6 +117,7 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
   if((key=='f')&&(!anz->f)) return;
   if((key=='e')&&(!anz->e)) return;
   if(!anzGeo->psets) return;
+  if(key == 'f') cgx_vbo_sync_from_psets(key, node, face, (void*)set, (void*)pset, anzGeo->psets, colNr);
 
   glNewList( list, GL_COMPILE );
   for (j=0; j<anzGeo->psets; j++ )

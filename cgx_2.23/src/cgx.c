@@ -25,6 +25,7 @@
 /* --------------------------------------------------------------------  */
 
 #include <cgx.h>
+#include "cgx_vbo.h"
 #include <time.h>
 #ifndef WIN32
 #include <sys/utsname.h>
@@ -4507,6 +4508,11 @@ void selectGUI(int value)
     case 3: /* Toggle Command Line Bar */
       menu(5);
       break;
+    case 4: /* Toggle Modern GPU Pipeline */
+      modernGpuFlag = !modernGpuFlag;
+      printf(" Modern GPU Rendering Pipeline: %s\n", modernGpuFlag ? "ON (VBO / GLSL Shaders)" : "OFF (Legacy Display Lists)");
+      glutPostRedisplay();
+      break;
   }
 }
 
@@ -6122,8 +6128,15 @@ void DrawGraficLoad( void )
   }
   else
   {
-    if (surfFlag)   glCallList( list_surf_load );
-    else            glCallList( list_elem_load );
+    if (modernGpuFlag && cgx_vbo_is_ready())
+    {
+      cgx_vbo_render_active(1, (float)(scale ? scale->smin : 0.0), (float)(scale ? scale->smax : 1.0));
+    }
+    else
+    {
+      if (surfFlag)   glCallList( list_surf_load );
+      else            glCallList( list_elem_load );
+    }
   }
   glDisable(GL_POLYGON_OFFSET_FILL);
 
@@ -6199,8 +6212,15 @@ void DrawGraficLight( void )
   /* 1. Render filled solid model first with polygon offset */
   glEnable(GL_POLYGON_OFFSET_FILL);
   glPolygonOffset(1.0f, 1.0f);
-  if (surfFlag)    glCallList( list_surf_light );
-  else             glCallList( list_elem_light );
+  if (modernGpuFlag && cgx_vbo_is_ready())
+  {
+    cgx_vbo_render_active(0, 0.0f, 1.0f);
+  }
+  else
+  {
+    if (surfFlag)    glCallList( list_surf_light );
+    else             glCallList( list_elem_light );
+  }
   glDisable(GL_POLYGON_OFFSET_FILL);
 
   /* 2. Render crisp edges and lines on top */
@@ -7938,6 +7958,7 @@ int main( int argc, char **argv )
   glutAddMenuEntry("Toggle Dark Mode", 1);
   glutAddMenuEntry("Toggle Perspective 3D", 2);
   glutAddMenuEntry("Toggle Command Line Bar", 3);
+  glutAddMenuEntry("Toggle Modern GPU Pipeline", 4);
   glutAddSubMenu  ("Text Size", subsubmenu_fontsize );
   
   submenu_view = glutCreateMenu( selectView );

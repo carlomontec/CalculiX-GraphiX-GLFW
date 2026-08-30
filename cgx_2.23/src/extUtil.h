@@ -1,3 +1,6 @@
+#ifndef EXTUTIL_H
+#define EXTUTIL_H
+
 #ifdef WIN32
   #ifndef WIN32_LEAN_AND_MEAN
   #define WIN32_LEAN_AND_MEAN
@@ -835,3 +838,5 @@ int splitElementsToTets(int anz_e, Nodes *node, Elements  *e_enqire, Tetraeder *
 
 int delaun_( int *numpts, int *maxtri, double *smalld, double *x, double *y, int *list, int *pointr, int *v1, int *v2, int *v3, int *numtri);
 void cartcyl( double *csab, int node, double *node_pos, Datasets *lcase, int lc, char type );
+
+#endif /* EXTUTIL_H */
