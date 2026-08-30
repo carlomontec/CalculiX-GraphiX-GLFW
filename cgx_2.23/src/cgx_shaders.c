@@ -5,6 +5,7 @@
 /*     cgx_shaders.c: Modern GLSL Shader Pipeline & Program Manager     */
 /* --------------------------------------------------------------------  */
 
+#define CGX_GL_LOADER_IMPLEMENTATION
 #include "cgx_shaders.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -195,6 +196,8 @@ static void query_surface_locations(CgxShaderProgram *p)
 int cgx_shaders_init(void)
 {
     if (g_shaders_initialized) return 1;
+
+    cgx_gl_load_extensions();
 
     memset(&g_surface_prog, 0, sizeof(g_surface_prog));
     g_surface_prog.program = cgx_create_shader_program(g_vs_surface, g_fs_surface);
