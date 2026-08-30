@@ -10,6 +10,7 @@
 
 #include "cgx_glut_glfw.h"
 #include "cgx_math.h"
+#include "cgx_gl_loader.h"
 
 #ifdef __cplusplus
 extern "C" {

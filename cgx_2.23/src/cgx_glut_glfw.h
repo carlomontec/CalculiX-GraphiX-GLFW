@@ -20,6 +20,9 @@
   #if defined(_WIN32) || defined(WIN32)
     #include <windows.h>
   #endif
+  #ifndef GL_GLEXT_PROTOTYPES
+    #define GL_GLEXT_PROTOTYPES 1
+  #endif
   #include <GL/gl.h>
   #include <GL/glu.h>
 #endif
