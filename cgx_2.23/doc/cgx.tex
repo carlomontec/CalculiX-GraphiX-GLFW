@@ -1,15 +1,15 @@
 \documentclass{article}
-\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amsmath}
 \usepackage{color}
 \usepackage{hyperref}
-\usepackage{html}
-\usepackage{/usr/share/texmf/tex/latex/html/html}
+\providecommand{\htmlref}[2]{\hyperref[#2]{#1}}
 \begin{document}
-\title{CalculiX USER'S MANUAL\\ - CalculiX GraphiX, Version 2.23 -}
-\author{Klaus Wittig}
+\title{CalculiX USER'S MANUAL\\ - CalculiX GraphiX, Version 2.23 -\\ {\large CalculiX GraphiX (GLFW Edition)}}
+\author{Klaus Wittig\\ {\small Extended and Modernized for GLFW Edition by Carlo Monjaraz-Tec}}
 \maketitle
 \begin{figure}[h]
-\epsfig{file=jetengine.eps,width=12cm}
+\includegraphics[width=12cm]{jetengine.pdf}
 \caption{\label{cover} A complex model made from scratch using second order brick elements }
 \end{figure}
 \newpage
@@ -19,13 +19,18 @@
 
 
 \section{Introduction}
- This document is the description of CalculiX GraphiX (cgx). This program is designed to generate and display finite elements (FE) and results coming from CalculiX CrunchiX (ccx). If you have any problems using cgx, this document should solve them. If not, you might send an email to the author \cite{cgx}. The Concept and File Format sections give some background on functionality and mesher capabilities. The Getting Started section describes how to run the verification examples you should have obtained along with the code of the program. You might use this section to check whether you installed CalculiX correctly. Then, a detailed overview is given of the menu and all the available keywords in alphabetical order in the Menu and Commands sections respectively. Finally, the User's Manual ends with the appendix and some references used while writing the code.
+ This document is the description of CalculiX GraphiX (cgx). This program is designed to generate and display finite elements (FE) and results coming from CalculiX CrunchiX (ccx). If you have any problems using cgx, this document should solve them. If not, you might send an email to the author \cite{cgx}.
+
+\paragraph{CalculiX GraphiX (GLFW Edition) Extension Notice:}
+This edition of the manual is an extension of the original CalculiX GraphiX documentation by Klaus Wittig. It incorporates the enhancements of the modern \textbf{CalculiX GraphiX (GLFW Edition)}, which replaces legacy X11/GLUT dependencies with native GLFW3 windowing across macOS, Linux, and Windows, integrates vector typography (\texttt{stb\_truetype}), an interactive in-window command bar with fuzzy suggestions, standard CAD/Blender navigation gestures, default Dark Mode and 3D Perspective projection, embedded in-memory TetGen 1.6.0 meshing, and native ParaView VTU/PVD export. Features and capabilities introduced in the GLFW Edition are annotated throughout this manual with footnotes.
+
+The Concept and File Format sections give some background on functionality and mesher capabilities. The Getting Started section describes how to run the verification examples you should have obtained along with the code of the program. You might use this section to check whether you installed CalculiX correctly. Then, a detailed overview is given of the menu and all the available keywords in alphabetical order in the Menu and Commands sections respectively. Finally, the User's Manual ends with the appendix and some references used while writing the code.
 
 
 \section{Concept}
-This program uses the openGL library for visualization and the glut library \cite{glut} for window management and event handling. This results in very high speed if a hardware-accelerated openGL-library is available and still high speed for software-rendering (MesaGL,\cite{mesa}). 
+This program uses modern OpenGL for hardware-accelerated 3D visualization and the GLFW3 library \cite{glfw}\footnote{In CalculiX GraphiX (GLFW Edition), legacy GLUT/GLX/X11 dependencies are replaced by GLFW3, enabling native windowing on macOS (Cocoa), Linux (Wayland/X11), and Windows.} for window management and event handling. Anti-aliased vector typography is powered by the embedded \texttt{stb\_truetype} engine \cite{stb}\footnote{Typography engine introduced in CalculiX GraphiX (GLFW Edition) with calibrated 3-tier font sizing (Small, Medium, Big) and dynamic High-DPI/Retina display scaling.}.
 
-The cgx has pre- and post-processor capabilities. It is able to generate and display beam, shell and brick elements in its linear and quadratic form (fig. \ref{cover}), tets can be generated from within cgx if either TETGEN \cite{TETGEN} or the program ng\_vol (part of NETGEN \cite{NETGEN}) is accessible (see also ''\htmlref{How to deal with CAD-geometry}{How to deal with CAD-geometry}''). TETGEN comes with cgx.
+The cgx has pre- and post-processor capabilities. It is able to generate and display beam, shell and brick elements in its linear and quadratic form (fig. \ref{cover}), tets can be generated from within cgx via the embedded in-memory TetGen 1.6.0 engine\footnote{CalculiX GraphiX (GLFW Edition) vendors TetGen 1.6.0 directly into the executable using in-memory C++ API calls without disk temporary files.} \cite{TETGEN} or the program ng\_vol (part of NETGEN \cite{NETGEN}) if accessible (see also ''\htmlref{How to deal with CAD-geometry}{How to deal with CAD-geometry}''). TETGEN comes with cgx.
 
 The built-in mesher creates a structured mesh based on a description of the geometry. For example, it uses lines for beam elements, surfaces for shell elements and volumes (bodies) for brick elements. The program distinguishes between the mesh and the underlying geometry. Elements are made from faces and faces are made from nodes. If you move a node, the corresponding face(s) and element(s) will follow. The geometry behaves according to the mesh:
 Lines are made from points, surfaces are made from lines and bodies are made of surfaces. As a result, if you modify the position of a point, all related geometry will follow. In other words, if the location of geometric entities is changed, it is necessary to move the points on which the entities rely.  It should be noted that faces exist only on free surfaces of the model.
@@ -51,7 +56,7 @@ It is hoped by the author that common CAD formats will be supported by stand-alo
 \item step-format(r), reverse engineered based on some cad files. Only points and certain types of lines are supported currently. Be aware of the more powefull cad2fbd interface program on the CalculiX home page.
 \item stl-format in ascii (r/w) and binary, this format describes a shape using only triangles.
 \end{itemize}
-The following file-formats are available to write a mesh and certain boundary-conditions:
+The following file-formats are available to write a mesh and certain boundary-conditions or results:
 \begin{itemize}
 \item Abaqus, which is used by the CalculiX solver ccx.
 \item Ansys, several boundary conditions available.
@@ -64,6 +69,7 @@ The following file-formats are available to write a mesh and certain boundary-co
 \item OpenFOAM, a free cfd-code \cite{OpenFOAM}, only 8-noded brick-elements are supported.
 \item Samcef, mesh and sets of nodes and elements are available.
 \item tochnog, a free fem-code \cite{tochnog}, only 8-noded brick-elements are supported.
+\item vtu (VTK XML UnstructuredGrid) \cite{paraview}\footnote{VTU mesh and result exporter with master ParaView collection (.pvd) generation introduced in CalculiX GraphiX (GLFW Edition).}, writes meshes and static or transient result fields directly to ParaView in fast inline Base64 binary encoding (or optional ASCII).
 \end{itemize}
 The following solver-input-file-formats can be read to check the mesh, sets and certain boundary-conditions:
 \begin{itemize}
@@ -223,21 +229,41 @@ A special case is OpenFOAM. The results are organized in a directory structure c
 \section{\label{Input Devices}Input Devices}
 
 \subsection{\label{Mouse}Mouse}
-The mouse is used to manipulate the view-point and scaling of the object inside the drawing area (figure \ref{mainwindow}). Rotation of the object is controlled by the left mouse button, zoom in and out by the middle mouse button and translation of the object is controlled by the right mouse button. Inside the menu area, the mouse triggers the \htmlref{main menu}{Menu} with the left button.\\\\In addition the mouse controls the \htmlref{animation}{animation} of nodal values. The animation will stop if the mouse pointer is not in the drawing area but will start again if the pointer enters the drawing area. This can be prevented by pressing the middle mouse button while the mouse pointer is in the menu area.  Pressing the right button will release the next frame. A frozen animation can be released by pressing the middle button. The previous frame can be reloaded by pressing the middle mouse button twice and the right button once (while the mouse is in the menu area).
+The mouse is used to manipulate the view-point and scaling of the object inside the drawing area (figure \ref{mainwindow}). Rotation of the object is controlled by the left mouse button (smooth trackball rotation around the model center), zoom in and out by the middle mouse button (or mouse scroll wheel / trackpad pinch\footnote{Scroll wheel / trackpad pinch stepped zoom and unbounded zoom range introduced in CalculiX GraphiX (GLFW Edition).}), and translation of the object is controlled by the right mouse button (drag threshold $\ge 4\text{px}$).
+
+In addition, modern CAD and Blender keyboard/mouse navigation modifiers are supported\footnote{CAD and Blender navigation modifiers and right-click tap vs. drag context menu discrimination introduced in CalculiX GraphiX (GLFW Edition).}:
+\begin{itemize}
+\item \textbf{Left Click + Drag}: Rotate / Orbit the 3D model around its center.
+\item \textbf{Shift + Left Drag} or \textbf{Ctrl/Cmd + Left Drag}: Pan / Translate the model horizontally and vertically.
+\item \textbf{Alt / Option + Left Drag}: Smooth continuous dynamic zoom.
+\item \textbf{Scroll Wheel / Trackpad Pinch}: Stepped continuous zoom.
+\item \textbf{Right Click + Drag}: Pan / Translate (when dragged $\ge 4\text{px}$).
+\item \textbf{Right Click Tap} (release without drag): Opens the multi-level cascading context menu.
+\end{itemize}
+
+Inside the menu area, the mouse triggers the \htmlref{main menu}{Menu} with the left button.\\\\In addition the mouse controls the \htmlref{animation}{animation} of nodal values. The animation will stop if the mouse pointer is not in the drawing area but will start again if the pointer enters the drawing area. This can be prevented by pressing the middle mouse button while the mouse pointer is in the menu area.  Pressing the right button will release the next frame. A frozen animation can be released by pressing the middle button. The previous frame can be reloaded by pressing the middle mouse button twice and the right button once (while the mouse is in the menu area).
   
 \begin{figure}[h]
-\epsfig{file=mainwindow.eps,width=12cm}
+\includegraphics[width=12cm]{mainwindow.pdf}
 \caption{\label{mainwindow}structure of the main-window}
 \end{figure}
 
 \subsection{\label{Keyboard}Keyboard}
-The Keyboard is used for command line input and specifying the type of entities when selecting them with the mouse pointer. The command line is preferable in situations where pure mouse operation is not convenient (i.e. to define a certain value) or for batch controlled operations. Therefore most commands are only available over the command line. The stream coming from the keyboard is echoed in the parent-konsole but during typing the mouse pointer must stay inside the main window. Otherwise the commands will not be recognized by the program. The user might use the menu fuction ``Toggle CommandLine'' or the command ``\htmlref{view}{view} cl'' to switch the command line from the konsole to the graphic's window.
+The Keyboard is used for command line input and specifying the type of entities when selecting them with the mouse pointer. The command line is preferable in situations where pure mouse operation is not convenient (i.e. to define a certain value) or for batch controlled operations. Therefore most commands are only available over the command line.
+
+In addition to echoing in the parent terminal, an interactive in-window command bar is embedded directly at the bottom of the graphics viewport\footnote{In-window interactive command bar with command history, multi-line clipboard paste, and Levenshtein fuzzy command suggestion engine introduced in CalculiX GraphiX (GLFW Edition).}. The user can click the bottom bar or simply type while the mouse is in the graphics window. The command bar includes:
+\begin{itemize}
+\item \textbf{Command History}: Browse previous commands using the \texttt{ARROW\_UP} and \texttt{ARROW\_DOWN} keys.
+\item \textbf{Smart Fuzzy Typo Suggestions}: If an unrecognized command is typed, an embedded Levenshtein distance matcher automatically suggests the closest valid CGX command (e.g. \texttt{fram} $\rightarrow$ \texttt{frame}) with informative status feedback displayed directly in the bar for 6 seconds.
+\item \textbf{Clipboard Support}: Multi-line clipboard paste and standard editing shortcuts are supported.
+\item \textbf{Visibility Toggle}: The command bar can be toggled via the \textbf{GUI Settings} $\rightarrow$ \textbf{Toggle Command Line Bar} menu or with the command ``\htmlref{view}{view} cl''.
+\end{itemize}
 
 The following special keys are used:
 \begin{verbatim}
 Special Keys:
- ARROW_UP:   previous command
- ARROW_DOWN: next command
+ ARROW_UP:   previous command (command history)
+ ARROW_DOWN: next command (command history)
  PAGE_UP:    entities of previous set (if the last command was
              plot or plus) or the previous Loadcase
  PAGE_DOWN:  entities of next set (if the last command was 
@@ -247,13 +273,27 @@ Special Keys:
 
 
 \section{\label{Menu}Menu}
-The main menu pops up when pressing the left mouse-button inside the menu-area (figure \ref{mainmenu}). It should be noted that there are equivalent command-line functions for most of the menu-functions. This can be used for batch-controlled post-processing (see command ''\htmlref{view}{view}''. Next the entities inside the main menu will be explained:
+The main menu pops up when tapping the right mouse-button (or pressing the left mouse-button inside the menu-area in legacy mode, see figure \ref{mainmenu})\footnote{Cascading popup context menu triggered at the mouse cursor position via right-click tap introduced in CalculiX GraphiX (GLFW Edition).}. It should be noted that there are equivalent command-line functions for most of the menu-functions. This can be used for batch-controlled post-processing (see command ''\htmlref{view}{view}''). Next the entities inside the main menu will be explained:
   
 \begin{figure}[h]
-\epsfig{file=mainmenu.eps,width=12cm}
+\includegraphics[width=12cm]{mainmenu.pdf}
 \caption{\label{mainmenu}structure of the main-menu}
 \end{figure}
 
+\subsection{\label{GUI Settings}GUI Settings}
+\footnote{Dedicated top-level submenu introduced in CalculiX GraphiX (GLFW Edition) for rapid display and typography configuration.}
+This menu entry provides direct access to modern viewport and interface controls:
+\begin{itemize}
+\item \textbf{Toggle Dark Mode}: Switches the viewport background between the signature dark slate aesthetic (\texttt{\#0D121A}) and classic clean white.
+\item \textbf{Toggle Perspective 3D}: Switches between true 3D perspective projection and orthographic (parallel) projection.
+\item \textbf{Toggle Command Line Bar}: Hides or shows the interactive in-window command bar at the bottom of the viewport.
+\item \textbf{Text Size}: Adjusts the vector typography scale across three calibrated tiers:
+  \begin{itemize}
+  \item \textbf{Small (14pt)}: Compact size for dense model displays and low-resolution screens.
+  \item \textbf{Medium (20pt / Default)}: Standard reading size optimized for modern monitors.
+  \item \textbf{Big (32pt)}: Enlarged typography ideal for 4K / High-DPI screens and presentations.
+  \end{itemize}
+\end{itemize}
 
 \subsection{\label{Datasets}Datasets}
 Datasets are selected with the menu-item ''Dataset''. A dataset is a block of nodal values. These could be displacements due to a linear analysis or for a specific time-step during a nonlinear analysis. It could also contain other values like stresses, strains, temperatures or something else. To select a dataset, make sure that the mouse-pointer is inside the menu area. Then, press the left mouse button and move the mouse-pointer over the menu entry ''Dataset'', then continue to the right. A sub-menu pops up showing all available datasets. Each dataset entry comprises the step number (NUMSTP: see ''\htmlref{Nodal Results Block}{Nodal Results Block}'') followed by the name (NAME), a dataset-value (VALUE, usually time or frequency) and a dataset-description (TEXT). Move the mouse-pointer over a dataset you are interested in and release the left mouse button. The dataset is now selected. A results ''\htmlref{Entity}{Entity}'' must be chosen to see the values in the drawing-area. This Dataset might also contain automatically calculated values like the v. Mises stress and the maximum principal stress (see \htmlref{Pre-defined Calculations}{Pre-defined Calculations} and \htmlref{Result Format}{Result Format}). See also the command ''\htmlref{ds}{ds}'' to control the functionality with the command-line.
@@ -301,7 +341,7 @@ This switches the way each volume elements are displayed. Either all faces of th
 Instead of zooming in with the help of the middle mouse button, it is also possible to move a clipping plane through the structure to get a view of the inside. The clipping plane is parallel to the screen and will be moved in the direction to and from the user by pressing the middle mouse button and moving the pointer up and down while inside the drawing area. Initially the clipping plane is located in the middle of the structure. The number below the axis cross states the actual position of the cutting plane relative to the middle of the structure in model dimensions. Consider using the ''\htmlref{plot}{plot}'' and ''\htmlref{plus}{plus}'' commands to customize your view. Depending on hardware, this functionality could be slow. 
 
 \subsubsection{\label{Toggle Background Color}Toggle Background Color}
-With this option, it is possible to switch between a black and a white background.
+With this option, it is possible to switch between the default dark mode background and a white background.
 
 \subsubsection{\label{Toggle Vector-Plot}Toggle Vector-Plot}
 It is possible to add small ''needles'' to the plot which point with their heads in the direction of the vectors. Only entities which are marked in the database as vectors will be affected. See ''\htmlref{Nodal Results Block}{Nodal Results Block}'' for information on how entities are marked as vectors. Internally calculated vector-results, like the worst principal stress, are marked automatically. If one component or the value of a vector is selected, then the option takes immediate effect.
@@ -318,10 +358,10 @@ It is possible to display results with illumination. For example, you can displa
 Transparent display in the surface mode is switched on or off.
 
 \subsubsection{\label{Toggle Ruler}Toggle Ruler}
-Triggers the display of a ruler bar.
+Triggers the display of a ruler bar. In the GLFW Edition\footnote{Stationary 2D HUD ruler anchored in screen space introduced in CalculiX GraphiX (GLFW Edition).}, the ruler is pinned to the bottom-right corner in a dedicated 2D orthographic HUD overlay with full OpenGL state isolation, remaining stationary during 3D model rotation.
 
 \subsubsection{\label{Colormap}Colormap}
-Changes the colormap of the color scale. The default is 'classic'. See also ''\htmlref{cmap}{cmap}''.
+Changes the colormap of the color scale. In the GLFW Edition\footnote{Perceptually uniform \texttt{cubehelix} default colormap with lifted graphite floor and modern palettes introduced in CalculiX GraphiX (GLFW Edition).}, the default colormap is \texttt{cubehelix} (optimized for metallic 3D surface shading and grayscale print clarity). Available palettes include \texttt{cubehelix}, \texttt{coolwarm}, \texttt{turbo}, \texttt{viridis}, \texttt{inferno}, \texttt{jet}, \texttt{classic}, and \texttt{gray}. See also ''\htmlref{cmap}{cmap}''.
 
 \subsection{\label{animation}Animate}
 This option allows the animation of displacements. See also ''\htmlref{anim}{anim}'', ''\htmlref{ds}{ds}'' and ''\htmlref{scal}{scal}'' to use this functionality with the command-line.
@@ -573,10 +613,10 @@ as caption. A second line can be generated with "\htmlref{ulin}{ulin}".
 
 \subsection{\label{cmap}cmap}
 \begin{verbatim}
-   'cmap' 'classic'|'gray'|'inferno'|'jet'|'coolwarm'|
-          'turbo'|'viridis'
+   'cmap' 'cubehelix'|'coolwarm'|'turbo'|'viridis'|
+          'inferno'|'jet'|'classic'|'gray'
 \end{verbatim}
-Changes the colormap of the color scale. The default is 'classic'. The user might use this command to store his personal setting in the ``.cgx'' file in his home directory. See also ''\htmlref{steps}{steps}'' to adjust the nr of boxes.
+Changes the colormap of the color scale\footnote{Extended colormap palettes and \texttt{cubehelix} default palette introduced in CalculiX GraphiX (GLFW Edition).}. In the GLFW Edition, the default palette is \texttt{cubehelix} with a lifted graphite floor for optimal 3D metallic surface shading and black-and-white printing clarity. Available palettes include \texttt{cubehelix}, \texttt{coolwarm}, \texttt{turbo}, \texttt{viridis}, \texttt{inferno}, \texttt{jet}, \texttt{classic}, and \texttt{gray}. The user might use this command to store his personal setting in the ``.cgx'' file in his home directory. See also ''\htmlref{steps}{steps}'' to adjust the nr of boxes.
 
 \subsection{\label{cntr}cntr}
 \begin{verbatim}
@@ -659,7 +699,7 @@ Places the mirror in the origin with its normal direction in 'x' direction.
 This is a very special command to adjust improperly defined arc-lines, like in fillets. The center points of arc-lines included in the set are moved in a way that each arc-line will run tangentially into a connected straight line. But because the end-points of the arc-lines are not moved only one side of each arc-line will run into a connected line. The other side is not controlled and might end in a sharp corner. Therefore for each arc-line exactly one connected straight line must be included into the set (figure \ref{corradp}).
 
 \begin{figure}[h]
-\epsfig{file=corrad.eps,width=9cm}
+\includegraphics[width=9cm]{corrad.pdf}
 \caption{\label{corradp} Effect of the corrad command }
 \end{figure}
 
@@ -1660,7 +1700,7 @@ To suppress or enable the immediate ploting of the cut press ``s'' (switch ploti
 It is also possible to measure distances between two pixels on the screen. Just press the key ''w'' on the positions of the two pixels. The distance is calculated in the scale of the displayed geometry.
   
 \begin{figure}[h]
-\epsfig{file=qcut.eps,width=12cm}
+\includegraphics[width=12cm]{qcut.pdf}
 \caption{\label{qcutp}qcut: A section through a model defined by three nodes together with a transparent view of the outer skin}
 \end{figure}
 
@@ -1723,7 +1763,7 @@ Press ''q'' to quit the command.
 It is also possible to measure distances between two pixels on the screen. Just press the key ''w'' on the positions of the two pixels. The distance is calculated in the scale of the displayed geometry.
   
 \begin{figure}[h]
-\epsfig{file=coords.eps,width=12cm}
+\includegraphics[width=12cm]{coords.pdf}
 \caption{\label{qenqp}qenq: Definition of the cylindrical system}
 \end{figure}
 
@@ -1734,7 +1774,7 @@ It is also possible to measure distances between two pixels on the screen. Just 
 The command creates a fillet line (a radius) between two lines who intersect. After the command-name the value for the fillet-radius has to be specified. Then for each pair of selected lines a fillet of this value will be created. Select lines with the ''l''-key. Press ''q'' to quit the command. Currently it works only for straight lines. A curved line can be split and the part which should be used for the fillet can be transformed to a straight form with the ''\htmlref{qlin}{qlin}'' command (''s'' and ''x'' key-strokes). Figure \ref{qfilp} shows on the right side the initial situation and on the left side the created fillet. The command has also shifted point P002 to the left. Always the end-point of the first selected line closest to the intersection is moved. The second line gets a new end-point. 
   
 \begin{figure}[h]
-\epsfig{file=qfil.eps,width=12cm}
+\includegraphics[width=12cm]{qfil.pdf}
 \caption{\label{qfilp}qfil: Based on two intersecting lines a fillet is created }
 \end{figure}
 
@@ -1936,7 +1976,7 @@ This keyword is used to move node-attached texts (showing node-number and value,
 To catch more than one entity with one stroke, type 'a' (all) before and create a rectangular picking area by pressing two times the 'r' key. Both strokes define opposite corners of the rectangle. To catch only the entity which is closest to the user type 'i' before.
   
 \begin{figure}[h]
-\epsfig{file=qtxt.eps,width=12cm}
+\includegraphics[width=12cm]{qtxt.pdf}
 \caption{\label{qtxtp}qtxt: Node attached texts at two locations, one with node-nr and value in exp-form and one just with his value in floating point form. The font with gives biggest numbers was used.}
 \end{figure}
 
@@ -2086,7 +2126,14 @@ This keyword is used to scale the graphic presentation of values but no values o
 \end{verbatim}
 This keyword is used to send data to the file-system. In certain cases the written file-name contains given parameters to make them unique which is convenient when the user writes several files of the same type. But on the other hand this makes it sometimes hard to know in advance how the file would be named. Therefore the send command writes the file-name to the stack from which the user can derive the name if the ''\htmlref{stack}{stack}'' was activated.
 
-The VTK XML UnstructuredGrid format (vtu) is supported for exporting meshes and results directly to modern scientific visualizers like ParaView:\\\\send all vtu\\\\will export the mesh and active dataset in high-performance Base64 inline binary encoding into a .vtu file. If the ``ascii'' parameter is given:\\\\send all vtu ascii\\\\the file is written in ASCII format. When exporting transient or modal results across multiple time-steps:\\\\send all vtu all\\\\individual time-step .vtu files are generated along with a master ParaView Collection file (.pvd), enabling 1-click loading and time-history animation in ParaView. All CalculiX element types (TET4, TET10, HEX8, HEX20, WEDGE6, WEDGE15, PYR5, PYR13, TR3, TR6, QUAD4, QUAD8, BEAM2, BEAM3) are fully converted to their canonical VTK cell equivalents.
+The VTK XML UnstructuredGrid format (vtu) is supported for exporting meshes and result fields directly to modern scientific visualizers like ParaView \cite{paraview}\footnote{Native Base64 binary / ASCII VTU exporter and ParaView collection (.pvd) time-history generation introduced in CalculiX GraphiX (GLFW Edition).}:
+\begin{itemize}
+\item \texttt{send <set> vtu}: Exports the specified set (e.g. \texttt{all}) and the currently active dataset in high-performance Base64 inline binary encoding into a \texttt{<set>.vtu} file.
+\item \texttt{send <set> vtu ds<nr>}: Exports the mesh with a specific dataset number (e.g. \texttt{send all vtu ds2}).
+\item \texttt{send <set> vtu all}: Iterates through all available time-steps or modal shapes, writes individual timestamped \texttt{<set>\_<nr>.vtu} files, and automatically generates a master ParaView Collection file (\texttt{<set>.pvd}) for 1-click animated time-history playback in ParaView.
+\item \texttt{send <set> vtu [all|ds<nr>] ascii}: Appending the optional \texttt{ascii} keyword forces the XML file to be written in human-readable plain text rather than binary encoding.
+\end{itemize}
+All 1D (BEAM2, BEAM3), 2D (TR3, TR6, QUAD4, QUAD8), and 3D (TET4, TET10, HEX8, HEX20, WEDGE6, WEDGE15, PYR5, PYR13) elements are automatically converted to their exact canonical VTK cell geometries with correct mid-side node permutations. See also ''\htmlref{How to export results to ParaView}{How to export results to ParaView}''.
 
 The following formats are known (but not all options for all formats are fully supported so far); The geometry-format (fbd)\\\\send set fbd\\\\or\\\\send set fbd c\\\\will complete the set downwards before writing.
 
@@ -2230,7 +2277,7 @@ can be stored in a set. Here all lines with a division above 50 are stored in se
 
   
 \begin{figure}[h]
-\epsfig{file=seta.eps,width=12cm}
+\includegraphics[width=12cm]{seta.pdf}
 \caption{\label{engine}All disjunct meshes in the jet-engine are successive coloured}
 \end{figure}
 
@@ -2301,7 +2348,7 @@ A plane shape is defined with the parameter ``pln'' followed by the names of thr
 Remark: A further shape type exists which links a nurbs to a surface definition. Such a shape will be automatically generated when a nurbs is finished by the ``END'' parameter using the same name as the nurbs. This shapes will not be written to a file but using the \htmlref{prnt}{prnt} command will list them:\\\\shpe N001 NURS N001
 
 \begin{figure}[h]
-\epsfig{file=shpe.eps,width=12cm}
+\includegraphics[width=12cm]{shpe.pdf}
 \caption{\label{The shape types and its symbols together with an illustrating mesh}The shape types and its symbols together with an illustrating mesh}
 \end{figure}
 
@@ -2584,8 +2631,8 @@ Command to control the graphic output. This command is intended for batch-mode. 
 \begin{itemize}
 \item ''cl'' The command line is shown in the graphic's window. 
 \item ''fill'' Element-faces are filled 
-\item ''line'' Elements are displayed as fireframes
-\item ''point'' Element-edges are displayed as points with a pixel-width of 'value'
+\item ''line'' Elements are displayed as wireframes (rendered with anti-aliased smoothing \texttt{GL\_LINE\_SMOOTH} and Retina auto-scaling\footnote{Retina / High-DPI line and point smoothing and auto-scaling introduced in CalculiX GraphiX (GLFW Edition).}).
+\item ''point'' Element-edges are displayed as points with a pixel-width of 'value' (rendered with anti-aliased circular points \texttt{GL\_POINT\_SMOOTH}).
 \item ''edge'' triggers the display of the model edges with a pixel-width of 'value'
 \item ''elem'' triggers the display of the element edges. They are deselected with the additional parameter ''off''.
 \item ''surf'' and ''volu'' are used to display the structure either only by it's outer skin (surf) or by drawing all elements (volu). \item ''front'' and ''back'' define which side of the structure should be drawn. Either the side which faces the user or the back-side. If the back-side is displayed then internal structures are visible. 
@@ -2595,8 +2642,8 @@ Command to control the graphic output. This command is intended for batch-mode. 
 \item ''sh'' Shaded results are shown. Switched off with ''off''. 
 \item ''ill'' Illuminale the backface of the elements. Switched off with ''off''. 
 \item ''rul'' triggers the display of a ruler bar. Switched off with ''off''. A string containing the unit can be given: ``view rul mm''. 
-\item ''persp'' and ''ortho'' switch between realistic 3D perspective projection and classic orthographic (parallel) projection.
-\item ''dark'' and ''light'' switch the viewport theme between modern high-contrast dark charcoal and classic clean white background.
+\item ''persp'' and ''ortho'' switch between realistic 3D perspective projection\footnote{3D perspective projection mode by default with center-anchored framing introduced in CalculiX GraphiX (GLFW Edition).} and classic orthographic (parallel) projection.
+\item ''dark'' and ''light'' switch the viewport theme between modern high-contrast dark slate (\texttt{\#0D121A})\footnote{Signature Dark Mode theme by default introduced in CalculiX GraphiX (GLFW Edition).} and classic clean white background.
 \end{itemize}  
 
 \subsection{\label{volu}volu}
@@ -2620,13 +2667,13 @@ See also ``\htmlref{if}{if}'', ``\htmlref{valu}{valu}'', ``\htmlref{stack}{stack
 \begin{verbatim}
    'wpos' <xp> <yp>
 \end{verbatim}
-Positions the window on the screen were xp and yp are the coordinates in pixel relative to the left upper corner. This command takes no effect during reading and execution of a batch file. It will be executed in the glut event loop (the glut library \cite{glut} for window management and event handling). The user might store his personal start-up location in the ``.cgx'' file in his home directory.
+Positions the window on the screen were xp and yp are the coordinates in pixel relative to the left upper corner. This command takes no effect during reading and execution of a batch file. It will be executed in the GLFW event loop (or legacy GLUT event loop). The user might store his personal start-up location in the ``.cgx'' file in his home directory.
 
 \subsection{\label{wsize}wsize}
 \begin{verbatim}
    'wsize' [RETURN]|'f']|[<xp> <yp>]
 \end{verbatim}
-Size of the window were xp and yp are the size in pixel. Without argument the size is the initial size and with the argument 'f' (fullsize) the screen resolution is used. This command takes ONLY effect during reading and execution of a batch file IF it is written in the very first line. Otherwhise it will be executed after reading of the batch file in the glut event loop (the glut library \cite{glut} for window management and event handling) which means that the program has to go into the interactive mode to take effect. The user might store his personal start-up window size in the ``.cgx'' file in his home directory.
+Size of the window were xp and yp are the size in pixel. Without argument the size is the initial size and with the argument 'f' (fullsize) the screen resolution is used. This command takes ONLY effect during reading and execution of a batch file IF it is written in the very first line. Otherwhise it will be executed after reading of the batch file in the GLFW event loop (or legacy GLUT event loop) which means that the program has to go into the interactive mode to take effect. The user might store his personal start-up window size in the ``.cgx'' file in his home directory.
 
 \subsection{\label{zap}zap}
 \begin{verbatim}
@@ -2647,7 +2694,7 @@ Node numbering of the elements and the type numbers used in the Result Format (f
 
 \begin{picture}(90,90)(0,150)
 %
-\put(0,0){\epsfig{file=be2.eps,width=9cm} }
+\put(0,0){\includegraphics[width=9cm]{be2.pdf} }
 \put(100,0){\label{topo_be2} 2 node beam element (be2, type 11) }
 \end{picture}
 
@@ -2655,10 +2702,10 @@ Node numbering of the elements and the type numbers used in the Result Format (f
 
 \begin{picture}(90,180)(0,330)
 %
-\put(0,360){\epsfig{file=be3.eps,width=9cm} }
+\put(0,360){\includegraphics[width=9cm]{be3.pdf} }
 \put(100,330){\label{topo_be3} 3 node beam element (be3, type 12) }
 %
-\put(0,30){\epsfig{file=tr3.eps,width=10cm} }
+\put(0,30){\includegraphics[width=10cm]{tr3.pdf} }
 \put(100,0){\label{topo_tr3} 3 node shell element (tr3, tr3u, type 7) }
 \end{picture}
 
@@ -2666,10 +2713,10 @@ Node numbering of the elements and the type numbers used in the Result Format (f
 
 \begin{picture}(90,180)(0,330)
 %
-\put(0,360){\epsfig{file=tr6.eps,width=10cm} }
+\put(0,360){\includegraphics[width=10cm]{tr6.pdf} }
 \put(100,330){\label{topo_tr6} 6 node shell element (tr6, type 8) }
 %
-\put(0,30){\epsfig{file=qu4.eps,width=10cm} }
+\put(0,30){\includegraphics[width=10cm]{qu4.pdf} }
 \put(100,0){\label{topo_qu4} 4 node shell element (qu4, type 9) }
 \end{picture}
 
@@ -2677,10 +2724,10 @@ Node numbering of the elements and the type numbers used in the Result Format (f
 
 \begin{picture}(90,180)(0,330)
 %
-\put(0,360){\epsfig{file=qu8.eps,width=10cm} }
+\put(0,360){\includegraphics[width=10cm]{qu8.pdf} }
 \put(100,330){\label{topo_qu8} 8 node shell element (qu8, type 10) }
 %
-\put(0,30){\epsfig{file=te4.eps,width=10cm} }
+\put(0,30){\includegraphics[width=10cm]{te4.pdf} }
 \put(100,0){\label{topo_te4} 4 node tet element (type 3) }
 \end{picture}
 
@@ -2688,10 +2735,10 @@ Node numbering of the elements and the type numbers used in the Result Format (f
 
 \begin{picture}(90,180)(0,330)
 %
-\put(0,310){\epsfig{file=te10.eps,width=10cm} }
+\put(0,310){\includegraphics[width=10cm]{te10.pdf} }
 \put(100,280){\label{topo_te10} 10 node tet element (type 6) }
 %
-\put(0,30){\epsfig{file=he8.eps,width=10cm} }
+\put(0,30){\includegraphics[width=10cm]{he8.pdf} }
 \put(100,0){\label{topo_he8} 8 node brick element (he8, type 1) }
 \end{picture}
 
@@ -2699,10 +2746,10 @@ Node numbering of the elements and the type numbers used in the Result Format (f
 
 \begin{picture}(90,180)(0,330)
 %
-\put(0,360){\epsfig{file=he20.eps,width=10cm} }
+\put(0,360){\includegraphics[width=10cm]{he20.pdf} }
 \put(100,330){\label{topo_he20} 20 node brick element (he20, type 4) }
 %
-\put(0,30){\epsfig{file=pe6.eps,width=6cm} }
+\put(0,30){\includegraphics[width=6cm]{pe6.pdf} }
 \put(100,0){\label{topo_pe6} 6 node penta element (pe6, type 2) }
 \end{picture}
 
@@ -2710,7 +2757,7 @@ Node numbering of the elements and the type numbers used in the Result Format (f
 
 \begin{picture}(90,180)(0,330)
 %
-\put(0,360){\epsfig{file=pe15.eps,width=6cm} }
+\put(0,360){\includegraphics[width=6cm]{pe15.pdf} }
 \put(100,330){\label{topo_pe15} 15 node penta element (pe15, type 5) }
 \end{picture}
 
@@ -3096,7 +3143,7 @@ If a tet mesh is required and the user meshes at first the surfaces and then gen
 The way the mesher works has the consequence that only bodies who share a single common surface are connected at each node were they touch each other. Three surfaces with their points and lines are shown in figure \ref{unconnectedBodies}. When sweeping this surfaces in 'y' direction three bodies will be generated. The line L006 generates a surface between the bodies at the position of A001 and A002. Both bodies will reference this surface and will therefore share its nodes. So all elements will be connected at that location. But a body using the surface A005 will use a surface generated by the combined line of L001 and L002 extruded in 'y' direction! This surface will not be used by the bodies generated by A001 and A002 since they will use the surfaces generated by the separately extruded lines L001 and L002. So bodies at the position of A001 and A005 will share the nodes of the common lines and points but not of the new surfaces at the location of line L001 (and not at the location of the new line at point D002). In the end at some inner locations gaps will exist.
   
 \begin{figure}[h]
-\epsfig{file=unconnectedBodies.eps,width=12cm}
+\includegraphics[width=12cm]{unconnectedBodies.pdf}
 \caption{\label{unconnectedBodies} unconnected bodies}
 \end{figure}
  
@@ -3232,7 +3279,7 @@ For more details and other options look into the ''\htmlref{graph}{graph}'' comm
 \newpage
 
 \begin{figure}[h]
-\epsfig{file=graph.eps,width=9cm}
+\includegraphics[width=9cm]{graph.pdf}
 \caption{\label{graph2D} example of a time-history plot }
 \end{figure}
 
@@ -3257,7 +3304,7 @@ Sometimes it is advisable to ''glue'' independent meshes together instead of try
 Background: The movement of each location in an element (or on its surface) is fully described by the movement of its associated nodes and its shape-function. In an iterative algorithm element-coordinates are varied until the real-world coordinates of a dependent node are matched. Based on the element coordinates the shape function gives the participation (weight) factors of the independent nodes (the coefficients in the mpc's). This approach delivers valid results as long as the dependent node is not located outside of the independent element. Therefore the location of the dependent node has to be modified in such cases. The dependent will be moved to the surface of the independent element (again decribed by its shape-function) and the procedure is repeated.
 
 \begin{figure}[h]
-\epsfig{file=equation.eps,width=12cm}
+\includegraphics[width=12cm]{equation.pdf}
 \caption{\label{equation} Dependent node on element face to create a connection  }
 \end{figure}
 
@@ -3340,14 +3387,52 @@ Finally, complex operations can be coded in C in the file userFunction.c. The
 user function is activated by the ''\htmlref{call}{call}'' command. A new
 compilation of cgx is required unless a dynamically linked library is used.
 
+\subsection{\label{How to export results to ParaView}How to export meshes and results to ParaView (VTU/PVD)}
+\footnote{Native VTK XML UnstructuredGrid and ParaView collection (.pvd) exporter introduced in CalculiX GraphiX (GLFW Edition).}
+The VTU export functionality enables direct visualization and post-processing of CalculiX FE models in ParaView \cite{paraview}. It converts 1D, 2D, and 3D linear and quadratic elements (TET4, TET10, HEX8, HEX20, WEDGE6, WEDGE15, PYR5, PYR13, TR3, TR6, QUAD4, QUAD8, BEAM2, BEAM3) to canonical VTK cells, preserving high-order node numberings and field data.
+
+\subsubsection{Exporting Single Result Datasets}
+To export the mesh along with the currently active dataset (e.g. von Mises stress or displacements):
+\begin{verbatim}
+  cgx model.frd
+  ds 1 e 4
+  send all vtu
+\end{verbatim}
+This produces \texttt{all.vtu} containing the mesh coordinates, element topologies, and the active scalar/vector result fields encoded in high-performance Base64 inline binary format. If you need human-readable plain text (for inspection or debugging), append \texttt{ascii}:
+\begin{verbatim}
+  send all vtu ascii
+\end{verbatim}
+
+\subsubsection{Exporting Multi-Step Transient or Modal Animations}
+To export an entire simulation sequence (all time steps from a dynamic/transient calculation or all vibration mode shapes from a frequency analysis):
+\begin{verbatim}
+  send all vtu all
+\end{verbatim}
+This command automatically:
+\begin{enumerate}
+\item Iterates through all available datasets in the database.
+\item Writes individual time-step files: \texttt{all\_1.vtu}, \texttt{all\_2.vtu}, \dots, \texttt{all\_N.vtu}.
+\item Generates a master ParaView Collection file: \texttt{all.pvd} linking each VTU file with its exact physical time or frequency.
+\end{enumerate}
+
+\subsubsection{Visualizing in ParaView}
+To open and inspect the exported results:
+\begin{enumerate}
+\item Launch ParaView and open the generated \texttt{all.pvd} or \texttt{all.vtu} file.
+\item In the Properties panel, click \textbf{Apply}.
+\item In the Active Variable Controls toolbar, select your desired result field (e.g. \texttt{DISP} or \texttt{STRESS}).
+\item To view the deformed shape, apply the \textbf{Warp By Vector} filter with the displacement vector field (\texttt{DISP}) and set an appropriate scale factor.
+\item For transient/modal datasets, click the \textbf{Play} button in the VCR animation toolbar to playback the time-history sequence smoothly.
+\end{enumerate}
+
 \subsection{\label{How to deal with CAD-geometry}How to deal with CAD-geometry}
 In general hexahedra-elements perform better than tets but if the mesh should be derived from a cad-geometry it is often more convenient to create a tetrahedra mesh as to modify or rebuild the geometry to make it meshable with hexahedra-elements. The following section gives some hints which alternatives are available:
 
 \begin{itemize}
 
-\item The CAD format is supported by a stand alone translator (see the calculix home pages). In this case the user can mesh the surfaces with structured- \cite{Coons} (elty setname tr3 etc.) or unstructured triangles \cite{mesh2d} (elty setname tr3u etc.). The user might modify this surface mesh until he is happy with it. The surface mesh can then be filled with tets created by an external auto-mesher called from within cgx (mesh setname tet). The cgx uses the tet-mesher from NETGEN \cite{NETGEN} or TETGEN \cite{TETGEN} for this task. The command ''\htmlref{asgn}{asgn}'' is used to switch between them.
+\item The CAD format is supported by a stand alone translator (see the calculix home pages). In this case the user can mesh the surfaces with structured- \cite{Coons} (elty setname tr3 etc.) or unstructured triangles \cite{mesh2d} (elty setname tr3u etc.). The user might modify this surface mesh until he is happy with it. The surface mesh can then be filled with tets created by an auto-mesher called from within cgx (mesh setname tet). The cgx uses the tet-mesher from TETGEN \cite{TETGEN} (embedded in-memory in the GLFW Edition\footnote{In CalculiX GraphiX (GLFW Edition), TetGen 1.6.0 is directly embedded into the binary with an in-memory C++ interface and default Delaunay quality switches \texttt{pq1.3/17O7}, requiring no external binaries or disk I/O.}) or NETGEN \cite{NETGEN}. The command ''\htmlref{asgn}{asgn}'' is used to switch between them.
 
-Therefore cgx can only generate a tet-mesh if one of these programs are accessible (TETGEN like glut is included in the cgx package). For the full functionality replace the original ng\_vol source file in the NETGEN package with the modified program ng\_vol from the cgx-distribution and build it again. This version regards a target element size. Tetgen is able to regard that size unchanged.
+In the GLFW Edition, TetGen 1.6.0 is fully built-in and active out of the box with zero external installation required. When using NETGEN, replace the original ng\_vol source file in the NETGEN package with the modified program ng\_vol from the cgx-distribution and build it again. This version regards a target element size. Tetgen is able to regard that size unchanged.
 
 \item For CAD models in STEP- or IGES-format you may consider to use a tet-mesher like NETGEN \cite{NETGEN} which often generates quite nice tet-meshes with very few user interaction. You can read this meshes with cgx and combine them with cgx-geometry and meshes. Then create your boundary conditions etc. You might read the native-netgen format (.vol) instead of abaqus-format because this includes the 2D meshing regions in separate sets which can be used to apply boundary conditions (``cgx -ng file.vol'', see ''\htmlref{Program Parameters}{Program Parameters}''). See ``\htmlref{prnt}{prnt}'' how to list the available sets.
 
@@ -3360,7 +3445,7 @@ The following section describes the process to generate a tet-mesh with cgx base
 
 
 \begin{figure}[h]
-\epsfig{file=halter.eps,width=9cm}
+\includegraphics[width=9cm]{halter.pdf}
 \caption{\label{halter} CAD-geometry meshed with tet-elements }
 \end{figure}
 
@@ -3406,7 +3491,7 @@ Remark: In some cases surfaces are not meshable when you had combined two surfac
 \item Check the mesh. If the command ''\htmlref{prnt}{prnt} info'' lists ''ed:0'' then no model edges exist and the mesh is closed and ready to be used for tet meshing. If edges exist then the surface mesh is not closed which means that not all shells have exactly one neighbor at each edge. This free edges exist usually at the location of lines and the problem can often be solved by changing the divsion of the underlying lines. The edges are displayed by default but might be hidden by other entities. To increase the size of the representation up to 10 pixels use ''\htmlref{view}{view} ed 10''. This can be seen on figure \ref{surfmesh}. Additionally the nodes at this free edges are stored in the set ``+EDGE''. Then chose the line under one edge with ``qmsh'' and change the line division to a higher or lower number until the edge disapears. Actually cgx detects this edges after meshing and tries to solve the problem by increasing the division of the related lines incrementally, but only a few times. The remaining lines (and all nodes at this lines, not just the nodes on free edges( opposite to ``+EDGES'')) are stored in set ``-EDGE'' and can be displayed as well for manual adjustments. 
   
 \begin{figure}[h]
-\epsfig{file=surfmesh.eps,width=12cm}
+\includegraphics[width=12cm]{surfmesh.pdf}
 \caption{\label{surfmesh}Visible (black) edge over lines and faces. Such edges exists if the surface mesh is not closed and not meshable with tets. Here two elements meet just one element at the black edge. }
 \end{figure}
 
@@ -3445,7 +3530,7 @@ Additional remarks:
 \end{verbatim}
 
   \begin{figure}[h]
-\epsfig{file=scratch.eps,width=9cm}
+\includegraphics[width=9cm]{scratch.pdf}
 \caption{\label{sliver} CAD-surface with a sliver or scratch }
 \end{figure}
 
@@ -3707,7 +3792,7 @@ So far results can not be read.
 The following listings show simple geometry input-files. The pictures show this geometry together with their labels and the generated mesh. The models were made based on three points. Two points defined one axis of rotation and one was the basis of several ''\htmlref{swep}{swep}'' and ''\htmlref{merg}{merg}'' operations. In case of the sphere the surfaces on the pole had to be redefined using only three lines per surface.
 \subsection{\label{Disc}Disc}
 \begin{figure}[h]
-\epsfig{file=disc.eps,width=12cm}
+\includegraphics[width=12cm]{disc.pdf}
 \caption{\label{disc made of four 90 degree segments}disc made of four 90 degree segments}
 \end{figure}
 \begin{verbatim}
@@ -3742,7 +3827,7 @@ The following listings show simple geometry input-files. The pictures show this 
 
 \subsection{\label{Cylinder}Cylinder}
 \begin{figure}[h]
-\epsfig{file=cylinder.eps,width=12cm}
+\includegraphics[width=12cm]{cylinder.pdf}
 \caption{\label{cylinder made of four 90 degree segments}cylinder made of four 90 degree segments}
 \end{figure}
 \begin{verbatim}
@@ -3778,7 +3863,7 @@ The following listings show simple geometry input-files. The pictures show this 
 
 \subsection{\label{Sphere}Sphere}
 \begin{figure}[h]
-\epsfig{file=sphere.eps,width=12cm}
+\includegraphics[width=12cm]{sphere.pdf}
 \caption{\label{Segment of a Sphere}Segment of a Sphere}
 \end{figure}
 \begin{verbatim}
@@ -3813,7 +3898,7 @@ The following listings show simple geometry input-files. The pictures show this 
 
 \subsection{\label{Sphere (Volume)}Sphere (Volume)}
 \begin{figure}[h]
-\epsfig{file=sphere_vol.eps,width=12cm}
+\includegraphics[width=12cm]{sphere_vol.pdf}
 \caption{\label{Segment of a SphereV}Segment of a Sphere (Volume)}
 \end{figure}
 \begin{verbatim}
@@ -3847,7 +3932,7 @@ The following listings show simple geometry input-files. The pictures show this 
 
 \subsection{\label{Sphere (Thin Volume)}Sphere (Thin Volume)}
 \begin{figure}[h]
-\epsfig{file=sphere_thinvol.eps,width=12cm}
+\includegraphics[width=12cm]{sphere_thinvol.pdf}
 \caption{\label{Segment of a Sphere (Thin Volume)}Segment of a Sphere (Thin Volume)}
 \end{figure}
 \begin{verbatim}
@@ -3952,7 +4037,7 @@ The following listings show simple geometry input-files. The pictures show this 
 \subsection{\label{Airfoil for cfd codes}Airfoil for cfd codes}
 All surfaces must be oriented in the same way. The sets are used to define areas for the boundary conditions.
 \begin{figure}[h]
-\epsfig{file=naca23012.eps,width=12cm}
+\includegraphics[width=12cm]{naca23012.pdf}
 \caption{\label{Airfoil for duns}Airfoil for cfd codes }
 \end{figure}
 \begin{verbatim}
@@ -4135,7 +4220,7 @@ All surfaces must be oriented in the same way. The sets are used to define areas
 
 \subsection{\label{If and while demo}If and while demo}
 \begin{figure}[h]
-\epsfig{file=ifwhile.eps,width=12cm}
+\includegraphics[width=12cm]{ifwhile.pdf}
 \caption{\label{Result of If and while demo}Result of If and while demo}
 \end{figure}
 The if and while commands can be nested. A demo which produces some points on the window follows:
@@ -4387,6 +4472,9 @@ stack free
 
 \begin{thebibliography}{99}
 \bibitem{mesa} OpenGL-Like Rendering Toolkit, from Brian Paul, http://www.mesa3d.org/ 
+\bibitem{glfw} GLFW - An Open Source, Multi-Platform Library for OpenGL, https://www.glfw.org/
+\bibitem{stb} stb\_truetype - Single-header vector font engine from Sean Barrett, https://github.com/nothings/stb
+\bibitem{paraview} ParaView - Open-source, multi-platform data analysis and visualization application, Kitware, https://www.paraview.org/
 \bibitem{glut} OpenGL Utility Toolkit (GLUT), from Mark J. Kilgard
 %, http://reality.sgi.com/mjk_asd/glut3/glut3.html, Copying-Policy: Freely redistributable, not public domain.
 \bibitem{cgx} CalculiX GraphiX (cgx), from Klaus Wittig, klaus.wittig@calculix.de
