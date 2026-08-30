@@ -6110,13 +6110,10 @@ void DrawGraficLoad( void )
 
   glLoadIdentity();
   moveModel();
-  if (modelEdgeFlag)     glCallList( list_model_edges );
-  if (elemEdgeFlag)
-  {
-    if (surfFlag) glCallList( list_surf_edges );
-    else          glCallList( list_elem_edges );
-  }
-  /* enable all colors  */
+
+  /* 1. Render filled solid result colormaps first with polygon offset */
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
   glColor3d( 1,1,1);
   // glEnable(GL_TEXTURE_1D);
   if (lcase[cur_lc].irtype == 3)
@@ -6127,6 +6124,15 @@ void DrawGraficLoad( void )
   {
     if (surfFlag)   glCallList( list_surf_load );
     else            glCallList( list_elem_load );
+  }
+  glDisable(GL_POLYGON_OFFSET_FILL);
+
+  /* 2. Render crisp edges and lines on top */
+  if (modelEdgeFlag)     glCallList( list_model_edges );
+  if (elemEdgeFlag)
+  {
+    if (surfFlag) glCallList( list_surf_edges );
+    else          glCallList( list_elem_edges );
   }
 
   if (rulerFlag)
@@ -6189,14 +6195,21 @@ void DrawGraficLight( void )
 
   glLoadIdentity();
   moveModel();
+
+  /* 1. Render filled solid model first with polygon offset */
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
+  if (surfFlag)    glCallList( list_surf_light );
+  else             glCallList( list_elem_light );
+  glDisable(GL_POLYGON_OFFSET_FILL);
+
+  /* 2. Render crisp edges and lines on top */
   if (modelEdgeFlag) glCallList( list_model_edges );
   if (elemEdgeFlag)
   {
      if (surfFlag) glCallList( list_surf_edges );
      else          glCallList( list_elem_edges );
   }
-  if (surfFlag)    glCallList( list_surf_light );
-  else             glCallList( list_elem_light );
 
   if (rulerFlag)
   {
@@ -6267,6 +6280,14 @@ void DrawGraficAnimate( void )
 
   glLoadIdentity();
   moveModel();
+
+  /* 1. Render animated solid body first with polygon offset */
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
+  glCallList( list_animate[animList] );
+  glDisable(GL_POLYGON_OFFSET_FILL);
+
+  /* 2. Render animated edges on top */
   if (modelEdgeFlag_Static)     glCallList( list_model_edges );
   if (modelEdgeFlag)     glCallList( list_animate_model_edges[animList] );
   if (elemEdgeFlag_Static)
@@ -6279,7 +6300,6 @@ void DrawGraficAnimate( void )
     if (surfFlag) glCallList( list_animate_surf_edges[animList] );
     else          glCallList( list_animate_elem_edges[animList] );
   }
-  glCallList( list_animate[animList] );
   
   glLoadIdentity();
   sprintf (buffer,"%4d%%Amplitude     ", anim_alfa[animList]);
@@ -6375,6 +6395,26 @@ void DrawGraficSequence( void )
 
   glLoadIdentity();
   moveModel();
+
+  /* 1. Render solid sequence body first with polygon offset */
+  if (illumFlag); 
+  else
+  {
+    /* enable all colors */
+    glColor3d( 1,1,1);
+    glEnable(GL_TEXTURE_1D);
+  }
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
+  glCallList( list_animate[animList] );
+  glDisable(GL_POLYGON_OFFSET_FILL);
+  if (illumFlag); 
+  else
+  {
+    glDisable(GL_TEXTURE_1D);
+  }
+
+  /* 2. Render edges on top */
   if(!sequenceFlag)
   {
     if (modelEdgeFlag)     glCallList( list_model_edges );
@@ -6398,20 +6438,6 @@ void DrawGraficSequence( void )
       if (surfFlag) glCallList( list_animate_surf_edges[animList] );
       else          glCallList( list_animate_elem_edges[animList] );
     }
-  }
-
-  if (illumFlag); 
-  else
-  {
-    /* enable all colors */
-    glColor3d( 1,1,1);
-    glEnable(GL_TEXTURE_1D);
-  }
-  glCallList( list_animate[animList] );
-  if (illumFlag); 
-  else
-  {
-    glDisable(GL_TEXTURE_1D);
   }
 
   /* immediate draw the vectors. no display-list used because vector-length should be updated immediately */
@@ -6578,12 +6604,15 @@ void drawSets(int mode)
     /* don't draw the transparent faces */
     if(pset[j].type[0]=='f')
     {
-      if(mode) drawFaceNodes_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, 2, 0 );
-      if(elemEdgeFlag) drawFaces_edge( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, basCol[0], pset[j].type[1] );
       if((pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
       {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
         drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, pset[j].type[1], pset[j].width, mode );
+        glDisable(GL_POLYGON_OFFSET_FILL);
       }
+      if(elemEdgeFlag) drawFaces_edge( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, basCol[0], pset[j].type[1] );
+      if(mode) drawFaceNodes_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, 2, 0 );
     }
     else if (pset[j].type[0]=='n')
     {
@@ -6599,12 +6628,15 @@ void drawSets(int mode)
     /* don't draw the transparent elements */
     else if (pset[j].type[0]=='e')
     {
-      if(mode) drawElemNodes_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, 2, 0 );
-      if(elemEdgeFlag) drawElem_edge( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, basCol[0], pset[j].type[1] );
       if((pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
       {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
         drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, pset[j].type[1], pset[j].width, mode );
+        glDisable(GL_POLYGON_OFFSET_FILL);
       }
+      if(elemEdgeFlag) drawElem_edge( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, basCol[0], pset[j].type[1] );
+      if(mode) drawElemNodes_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, 2, 0 );
     }
     else if (pset[j].type[0]=='p')
     {
@@ -6619,7 +6651,10 @@ void drawSets(int mode)
       if(pset[j].type[1]=='h') drawShapes_plot( set[pset[j].nr].anz_sh, set[pset[j].nr].shp, shape, point, pset[j].col, pset[j].type[1]);
       else
       {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
         drawSurfs_plot( set[pset[j].nr].anz_s, set[pset[j].nr].surf, surf, lcmb, line, point, pset[j].col, pset[j].type[1] );
+        glDisable(GL_POLYGON_OFFSET_FILL);
       }
     }
     else if (pset[j].type[0]=='b')
@@ -6647,11 +6682,14 @@ void drawSets(int mode)
       glDepthMask(GL_FALSE);
       glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       glCullFace ( GL_FRONT );
+      glEnable(GL_POLYGON_OFFSET_FILL);
+      glPolygonOffset(1.0f, 1.0f);
       if(pset[j].type[0]=='f') drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width, mode );
       else  drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width, mode );
       glCullFace ( GL_BACK );
       if(pset[j].type[0]=='f') drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width, mode );
       else  drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width, mode );
+      glDisable(GL_POLYGON_OFFSET_FILL);
       glDepthMask(GL_TRUE);
       glDisable (GL_BLEND);
       glDepthFunc(GL_LEQUAL);

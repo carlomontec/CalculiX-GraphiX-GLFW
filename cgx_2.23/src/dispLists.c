@@ -127,7 +127,10 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
         /* don't draw the transparent faces */
         if((pset[j].type[0]=='f')&&(pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
         {
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, pset[j].type[1], pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
         }
         else
         {
@@ -138,9 +141,12 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
           glDepthMask(GL_FALSE);
           glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
           glCullFace ( GL_FRONT );
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width,!PICK );
           glCullFace ( GL_BACK );
           drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
           glDepthMask(GL_TRUE);
           glDisable (GL_BLEND);
           glDepthFunc(GL_LEQUAL);
@@ -153,7 +159,10 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
         /* don't draw the transparent faces */
         if((pset[j].type[0]=='e')&&(pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
         {
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, pset[j].type[1], pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
         }
         else
         {
@@ -164,9 +173,12 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
           glDepthMask(GL_FALSE);
           glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
           glCullFace ( GL_FRONT );
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width,!PICK );
           glCullFace ( GL_BACK );
           drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
           glDepthMask(GL_TRUE);
           glDisable (GL_BLEND);
           glDepthFunc(GL_LEQUAL);
