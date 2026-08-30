@@ -23,6 +23,7 @@
 
 
 #include <cgx.h>
+#include "cgx_vbo.h"
 
 
 #define     TEST            0   /* debugging */
@@ -540,6 +541,7 @@ void defineColTextur_load(float alpha)
   glTexParameterf(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameterf(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexImage1D(GL_TEXTURE_1D, 0, 4, TEX_PIXELS, 0, GL_RGBA, GL_FLOAT, contur_tex);
+  cgx_vbo_update_colormap_texture(contur_tex, TEX_PIXELS);
 }
 
 

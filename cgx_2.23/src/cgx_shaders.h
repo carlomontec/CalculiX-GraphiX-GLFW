@@ -28,6 +28,7 @@ typedef struct {
     
     GLint loc_u_displacement_scale;
     GLint loc_u_use_displacement;
+    GLint loc_u_use_lighting;
 
     GLint loc_u_colormap_tex;
     GLint loc_u_use_colormap;
