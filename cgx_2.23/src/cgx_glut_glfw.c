@@ -10,6 +10,7 @@
 /* --------------------------------------------------------------------  */
 
 #include "cgx_glut_glfw.h"
+#include "cgx_app_icon.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -317,6 +318,15 @@ int glutCreateWindow(const char *title)
   glfwMakeContextCurrent(g_glfw_window);
   glfwSwapInterval(1);
   init_truetype_fonts();
+
+  /* Set runtime window icon for titlebar, dock, and taskbar */
+  {
+    GLFWimage icon;
+    icon.width = CGX_ICON_WIDTH;
+    icon.height = CGX_ICON_HEIGHT;
+    icon.pixels = (unsigned char *)cgx_app_icon_rgba;
+    glfwSetWindowIcon(g_glfw_window, 1, &icon);
+  }
 
   id = 1;
   win = &g_windows[g_num_windows++];
