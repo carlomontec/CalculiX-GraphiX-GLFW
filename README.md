@@ -3,10 +3,10 @@
 > **A new 3D backend and multi-platform edition of CalculiX GraphiX.**
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](COPYING)
-[![Platform: macOS | Linux & Windows (Soon)](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%26%20Windows%20(Soon)-brightgreen.svg)](#build-instructions)
+[![Platform: macOS | Linux | Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen.svg)](INSTALL.md)
 [![Dependencies: 100% GLUT-Free](https://img.shields.io/badge/Dependencies-100%25%20GLUT--Free%20%26%20X11--Free-success.svg)](#highlights--new-features)
 [![Graphics: GLFW3 + Modern OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20stb__truetype-orange.svg)](#highlights--new-features)
-[![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](#native-paraview-vtupvd-exporter)
+[![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](GUI_EXTRA_FEATURES.md#6-native-paraview-vtupvd-exporter)
 
 ![CalculiX GraphiX GLFW Edition](img/cgx_glfw.png)
 
@@ -36,59 +36,19 @@ There are two objectives of this project. First, is to explore agent-assisted re
 
 ## Quick Start (Universal 1-Liner)
 
-For Windows, binaries are recommended to download. These are avaiable in the [Releases page](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases). For Linux and macOS the command line installer is recommended.
-
 Install **CalculiX GraphiX (GLFW Edition)** on **macOS (Apple Silicon)** or **Linux** with a single command:
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/install.sh)"
 ```
-When prompted, you can choose:
-* **Option 1: Executable**: Automatically downloads the matching binary.
-* **Option 2: Build from Source**: Automatically installs development toolchains and compiles the latest stable release for maximum performance.
 
----
-
-## Manual Build Instructions
-
-If you prefer to build manually from the cloned repository:
-
-### macOS
-
+Then run from anywhere:
 ```bash
-# Install GLFW
-brew install glfw
-# Compile
-cd cgx_2.23/src
-# Launch
-make -f Makefile.glfw -j$(sysctl -n hw.ncpu)
-../../bin/cgx_glfw
+cgx_glfw <model.frd>
 ```
----
 
-### Linux (Ubuntu, Debian, Fedora, RHEL, Arch)
-
-1. **Install Prerequisites**:
-   * **Ubuntu / Debian / Linux Mint**:
-     ```bash
-     sudo apt-get update && sudo apt-get install -y build-essential libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
-     ```
-   * **Fedora / RHEL / Rocky**:
-     ```bash
-     sudo dnf install -y gcc-c++ make glfw-devel mesa-libGL-devel mesa-libGLU-devel
-     ```
-   * **Arch / Manjaro / CachyOS**:
-     ```bash
-     sudo pacman -S --needed base-devel glfw-x11 mesa glu
-     ```
-
-2. **Compile and Run **:
-   ```bash
-   cd cgx_2.23/src
-   make -f Makefile.glfw -j$(nproc)
-   # run
-   ../../bin/cgx_glfw
-   ```
+* **Windows**: Download standalone binaries from [**Releases**](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases).
+* **Detailed Guide**: For CMake build instructions, prerequisites, and options, see [**INSTALL.md**](INSTALL.md).
 ---
 
 ## Controls & Mouse Gestures

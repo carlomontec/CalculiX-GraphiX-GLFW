@@ -19,7 +19,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/bin")
 
 # Options
-option(STATIC_GLFW "Link GLFW statically for standalone binary deployment" OFF)
+if(APPLE)
+    option(STATIC_GLFW "Link GLFW statically for standalone binary deployment" ON)
+else()
+    option(STATIC_GLFW "Link GLFW statically for standalone binary deployment" OFF)
+endif()
 
 # -----------------------------------------------------------------------------
 # Source Files Configuration

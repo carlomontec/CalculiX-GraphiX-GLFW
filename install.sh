@@ -6,8 +6,8 @@
 #   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/install.sh)"
 #
 # Supports:
-#   - macOS (Apple Silicon arm64 & Intel x86_64)
-#   - Linux (x86_64: Ubuntu, Debian, RHEL, Rocky, Fedora, Arch)
+#   - macOS (Apple Silicon arm64)
+#   - Linux (x86_64 & ARM64)
 # ==============================================================================
 
 set -e
@@ -69,7 +69,8 @@ if [ "${OS}" = "Darwin" ]; then
     if [ "${ARCH}" = "arm64" ]; then
         BINARY_NAME="cgx_glfw-macos-arm64"
     else
-        BINARY_NAME="cgx_glfw-macos-x86_64"
+        echo -e "${YELLOW}Notice: macOS Intel (${ARCH}) pre-built binaries are not provided. Falling back to local compilation...${NC}"
+        BINARY_NAME=""
     fi
 elif [ "${OS}" = "Linux" ]; then
     if [ "${ARCH}" = "x86_64" ]; then
@@ -163,37 +164,42 @@ install_build_deps() {
     echo -e "\n${BOLD}--> Checking build dependencies...${NC}"
     if [ "${OS}" = "Darwin" ]; then
         ensure_homebrew_macos
+        if ! command -v cmake &>/dev/null; then
+            brew install cmake
+        fi
         if ! brew list glfw &>/dev/null; then
             brew install glfw
-        fi
-        if ! command -v make &>/dev/null; then
-            brew install make
         fi
         echo -e "${GREEN}[OK] macOS build tools are ready.${NC}"
     elif [ "${OS}" = "Linux" ]; then
         HAS_COMPILER=0
         HAS_GLFW_DEV=0
+        HAS_CMAKE=0
         
-        if command -v gcc &>/dev/null && command -v g++ &>/dev/null && command -v make &>/dev/null; then
+        if command -v gcc &>/dev/null && command -v g++ &>/dev/null; then
             HAS_COMPILER=1
+        fi
+
+        if command -v cmake &>/dev/null; then
+            HAS_CMAKE=1
         fi
 
         if pkg-config --exists glfw3 2>/dev/null || [ -f /usr/include/GLFW/glfw3.h ] || [ -f /home/linuxbrew/.linuxbrew/include/GLFW/glfw3.h ]; then
             HAS_GLFW_DEV=1
         fi
 
-        if [ "$HAS_COMPILER" -eq 1 ] && [ "$HAS_GLFW_DEV" -eq 1 ]; then
-            echo -e "${GREEN}[OK] Compilers (gcc/g++) and GLFW development headers are ready.${NC}"
+        if [ "$HAS_COMPILER" -eq 1 ] && [ "$HAS_GLFW_DEV" -eq 1 ] && [ "$HAS_CMAKE" -eq 1 ]; then
+            echo -e "${GREEN}[OK] Compilers, CMake, and GLFW development headers are ready.${NC}"
             return 0
         fi
 
         echo "Installing missing build tools (requires sudo)..."
         if command -v apt-get &>/dev/null; then
-            sudo apt-get update -y && sudo apt-get install -y build-essential libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev git
+            sudo apt-get update -y && sudo apt-get install -y cmake build-essential libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev git
         elif command -v dnf &>/dev/null; then
-            sudo dnf install -y gcc-c++ make glfw-devel mesa-libGL-devel mesa-libGLU-devel git
+            sudo dnf install -y cmake gcc-c++ make glfw-devel mesa-libGL-devel mesa-libGLU-devel git
         elif command -v pacman &>/dev/null; then
-            sudo pacman -S --needed base-devel glfw-x11 mesa glu git
+            sudo pacman -S --needed cmake base-devel glfw-x11 mesa glu git
         fi
     fi
 }
@@ -234,9 +240,9 @@ do_build_install() {
 
     SRC_ROOT=""
     # Check if run inside existing cloned repo
-    if [ -f "$(pwd)/cgx_2.23/src/Makefile.glfw" ]; then
+    if [ -f "$(pwd)/CMakeLists.txt" ] || [ -f "$(pwd)/cgx_2.23/src/Makefile.glfw" ]; then
         SRC_ROOT="$(pwd)"
-    elif [ -f "$(dirname "$0")/cgx_2.23/src/Makefile.glfw" ]; then
+    elif [ -f "$(dirname "$0")/CMakeLists.txt" ] || [ -f "$(dirname "$0")/cgx_2.23/src/Makefile.glfw" ]; then
         SRC_ROOT="$(cd "$(dirname "$0")" && pwd)"
     else
         # 1-Liner mode: Clone repo into ~/.cgx/CalculiX-GraphiX-GLFW
@@ -252,7 +258,7 @@ do_build_install() {
         fi
 
         if [ -n "$USE_HEAD" ]; then
-            echo -e "--> Building bleeding-edge from '${BOLD}main${NC}' branch (--head)..."
+            echo -e "--> Building from '${BOLD}main${NC}' branch (--head)..."
             git -C "${SRC_ROOT}" checkout main --quiet 2>/dev/null || git -C "${SRC_ROOT}" checkout master --quiet 2>/dev/null || true
             git -C "${SRC_ROOT}" pull --rebase origin main 2>/dev/null || true
         else
@@ -267,8 +273,7 @@ do_build_install() {
         fi
     fi
 
-    echo -e "\n${BOLD}--> Building CGX (GLFW Edition) with native CPU optimizations...${NC}"
-    cd "${SRC_ROOT}/cgx_2.23/src"
+    echo -e "\n${BOLD}--> Building CGX (GLFW Edition)...${NC}"
     
     NPROC=4
     if command -v nproc &>/dev/null; then
@@ -277,16 +282,31 @@ do_build_install() {
         NPROC=$(sysctl -n hw.ncpu)
     fi
 
-    make -f Makefile.glfw clean 2>/dev/null || true
-    make -f Makefile.glfw OPT="-O3 -march=native" -j"${NPROC}"
+    if command -v cmake &>/dev/null && [ -f "${SRC_ROOT}/CMakeLists.txt" ]; then
+        echo "Configuring and building with CMake..."
+        if [ "${OS}" = "Darwin" ]; then
+            cmake -S "${SRC_ROOT}" -B "${SRC_ROOT}/build" -DCMAKE_BUILD_TYPE=Release -DSTATIC_GLFW=ON
+        else
+            cmake -S "${SRC_ROOT}" -B "${SRC_ROOT}/build" -DCMAKE_BUILD_TYPE=Release
+        fi
+        cmake --build "${SRC_ROOT}/build" -j"${NPROC}"
+    else
+        echo "Building with Makefile.glfw..."
+        cd "${SRC_ROOT}/cgx_2.23/src"
+        make -f Makefile.glfw clean 2>/dev/null || true
+        make -f Makefile.glfw OPT="-O3 -march=native" -j"${NPROC}"
+    fi
 
     # Copy output binary to ~/.local/bin/cgx_glfw
     if [ -f "${SRC_ROOT}/bin/cgx_glfw" ]; then
         cp -f "${SRC_ROOT}/bin/cgx_glfw" "${INSTALL_DIR}/cgx_glfw"
         chmod +x "${INSTALL_DIR}/cgx_glfw"
-        echo -e "${GREEN}[OK] Build succeeded! Binary installed at: ${INSTALL_DIR}/cgx_glfw${NC}"
+        if [ "${OS}" = "Darwin" ]; then
+            xattr -d com.apple.quarantine "${INSTALL_DIR}/cgx_glfw" 2>/dev/null || true
+        fi
+        echo -e "${GREEN}[OK] Successfully installed: ${INSTALL_DIR}/cgx_glfw${NC}"
     else
-        echo -e "${RED}Error: Build failed. Please check compiler output above.${NC}"
+        echo -e "${RED}Error: Build failed. Binary not found at ${SRC_ROOT}/bin/cgx_glfw.${NC}"
         exit 1
     fi
 }
@@ -351,8 +371,13 @@ prompt_global_install() {
     echo -e "\n${BOLD}${GREEN}=====================================================${NC}"
     echo -e "${BOLD}${GREEN}   Installation Complete!                         ${NC}"
     echo -e "${BOLD}${GREEN}=====================================================${NC}"
-    echo -e "You can now run CGX from anywhere in your terminal:"
-    echo -e "    ${BOLD}cgx_glfw <model.frd>${NC}\n"
+    echo -e "You can now run CGX from your terminal:"
+    echo -e "    ${BOLD}cgx_glfw <model.frd>${NC}"
+    if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
+        echo -e "\n${YELLOW}Note: To use 'cgx_glfw' immediately in this current shell, run:${NC}"
+        echo -e "    export PATH=\"\$HOME/.local/bin:\$PATH\""
+    fi
+    echo ""
 }
 
 # CLI Argument parsing
