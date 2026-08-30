@@ -68,7 +68,9 @@ ULIB = \
 
 GLFW_LIB = \
  cgx_glut_glfw.c \
- cgx_iosevka_font.c
+ cgx_iosevka_font.c \
+ cgx_shaders.c \
+ cgx_vbo.c
 
 CPP_SRC = \
  uselibSNL.cpp \
