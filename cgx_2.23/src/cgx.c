@@ -4683,13 +4683,13 @@ void pre_view(char *string)
     else glutDestroyWindow(w3);
   }
   glutSetWindow( w1);
-  if (compare(type, "fill", 2)==2)
+  if (compare(type, "fill", 4)==4)
   {
     glPointSize (1);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
     redraw();
   }
-  else if (compare(type, "line", 2)==2)
+  else if (compare(type, "line", 4)==4)
   {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE );
     redraw();
@@ -4846,6 +4846,49 @@ void pre_view(char *string)
     updateDispLists();
     redraw();
   }
+  else if (compare(type, "log", 3)==3)
+  {
+    if(length==2 && compare(param, "off", 2)==2)
+    {
+      scale->format = 'e';
+      scale->smin = 0.0;
+      scale->smax = 0.0;
+      printf("\n Color Scale: LINEAR\n\n");
+    }
+    else
+    {
+      if (anz->l && cur_lc >= 0 && lcase[cur_lc].max[cur_entity] <= 0.0)
+      {
+        printf("\n ERROR: Logarithmic scale not possible (dataset has no positive values: max = %e <= 0)\n\n", lcase[cur_lc].max[cur_entity]);
+      }
+      else
+      {
+        scale->format = 'l';
+        scale->smin = 0.0;
+        scale->smax = 0.0;
+        printf("\n Color Scale: LOGARITHMIC (Log10)\n\n");
+      }
+    }
+    if (anz->l && cur_lc >= 0)
+    {
+      nodalDataset(cur_entity, cur_lc, anz, scale, node, lcase, colNr, 1);
+      updateDispLists();
+    }
+    redraw();
+  }
+  else if (compare(type, "lin", 3)==3)
+  {
+    scale->format = 'e';
+    scale->smin = 0.0;
+    scale->smax = 0.0;
+    printf("\n Color Scale: LINEAR\n\n");
+    if (anz->l && cur_lc >= 0)
+    {
+      nodalDataset(cur_entity, cur_lc, anz, scale, node, lcase, colNr, 1);
+      updateDispLists();
+    }
+    redraw();
+  }
   else if (compare(type, "ill", 2)==2)
   {
     glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
@@ -4854,9 +4897,9 @@ void pre_view(char *string)
   }
   else
   {
-    printf(" [ERROR] Unknown view option '%s'. (Valid: sh, elem, edge, surf, volu, bg, ru, ill, front, back)\n", type);
+    printf(" [ERROR] Unknown view option '%s'. (Valid: sh, log, lin, elem, edge, surf, volu, bg, ru, ill, front, back)\n", type);
     char buf[128];
-    snprintf(buf, sizeof(buf), "Unknown 'view %s' (valid: sh, elem, surf, volu...)", type);
+    snprintf(buf, sizeof(buf), "Unknown 'view %s' (valid: sh, log, lin, elem...)", type);
     cgx_set_gui_status(buf);
   }
   glutPostRedisplay();
@@ -6030,7 +6073,8 @@ void initModel(char *string)
   modelEdgeFlag=buf[0];
   elemEdgeFlag=buf[1];
   surfFlag=buf[2];
-  illumResultFlag=buf[3];
+  if (buf[3] != 0) illumResultFlag=buf[3];
+  else illumResultFlag=ILLUMINATE_RESULTS;
   foregrndcol=!backgrndcol;
   for (i=0; i<4; i++) for (j=0; j<4; j++) Rmem[i][j]=R[i][j];
 
