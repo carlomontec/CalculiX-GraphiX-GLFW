@@ -94,6 +94,10 @@ This project is free and open-source software distributed under the **GNU Genera
 * **CalculiX CrunchiX (CCX)** is created and copyrighted by **Dr. Guido Dhondt** (`dhondt@t-online.de`).
 * Official CalculiX website: [http://www.calculix.de](http://www.calculix.de) / [https://www.dhondt.de](https://www.dhondt.de)
 
+### Third-Party Libraries & Credits:
+* Modern single-file dependencies ([`stb_image_write.h`](cgx_2.23/src/stb_image_write.h), [`stb_truetype.h`](cgx_2.23/src/stb_truetype.h), [`msf_gif.h`](cgx_2.23/src/msf_gif.h)), GLFW3, TetGen, and Iosevka fonts retain their respective open-source licenses.
+* For the complete summary and full license texts, see [**THIRD_PARTY_LICENSES.md**](THIRD_PARTY_LICENSES.md).
+
 ### Project Maintainer & AI Pairing:
 * This fork is an effort by **Dr-Ing. Carlo Monjaraz-Tec** ([@carlomontec](https://github.com/carlomontec)) as an open-source academic exploration of agent-assisted scientific software modernization.
 * **Disclaimer**: This software is provided "AS IS", without warranty of any kind, express or implied. The authors assume no liability for errors, bugs, or damages.

@@ -434,22 +434,25 @@ To look along the z-axis.
 To look against the z-axis.
 
 \subsection{\label{Hardcopy}Hardcopy}
-To create a hard-copy during animation, it is useful to stop the animation first with the middle mouse button while inside the menu area of the main window and then release one picture after the other with the right button until the desired amplitude or step is reached.
+In CalculiX GraphiX (GLFW Edition)\footnote{In CalculiX GraphiX (GLFW Edition), screenshot captures and movie recordings are written directly from the OpenGL framebuffer to PNG, MP4, and GIF without requiring ImageMagick.}, screenshots and animation movies can be recorded directly from the viewport. To create a hard-copy during animation, it is useful to stop the animation first with the middle mouse button while inside the menu area of the main window and then release one picture after the other with the right button until the desired amplitude or step is reached.
  
-\subsubsection{\label{Tga-Hardcopy}Tga-Hardcopy}
-To create a window dump in tga format. You might use the program ''convert'' \cite{ImageMagick} to convert this format to others.
+\subsubsection{\label{Save PNG Screenshot}Save PNG Screenshot}
+Saves a screenshot directly in PNG format without external dependencies.
 
-\subsubsection{\label{Ps-Hardcopy}Ps-Hardcopy}
-To create a window dump in postscript format. The program convert must be installed.
+\subsubsection{\label{Record 1 Cycle (MP4)}Record 1 Cycle (MP4)}
+Records one complete harmonic or sequence cycle to \texttt{movie\_cycle.mp4} matching the on-screen animation timing (requires \texttt{ffmpeg}).
 
-\subsubsection{\label{Gif-Hardcopy}Gif-Hardcopy}
-To create a window dump in gif format. The program convert must be installed.
+\subsubsection{\label{Record 1 Cycle (GIF)}Record 1 Cycle (GIF)}
+Records one complete harmonic or sequence cycle to \texttt{movie\_cycle.gif} (no external dependencies).
 
-\subsubsection{\label{Png-Hardcopy}Png-Hardcopy}
-To create a window dump in png format. The program convert must be installed.
+\subsubsection{\label{Record Continuous MP4 Video}Record Continuous MP4 Video}
+Records animation frames continuously to \texttt{movie.mp4} (requires \texttt{ffmpeg}).
 
-\subsubsection{\label{Start Recording Gif-Movie}Start Recording Gif-Movie}
-All frames during an animation are stored. The recording ends after the right mouse button is pressed while in the menu area. Finally all frames are combined in the file ''movie.gif'' which can be displayed with various tools (Firefox \cite{Firefox} or realplay). If the animation is stopped with the middle mouse button while in the menu area, then the movie stops until it is released by pressing the middle mouse button again. See ''\htmlref{movi}{movi}'' for the keyboard options. Further remarks in ''\htmlref{How to change the format of the movie file}{How to change the format of the movie file}''.
+\subsubsection{\label{Record Continuous GIF Movie}Record Continuous GIF Movie}
+Records animation frames continuously to an animated \texttt{movie.gif} file (no external dependencies).
+
+\subsubsection{\label{Stop Recording}Stop Recording}
+Finalizes and closes the active video or GIF movie recording.
 
 \subsection{\label{Help}Help}
 Starts the html help and displays this document. By default it works with the specified html-viewer Firefox \cite{Firefox} but this can be changed in the ''cgx.h'' file. The search-path for the documentation is also defined in the ''cgx.h'' file. Please make sure that the documentation is in the specified location or change the path in the ''cgx.h'' file and recompile the program after the object-files are deleted.  The default location for the html help is .../CalculiX/cgx\_X.X/doc/cgx and /CalculiX/ccx\_X.X/doc/ccx for cgx and ccx respectively.  The html files can be downloaded directly or compiled from the latex source for this function to work properly. The INSTALL file explains how to compile the latex code to html.  The INSTALL file is located .../CalculiX/cgx\_X.X/ and .../CalculiX/ccx\_X.X/ for cgx and ccx respectively.
@@ -1132,10 +1135,10 @@ The command writes to the ''\htmlref{stack}{stack}''.
 
 \subsection{\label{hcpy}hcpy}
 \begin{verbatim}
-   'hcpy' [['gif'|'png'|'ps'|'tga'] ['name']]|
-          [make [ls]]|[clean]
+   'hcpy' ['png'|'name']|
+          [clean]
 \end{verbatim}
-This keyword creates a hardcopy in one of the above formats. Default is tga. Use the program ''convert'' to convert to other formats if needed.\\\\hcpy ps\\\\will create a ps file with the default name hcpy\_\verb_<_nr\verb_>_.ps\\\\hcpy ps name\\\\will create name.ps\\\\hcpy make ls\\\\will bundle all ps files created in one file using the landscape (ls) format. The ls parameter may be omitted. A maximum of six pictures is placed on each page.\\\\hcpy clean\\\\will remove all ''hcpy'' files. See also the commands ''\htmlref{ulin}{ulin}'', ''\htmlref{rot}{rot}'', ''\htmlref{ds}{ds}'', ''\htmlref{max}{max}'', and ''\htmlref{min}{min}'' which might be used in hcpy batch files. These commands should be used in the shown order before using the ''hcpy'' command.
+In CalculiX GraphiX (GLFW Edition)\footnote{In CalculiX GraphiX (GLFW Edition), screenshot captures are written directly to PNG format without requiring ImageMagick.}, this keyword saves a screenshot directly in PNG format without external dependencies.\\\\hcpy\\\\will create a PNG file with the default name hcpy\_\verb_<_nr\verb_>_.png\\\\hcpy my\_name\\\\will create my\_name.png\\\\hcpy clean\\\\will remove all session ''hcpy\_*.png'' files. See also the commands ''\htmlref{ulin}{ulin}'', ''\htmlref{rot}{rot}'', ''\htmlref{ds}{ds}'', ''\htmlref{max}{max}'', and ''\htmlref{min}{min}'' which might be used in hcpy batch files.
 
 The command writes the file-name and -nr to the ''\htmlref{stack}{stack}''.
 
@@ -1362,35 +1365,16 @@ mir will mirror the set. The mirror-plane is placed normal to the direction runn
 move part mir P y
 
 
-\subsection{\label{movi}movi}
+\subsection{\label{movi}movi / movie}
 \begin{verbatim}
-   'movi' [loops <nr>]|[delay <sec>]|[start]|[stop]|
-          [frames ['auto']|[<nr> [<epilogFile>]]]|
-          [make [<pic-nr> <pic-nr> [<prolog.gif>]]]|
-          [clean]
+   'movie' [cycle [filename]]|[delay <sec>]|[start [filename]]|
+           [stop]|[frames <nr>|'auto' [filename]]|[clean]
 \end{verbatim}
-This keyword is used to start or stop the recording of a movie. After ''start'' all frames will be stored in single gif files until the ''stop'' command is issued. Use the option ''make'' to assemble the movie from the individual files. The range consists of the nr of the first and last picture to be used. An existing movie will be copied in front of a range of frames if its name is given. With the option ''delay'' a time-delay (in seconds) between frames can be specified. With the option ''loops'' a certain nr of loops can be chosen before the animation stops. Without giving a certain nr the default is chosen which is infinite loops. With the option ''clean,'' all single gif-files will be erased.\\\\Below is an example command sequence. Do not use this sequence in a file since the start and stop commands will be executed without delay (see option 'frames' for use in a command file). Instead of using the default value of loops here one loop is defined:
-\begin{verbatim}
-   movi delay 0.01
-   movi loops 1
-   movi start
-   (let the program run until all frames are recorded)
-   movi stop
-   movi make
-   (or if a certain movie should be extended by the first 500 frames:)
-   movi make 1 500 prolog.gif
-   movi clean 
-\end{verbatim}
-When using the ``frames'' option the recording starts and a given nr of frames will be recorded before the recording stops atomatically. In cases were an animation of a mode shape or a sequence of datasets should be recorded it might be useful to use the argument 'auto' instead of a specific nr of frames. With the 'auto' functionality the program determines how much frames are needed to cover one period of frames and this period is then recorded. The 'make' and 'clean' functionality is included in the 'auto' mode. The 'auto' mode requires that the animation or the sequence is defined and started with the next command line (see ''\htmlref{ds}{ds}''):
-\begin{verbatim}
-   anim real
-   movi frames auto
-   ds 3 eh 7
-\end{verbatim}
-There is a second method available when successive commands after the recording of a given number of frames are needed:\\\\
-movi frames 90 epilogCommandFile.fbl\\\\
-This command must be the last command in an eventual command file. After 90 frames the given file 'epilogCommandFile.fbl' will be executed (the records are interpreted as cgx commands).\\\\
-Further remarks in ''\htmlref{How to change the format of the movie file}{How to change the format of the movie file}''. See also the menu options ''\htmlref{Start Recording Gif-Movie}{Start Recording Gif-Movie}''. 
+In CalculiX GraphiX (GLFW Edition)\footnote{In CalculiX GraphiX (GLFW Edition), movie recording writes directly to MP4, GIF, or OGV without requiring ImageMagick, and supports 1-cycle animation recording.}, this keyword is used to record animation videos or animated GIFs. Supported formats are MP4 (\texttt{.mp4}, default, requires \texttt{ffmpeg}), animated GIF (\texttt{.gif}, zero external dependencies), and OGV (\texttt{.ogv}, requires \texttt{ffmpeg}).
+
+Use 'movie cycle [name.mp4|name.gif]' to record one complete harmonic cycle or dataset sequence period matching the on-screen animation timing. Use 'movie start [name.mp4]' to begin continuous recording, and 'movie stop' to finish. Use 'movie frames <N> [name.mp4]' to record a specified number of frames. Use 'movie delay <sec>' to adjust the frame delay. Use 'movie clean' to remove session movie output files.
+
+See \texttt{exporting\_videos.md} for additional details and platform instructions. 
 
 \subsection{\label{msg}msg}
 \begin{verbatim}

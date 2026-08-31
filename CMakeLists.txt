@@ -158,6 +158,7 @@ set(CGX_C_SOURCES
     ${CGX_SRC_DIR}/contact.c
     ${CGX_SRC_DIR}/makeTriFromElems.c
     ${CGX_SRC_DIR}/userFunction.c
+    ${CGX_SRC_DIR}/cgx_capture.c
     ${CGX_SRC_DIR}/cgx_glut_glfw.c
     ${CGX_SRC_DIR}/cgx_iosevka_font.c
 )
@@ -294,3 +295,16 @@ endif()
 # Installation Rules
 # -----------------------------------------------------------------------------
 install(TARGETS cgx_glfw RUNTIME DESTINATION bin)
+
+# -----------------------------------------------------------------------------
+# Testing Integration (CTest)
+# -----------------------------------------------------------------------------
+enable_testing()
+find_package(Python3 COMPONENTS Interpreter QUIET)
+if(Python3_FOUND)
+    add_test(
+        NAME cgx_automated_suite
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_tests.py --bin $<TARGET_FILE:cgx_glfw>
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+endif()

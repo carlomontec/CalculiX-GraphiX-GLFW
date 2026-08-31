@@ -1,0 +1,26 @@
+# ==============================================================================
+# Test: 05_post_processing / test_result_enquiry_cut.fbl
+# Description: Validates spatial result enquiry (enq), normal calculation, and cut lines
+# ==============================================================================
+
+# 1. Read static result
+read ../../../../test/beam10p.frd
+
+# 2. Select dataset
+ds 1 e 7
+
+# 3. Enquire node at specific spatial location (0.0, 0.0, 0.0)
+enq all sv rec 0.0 0.0 0.0 1.0 i
+
+# 4. Set node entity
+seta nv n sv
+
+# 5. Extract normal and stack parameters
+stack on
+norm nv
+stack off
+
+# 6. Verify print output
+prnt se nv
+
+quit

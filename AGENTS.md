@@ -12,6 +12,10 @@ This document records the architectural standards, technical decisions, cross-pl
   make -C cgx/CalculiX-CGX-New3D/cgx_2.23/src -f Makefile.glfw -j4 && ./cgx/bin/cgx_glfw test/beam_modal.frd
   ```
 * **Language**: All technical documentation, code comments, and chat explanations must remain in English.
+* **Factual & Objective Tone**:
+  * Maintain an objective, modest, and strictly factual tone across all documentation (`cgx.tex`, markdown docs, code comments, etc.).
+  * Avoid promotional buzzwords or self-praise (e.g., avoid "blazing fast", "state-of-the-art", "overhauled", "zero-overhead"). State purely technical facts clearly and concisely.
+  * Maintain full respect, appreciation, and accurate attribution for the original work and architecture of Klaus Wittig and CalculiX contributors.
 
 ---
 

@@ -26,6 +26,7 @@
 
 #include <cgx.h>
 #include "cgx_vbo.h"
+#include "cgx_capture.h"
 #include <time.h>
 #ifndef WIN32
 #include <sys/utsname.h>
@@ -835,113 +836,7 @@ void elementDataset( int entity, int lc, Summen *anz, Scale *scale, Datasets *lc
 
 
 
-/* from j. baylor for tga-screen-shot */
-int WriteTGA(char *filename, 
-             short int width, 
-             short int height, 
-             char *imageData) {
-
-   char cGarbage = 0;
-   char pixelDepth = 32;
-   char type = 2; // type = 2 for pixelDepth = 32 | 24, type = 3 for greyscale
-   char mode = 4; // mode = pixelDepth / 8
-   char aux;
-   short int iGarbage = 0;
-   FILE *file;
-   int i;
-
-   // open file and check for errors
-   file = fopen(filename, "wb");
-   if (file == NULL) return(-1);
-
-   // write the header
-   fwrite(&cGarbage, sizeof(char), 1, file);
-   fwrite(&cGarbage, sizeof(char), 1, file);
-   fwrite(&type, sizeof(char), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&cGarbage, sizeof(char), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&width, sizeof(short int), 1, file);
-   fwrite(&height, sizeof(short int), 1, file);
-   fwrite(&pixelDepth, sizeof(char), 1, file);
-   fwrite(&cGarbage, sizeof(char), 1, file);
-
-   // convert the image data from RGB(a) to BGR(A)
-   if (mode >= 3)
-   for (i=0; i < width * height * mode ; i+= mode) {
-      aux = imageData[i];
-      imageData[i] = imageData[i+2];
-      imageData[i+2] = aux;
-   }
-
-   // save the image data
-   fwrite(imageData, sizeof(char), width * height * mode, file);
-   fclose(file);
-
-   return(0);
-}
-
-
-
-/* This will save a screen shot to a file. */
-void SaveTGAScreenShot(char *filename, int w, int h)
-{
-   char *imageData;
-   imageData = (char *)malloc(sizeof(char) * w * h * 4);
-   glReadPixels(0, 0, w, h,GL_RGBA,GL_UNSIGNED_BYTE, (GLvoid *)imageData);
-   WriteTGA(filename,w,h,imageData);
-   // release the memory
-   free(imageData);
-}
-
-
-
-void getTGAScreenShot(int nr)
-{
-    char buffer[MAX_LINE_LENGTH];
-
-    if(!inpformat) return;
-
-    glutSetWindow(w0);
-    SaveTGAScreenShot("0__.tga", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-
-    glutSetWindow(w1);
-    SaveTGAScreenShot("1__.tga", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-
-    glutSetWindow(w2);
-    SaveTGAScreenShot("2__.tga", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-
-    glutSetWindow(activWindow);
-    while( access( "0__.tga", F_OK ) != 0 );
-    while( access( "1__.tga", F_OK ) != 0 );
-    while( access( "2__.tga", F_OK ) != 0 );
-    
-    // get the orientation of the tga files right
-    sprintf( buffer, "mogrify -auto-orient 0__.tga");
-    system (buffer);
-    sprintf( buffer, "mogrify -auto-orient 1__.tga");
-    system (buffer);
-    sprintf( buffer, "mogrify -auto-orient 2__.tga");
-    system (buffer);
-    //sprintf( buffer, "composite -compose atop -gravity SouthWest -geometry +1+1 2__.tga 1__.tga 3__.tga");
-    sprintf( buffer, "composite -gravity SouthWest -geometry +1+1 2__.tga 1__.tga 3__.tga");
-    system (buffer);
-    while( access( "3__.tga", F_OK ) != 0 );
-    //sprintf( buffer, "composite -compose atop -gravity NorthWest -geometry +%d+%d 3__.tga 0__.tga hcpy_%d.tga",
-    sprintf( buffer, "composite -alpha off -gravity NorthWest -geometry +%d+%d 3__.tga 0__.tga hcpy_%d.tga",
-		(GLint)width_menu*19/20, (GLint)height_menu/10, nr);
-    system (buffer);
-    //printf("%s",buffer);
-#ifdef WIN32
-    sprintf( buffer, "del /f \"*__.tga\" %s", " > NUL");
-#else
-    sprintf( buffer, "rm -f *__.tga %s",DEV_NULL);
-#endif
-    system (buffer);
-}
-/* end tga-screen-shot */
+/* Modern native screenshot implementation is provided by cgx_capture.c */
 
 
 
@@ -983,148 +878,61 @@ void stringValue(double *time, char *tmp)
 
 void createHardcopy( int selection, char *filePtr )
 {
-  char buffer[MAX_LINE_LENGTH];
   char fileName[MAX_LINE_LENGTH];
 
   if(!inpformat) return;
-  /*
-  glutSetWindow( w0);
-  glutSwapBuffers();
-  glutSetWindow( w1);
-  glutSwapBuffers();
-  glutSetWindow( w2);
-  glutSwapBuffers();
-  */
-  if(selection==0)
+
+  if(selection == 0)
   {
-    /* generate movie from single gif files */
-    sprintf( buffer, "make 1. %lf",(double)gifNr);
-    pre_movie(buffer);
-    sprintf( buffer, "clean");
-    pre_movie(buffer);
-    gifNr=0;
+    /* finish active movie */
+    cgx_movie_finish();
+    if(strlen(movieCommandFile))
+    {
+      pre_read(movieCommandFile);
+      movieCommandFile[0] = 0;
+    }
+  }
+  else if(selection == 3)
+  {
+    /* movie frame capture */
+    cgx_movie_add_frame();
+    if(!cgx_movie_is_recording())
+    {
+      animList = 0;
+      movieFrames = 0;
+      movieFlag = 0;
+      if(strlen(movieCommandFile))
+      {
+        pre_read(movieCommandFile);
+        movieCommandFile[0] = 0;
+      }
+    }
   }
   else
   {
-    /* Hardcopy         */
-    if(selection==1)
+    /* Hardcopy PNG */
+    pngNr++;
+    if(filePtr != NULL && strlen(filePtr) > 0)
     {
-      psNr++;
-      if(filePtr!=NULL) sprintf(fileName,"%s.ps",filePtr); else sprintf(fileName,"hcpy_%d.ps",psNr);
-      printf("create %s\n ",fileName);
-      getTGAScreenShot(psNr);
-      /* on some systems PS has to be changed to PS2 */
-      //sprintf( buffer, "convert -density %dx%d -page +49+196 -gamma %lf hcpy_%d.tga PS:hcpy_%d.ps   ", (int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)),(int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)) , GAMMA, psNr, psNr);
-      sprintf( buffer, "convert hcpy_%d.tga -page A4 %s", psNr, fileName);
-      system (buffer);
-      printf("%s\n", buffer);
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_%d.tga\" %s",psNr," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_%d.tga %s",psNr,DEV_NULL);
-#endif
-      system (buffer);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", psNr);
-      write2stack(2, parameter);
-      printf ("ready\n");
+      size_t len = strlen(filePtr);
+      if(len > 4 && strcasecmp(filePtr + len - 4, ".png") == 0)
+        sprintf(fileName, "%s", filePtr);
+      else
+        sprintf(fileName, "%s.png", filePtr);
     }
-    if(selection==2)
+    else
     {
-      tgaNr++;
-      getTGAScreenShot(tgaNr);
-      if(filePtr!=NULL)
-      {
-        sprintf(fileName,"%s.tga",filePtr);
-#ifdef WIN32
-        sprintf( buffer, "move /y \"hcpy_%d.tga\" \"%s\"", tgaNr, fileName);
-#else
-        sprintf( buffer, "mv -f hcpy_%d.tga %s", tgaNr, fileName);
-#endif
-        system (buffer);
-      }
-      else sprintf(fileName,"hcpy_%d.tga",tgaNr);
-      printf("create %s\n ",fileName);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", tgaNr);
-      write2stack(2, parameter);
-      printf ("ready\n");
+      sprintf(fileName, "hcpy_%d.png", pngNr);
     }
-    if(selection==3)
+
+    if(cgx_save_png(fileName) == 0)
     {
-      /* movie gif files */
-      getTGAScreenShot(0);
-      while( access( "hcpy_0.tga", F_OK ) != 0 );
-      gifNr++;
-      sprintf( buffer, "convert hcpy_0.tga _%d.gif",gifNr);
-      printf("%s\n",buffer);
-      system (buffer);
-      if((movieFrames)&&(gifNr>=movieFrames))
-      {
-        animList=0;
-        movieFrames=0;
-        movieFlag=0;
-#ifdef WIN32
-        sprintf( buffer, "del /f  \"hcpy_0.tga\" %s", " 2> NUL");
-#else
-        sprintf( buffer, "rm -f  hcpy_0.tga %s", DEV_NULL2);
-#endif
-        system (buffer);
-        createHardcopy(0, NULL);
-        /* read a cgx-command file which will be executed after the movie is created */
-        if(strlen(movieCommandFile))
-        {
-          pre_read(movieCommandFile); 
-        }
-      }
-    }
-    if(selection==4)
-    {
-      gifNr++; 
-      if(filePtr!=NULL) sprintf(fileName,"%s.gif",filePtr); else sprintf(fileName,"hcpy_%d.gif",gifNr);
-      printf("create %s\n ",fileName);
-      getTGAScreenShot(gifNr);
-      sprintf( buffer, "convert hcpy_%d.tga %s", gifNr, fileName);
-      system (buffer);
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_%d.tga\" %s",gifNr," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_%d.tga %s",gifNr,DEV_NULL);
-#endif
-      system (buffer);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", gifNr);
+      sprintf(parameter[0], "%s", fileName);
+      sprintf(parameter[1], "%d", pngNr);
       write2stack(2, parameter);
-      printf ("ready\n");
-    }
-    if(selection==5)
-    {
-      pngNr++;
-      if(filePtr!=NULL) sprintf(fileName,"%s.png",filePtr); else sprintf(fileName,"hcpy_%d.png",pngNr);
-      printf("create %s\n ",fileName);
-      getTGAScreenShot(pngNr);
-      sprintf( buffer, "convert hcpy_%d.tga %s", pngNr, fileName);
-      system (buffer);
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_%d.tga\" %s",pngNr," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_%d.tga %s",pngNr,DEV_NULL);
-#endif
-      system (buffer);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", pngNr);
-      write2stack(2, parameter);
-      printf ("ready\n");
     }
   }
-  /*
-  glutSetWindow( w0);
-  glutSwapBuffers();
-  glutSetWindow( w1);
-  glutSwapBuffers();
-  glutSetWindow( w2);
-  glutSwapBuffers();
-  */
+
   glutSetWindow( activWindow);
 }
 
@@ -1471,15 +1279,7 @@ void MouseState( int button, int state, int x, int y )
     {
       movieFrames=0;
       movieFlag=0;
-      printf("movie stopped, please wait for ready (might take a while)\n");
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_0.tga\" %s"," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_0.tga %s",DEV_NULL);
-#endif
-      system (buffer);
       createHardcopy(0, NULL);
-      printf("movie.gif ready\n");
     }
     else
     {
@@ -1675,29 +1475,62 @@ void markHardcopy( int selection )
 {
   if(!inpformat) return;
 
-  if(selection==3)
+  int n_frames = (sequenceFlag && dsSequence.nds > 1) ? dsSequence.nds : (anim_steps > 1 ? anim_steps : 30);
+  double delay = 0.04;
+  if (cgx_movie_has_custom_delay())
   {
-    movieFlag=1;
-    printf(" start recording movie\n");
-    printf("   stop recording with right mouse key while in menu area of the window\n");
-#ifdef WIN32
-    sprintf( buffer, "del /f \"_*.gif\" %s"," > NUL");
-#else
-    sprintf( buffer, "rm -f _*.gif %s",DEV_NULL);
-#endif
-    system (buffer);
-#ifdef WIN32
-    sprintf( buffer, "del /f \"movie.gif\" %s"," > NUL");
-#else
-    sprintf( buffer, "rm -f movie.gif %s",DEV_NULL);
-#endif
-    system (buffer);
-    stopFlag=0;
+    delay = cgx_movie_get_delay();
+  }
+  else if (time_per_period > 0 && n_frames > 0)
+  {
+    delay = (double)time_per_period / (1000.0 * (double)n_frames);
+    if (delay < 0.005) delay = 0.005;
+  }
+
+  if(selection == 7) /* 1 Cycle MP4 */
+  {
+    animList = 0;
+    movieFrames = n_frames;
+    movieFlag = 1;
+    stopFlag = 0;
+    printf("[CGX] Recording 1 full cycle (%d frames @ %.1f fps, period %.2fs) to 'movie_cycle.mp4'...\n",
+           movieFrames, 1.0/delay, delay * movieFrames);
+    cgx_movie_start("movie_cycle.mp4", movieFrames, delay);
+  }
+  else if(selection == 8) /* 1 Cycle GIF */
+  {
+    animList = 0;
+    movieFrames = n_frames;
+    movieFlag = 1;
+    stopFlag = 0;
+    printf("[CGX] Recording 1 full cycle (%d frames @ %.1f fps, period %.2fs) to 'movie_cycle.gif'...\n",
+           movieFrames, 1.0/delay, delay * movieFrames);
+    cgx_movie_start("movie_cycle.gif", movieFrames, delay);
+  }
+  else if(selection == 3) /* Continuous GIF Movie */
+  {
+    movieFrames = 0;
+    movieFlag = 1;
+    stopFlag = 0;
+    cgx_movie_start("movie.gif", 0, delay);
+  }
+  else if(selection == 6) /* Continuous MP4 Movie */
+  {
+    movieFrames = 0;
+    movieFlag = 1;
+    stopFlag = 0;
+    cgx_movie_start("movie.mp4", 0, delay);
+  }
+  else if(selection == 0) /* Stop Recording */
+  {
+    movieFlag = 0;
+    stopFlag = 1;
+    movieFrames = 0;
+    cgx_movie_finish();
   }
   else
   {
-    hcpyFlag=selection;
-    printf("Please wait\n");
+    hcpyFlag = 5; /* PNG */
     glutPostRedisplay();
   }
 }
@@ -5956,7 +5789,8 @@ const char *cgx_get_command_suggestion(const char *cmd)
     "qcnt", "qflp", "qmov", "qseq", "qshp", "qspl", "qtxt", "qali", "qbia",
     "area", "volu", "length", "node", "elem", "line", "surf", "body", "proj",
     "move", "rot", "tra", "flip", "comp", "msh", "read", "send", "step", "col",
-    "anim", "val", "max", "min", "mesh", "font", "sh", "ruler", "bg", "capt"
+    "anim", "val", "max", "min", "mesh", "font", "sh", "ruler", "bg", "capt",
+    "movie", "movi", "hcpy"
   };
   int count = (int)(sizeof(known_cmds) / sizeof(known_cmds[0]));
   int best_dist = 99;
@@ -8119,11 +7953,12 @@ int main( int argc, char **argv )
   glutAddMenuEntry( "-z View     ", 6);
 
   submenu_hardcopy = glutCreateMenu( markHardcopy );
-  glutAddMenuEntry( "Tga-Hardcopy", 2);
-  glutAddMenuEntry( "Ps-Hardcopy ", 1);
-  glutAddMenuEntry( "Gif-Hardcopy", 4);
-  glutAddMenuEntry( "Png-Hardcopy", 5);
-  glutAddMenuEntry( "Start Recording Gif-Movie", 3);
+  glutAddMenuEntry( "Save PNG Screenshot", 5);
+  glutAddMenuEntry( "Record 1 Cycle (MP4)", 7);
+  glutAddMenuEntry( "Record 1 Cycle (GIF)", 8);
+  glutAddMenuEntry( "Record Continuous MP4 Video", 6);
+  glutAddMenuEntry( "Record Continuous GIF Movie", 3);
+  glutAddMenuEntry( "Stop Recording", 0);
 
   submenu_cut   = glutCreateMenu( selectCutNode   );
   glutAddMenuEntry( "switch plot", 9);

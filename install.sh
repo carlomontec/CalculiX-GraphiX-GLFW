@@ -140,19 +140,29 @@ install_runtime_deps() {
             echo "Installing glfw via Homebrew..."
             brew install glfw
         fi
+        if command -v ffmpeg &>/dev/null; then
+            echo -e "${GREEN}[OK] ffmpeg video tools available for MP4 recording.${NC}"
+        else
+            echo -e "${BLUE}Tip: Install ffmpeg via 'brew install ffmpeg' to enable MP4 video recording.${NC}"
+        fi
     elif [ "${OS}" = "Linux" ]; then
         if ldconfig -p 2>/dev/null | grep -q "libglfw\.so" || [ -f /lib64/libglfw.so.3 ] || [ -f /usr/lib/libglfw.so.3 ] || [ -f /usr/lib/x86_64-linux-gnu/libglfw.so.3 ] || [ -f /home/linuxbrew/.linuxbrew/lib/libglfw.so ]; then
             echo -e "${GREEN}[OK] GLFW runtime library is already installed.${NC}"
+            if command -v ffmpeg &>/dev/null; then
+                echo -e "${GREEN}[OK] ffmpeg video tools available for MP4 recording.${NC}"
+            else
+                echo -e "${BLUE}Tip: Install ffmpeg (sudo apt install ffmpeg) to enable MP4 video recording.${NC}"
+            fi
             return 0
         fi
 
         echo "Installing missing runtime libraries (requires sudo)..."
         if command -v apt-get &>/dev/null; then
-            sudo apt-get update -y && sudo apt-get install -y libglfw3 libglu1-mesa
+            sudo apt-get update -y && sudo apt-get install -y libglfw3 libglu1-mesa ffmpeg
         elif command -v dnf &>/dev/null; then
-            sudo dnf install -y glfw mesa-libGLU
+            sudo dnf install -y glfw mesa-libGLU ffmpeg
         elif command -v pacman &>/dev/null; then
-            sudo pacman -S --needed glfw-x11 mesa glu
+            sudo pacman -S --needed glfw-x11 mesa glu ffmpeg
         else
             echo -e "${YELLOW}Please ensure libglfw3 and OpenGL/Mesa runtime libraries are installed.${NC}"
         fi
@@ -373,6 +383,11 @@ prompt_global_install() {
     echo -e "${BOLD}${GREEN}=====================================================${NC}"
     echo -e "You can now run CGX from your terminal:"
     echo -e "    ${BOLD}cgx_glfw <model.frd>${NC}"
+    echo -e "\n${BOLD}Features:${NC}"
+    echo -e "  - ${GREEN}PNG Screenshots:${NC} 'hcpy' (zero external dependencies)"
+    echo -e "  - ${GREEN}Animated GIFs:${NC}   'movie start my.gif' (zero external dependencies)"
+    echo -e "  - ${GREEN}MP4 Video:${NC}       'movie start my.mp4' (requires ffmpeg)"
+    echo -e "  See ${BOLD}exporting_videos.md${NC} for complete details."
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
         echo -e "\n${YELLOW}Note: To use 'cgx_glfw' immediately in this current shell, run:${NC}"
         echo -e "    export PATH=\"\$HOME/.local/bin:\$PATH\""

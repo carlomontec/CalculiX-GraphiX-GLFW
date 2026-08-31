@@ -1,0 +1,102 @@
+# ==============================================================================
+# Test: 03_meshing_tetra_tetgen / test_tet10_notch_bracket.fbl
+# Description: Multi-surface L-bracket with high notch grading meshed with te10
+# ==============================================================================
+
+# Z=0 Points
+pnt p1    0   0 0
+pnt p2   30   0 0
+pnt p3  100   0 0
+pnt p4  100  30 0
+pnt p5   30  30 0
+pnt p6   30 100 0
+pnt p7    0 100 0
+pnt p8    0  30 0
+
+# Z=20 Points
+pnt p11   0   0 20
+pnt p12  30   0 20
+pnt p13 100   0 20
+pnt p14 100  30 20
+pnt p15  30  30 20
+pnt p16  30 100 20
+pnt p17   0 100 20
+pnt p18   0  30 20
+
+# Lines at Z=0
+line l1 p1 p2 12
+line l2 p2 p3 24
+line l3 p3 p4 12
+line l4 p5 p4 24
+line l5 p5 p6 24
+line l6 p6 p7 12
+line l7 p8 p7 24
+line l8 p1 p8 12
+line l9 p2 p5 12
+line l10 p8 p5 12
+
+bia l2 4.0
+bia l4 4.0
+bia l5 4.0
+bia l7 4.0
+
+# Lines at Z=20
+line l11 p11 p12 12
+line l12 p12 p13 24
+line l13 p13 p14 12
+line l14 p15 p14 24
+line l15 p15 p16 24
+line l16 p16 p17 12
+line l17 p18 p17 24
+line l18 p11 p18 12
+line l19 p12 p15 12
+line l20 p18 p15 12
+
+bia l12 4.0
+bia l14 4.0
+bia l15 4.0
+bia l17 4.0
+
+# Vertical thickness lines
+line l31 p1 p11 8
+line l32 p2 p12 8
+line l33 p3 p13 8
+line l34 p4 p14 8
+line l35 p5 p15 8
+line l36 p6 p16 8
+line l37 p7 p17 8
+line l38 p8 p18 8
+
+# Surfaces at Z=0
+gsur s_bot1 + BLEND + l1 + l9 - l10 - l8
+gsur s_bot2 + BLEND + l2 + l3 - l4 - l9
+gsur s_bot3 + BLEND + l10 + l5 + l6 - l7
+
+# Surfaces at Z=20
+gsur s_top1 + BLEND + l11 + l19 - l20 - l18
+gsur s_top2 + BLEND + l12 + l13 - l14 - l19
+gsur s_top3 + BLEND + l20 + l15 + l16 - l17
+
+# Side surfaces
+gsur s1 + BLEND + l1 + l32 - l11 - l31
+gsur s2 + BLEND + l2 + l33 - l12 - l32
+gsur s3 + BLEND + l3 + l34 - l13 - l33
+gsur s4 + BLEND + l4 + l34 - l14 - l35
+gsur s5 + BLEND + l5 + l36 - l15 - l35
+gsur s6 + BLEND + l6 + l37 - l16 - l36
+gsur s7 + BLEND + l7 + l37 - l17 - l38
+gsur s8 + BLEND + l8 + l38 - l18 - l31
+
+# 3D Solid Body
+gbod b1 NORM + s_bot1 + s_bot2 + s_bot3 - s_top1 - s_top2 - s_top3 + s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8
+
+# Mesh directly with quadratic tetrahedra
+elty all te10
+mesh all
+
+# Export mesh
+send all abq
+
+prnt se all
+
+quit

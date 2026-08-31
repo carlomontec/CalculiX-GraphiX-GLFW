@@ -1,0 +1,50 @@
+# ==============================================================================
+# Test: 03_meshing_tetra_tetgen / test_tet_target_size.fbl
+# Description: TetGen tetrahedral meshing with explicit target volume element size
+# ==============================================================================
+
+# 1. 3D Body (30 x 30 x 30 cube)
+pnt p1  0.0  0.0  0.0
+pnt p2 30.0  0.0  0.0
+pnt p3 30.0 30.0  0.0
+pnt p4  0.0 30.0  0.0
+
+pnt p5  0.0  0.0 30.0
+pnt p6 30.0  0.0 30.0
+pnt p7 30.0 30.0 30.0
+pnt p8  0.0 30.0 30.0
+
+line l1 p1 p2 6
+line l2 p2 p3 6
+line l3 p3 p4 6
+line l4 p4 p1 6
+
+line l5 p5 p6 6
+line l6 p6 p7 6
+line l7 p7 p8 6
+line l8 p8 p5 6
+
+line l9  p1 p5 6
+line l10 p2 p6 6
+line l11 p3 p7 6
+line l12 p4 p8 6
+
+gsur s_bot + BLEND + l1 + l2 + l3 + l4
+gsur s_top + BLEND + l5 + l6 + l7 + l8
+gsur s_front + BLEND + l1 + l10 - l5 - l9
+gsur s_back + BLEND + l3 + l12 - l7 - l11
+gsur s_left + BLEND + l4 + l9 - l8 - l12
+gsur s_right + BLEND + l2 + l11 - l6 - l10
+
+gbod b1 NORM + s_bot - s_top + s_front + s_back + s_left + s_right
+
+# 2. Specify target maximum element size 5.0 with te10
+elty all te10 5.0
+mesh all
+
+# 3. Export mesh
+send all abq
+
+prnt se all
+
+quit

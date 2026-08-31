@@ -67,6 +67,7 @@ ULIB = \
  userFunction.c
 
 GLFW_LIB = \
+ cgx_capture.c \
  cgx_glut_glfw.c \
  cgx_iosevka_font.c \
  cgx_shaders.c \
@@ -101,6 +102,9 @@ $(OUT): $(OBJS) $(CPP_OBJS)
 
 %.o: %.cxx
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+test: $(OUT)
+	python3 ../../tests/run_tests.py
 
 clean:
 	rm -f $(OBJS) $(CPP_OBJS) $(OUT) tetgen/*.o

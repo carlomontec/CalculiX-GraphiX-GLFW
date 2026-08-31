@@ -1,0 +1,38 @@
+# ==============================================================================
+# Test: 01_geometry / test_param_scripting.fbl
+# Description: Validates CGX parametric scripting (valu, arithmetic, while loop)
+# ==============================================================================
+
+# Parametric definition of a circle with polygon segments
+valu r 10.0
+valu pi 3.14159265359
+valu n_segs 8
+valu d_angle 360.0
+valu d_angle / d_angle n_segs
+
+valu i 0
+valu curr_angle 0.0
+
+pnt pcenter 0.0 0.0 0.0
+
+while i < n_segs
+  # Calculate position
+  valu rad_angle curr_angle * pi
+  valu rad_angle / rad_angle 180.0
+  valu px cos rad_angle
+  valu px * px r
+  valu py sin rad_angle
+  valu py * py r
+  
+  # Generate point
+  pnt p_loop_ px py 0.0
+  
+  # Increment loop
+  valu curr_angle + curr_angle d_angle
+  valu i + i 1
+endwhile
+
+# Verify points created
+prnt se all
+
+quit

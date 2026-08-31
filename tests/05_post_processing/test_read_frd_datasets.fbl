@@ -1,0 +1,21 @@
+# ==============================================================================
+# Test: 05_post_processing / test_read_frd_datasets.fbl
+# Description: Validates loading FRD result files and selecting modal datasets
+# ==============================================================================
+
+# 1. Open multi-step modal FRD result file
+read ../../../../test/beam_modal.frd
+
+# 2. Select Mode 1 dataset and displacement component
+ds 1 e 7
+
+# 3. Select Mode 2 dataset
+ds 2 e 7
+
+# 4. Select Mode 5 dataset
+ds 5 e 7
+
+# 5. Print dataset information
+prnt se all
+
+quit
