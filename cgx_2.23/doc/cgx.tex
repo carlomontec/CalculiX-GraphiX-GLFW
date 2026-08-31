@@ -287,6 +287,7 @@ This menu entry provides direct access to modern viewport and interface controls
 \item \textbf{Toggle Dark Mode}: Switches the viewport background between the signature dark slate aesthetic (\texttt{\#0D121A}) and classic clean white.
 \item \textbf{Toggle Perspective 3D}: Switches between true 3D perspective projection and orthographic (parallel) projection.
 \item \textbf{Toggle Command Line Bar}: Hides or shows the interactive in-window command bar at the bottom of the viewport.
+\item \textbf{[Experimental] Modern GPU Pipeline}: Toggles the hardware-accelerated 3D rendering pipeline using packed Vertex Buffer Objects (VBOs) and custom GLSL shaders with metallic Blinn-Phong surface lighting and GPU-sampled colormaps (1 single draw call for the entire model). When disabled, the engine falls back to legacy OpenGL display lists.
 \item \textbf{Text Size}: Adjusts the vector typography scale across three calibrated tiers:
   \begin{itemize}
   \item \textbf{Small (14pt)}: Compact size for dense model displays and low-resolution screens.
@@ -360,8 +361,11 @@ Transparent display in the surface mode is switched on or off.
 \subsubsection{\label{Toggle Ruler}Toggle Ruler}
 Triggers the display of a ruler bar. In the GLFW Edition\footnote{Stationary 2D HUD ruler anchored in screen space introduced in CalculiX GraphiX (GLFW Edition).}, the ruler is pinned to the bottom-right corner in a dedicated 2D orthographic HUD overlay with full OpenGL state isolation, remaining stationary during 3D model rotation.
 
+\subsubsection{\label{Toggle Logarithmic Scale}Toggle Logarithmic Scale}
+Toggles the results color mapping between a standard linear scale and a base-10 logarithmic scale ($\log_{10}$). In the GLFW Edition\footnote{ParaView-compatible logarithmic color scaling introduced in CalculiX GraphiX (GLFW Edition) with automatic positive floor clamping and base-10 power label formatting ($10^x$).}, selecting logarithmic scale applies a continuous $\log_{10}$ transfer function. If the field results contain zeros or negative values, the lower bound is automatically clamped to a positive floor ($\max(v_{\text{pos,min}}, v_{\max} \times 10^{-4})$), non-positive values are mapped to the bottom color band, and the 2D legend bar formats decade ticks in clear mathematical power notation ($10^1, 10^2, 10^3$).
+
 \subsubsection{\label{Colormap}Colormap}
-Changes the colormap of the color scale. In the GLFW Edition\footnote{Perceptually uniform \texttt{cubehelix} default colormap with lifted graphite floor and modern palettes introduced in CalculiX GraphiX (GLFW Edition).}, the default colormap is \texttt{cubehelix} (optimized for metallic 3D surface shading and grayscale print clarity). Available palettes include \texttt{cubehelix}, \texttt{coolwarm}, \texttt{turbo}, \texttt{viridis}, \texttt{inferno}, \texttt{jet}, \texttt{classic}, and \texttt{gray}. See also ''\htmlref{cmap}{cmap}''.
+Changes the colormap of the color scale. In the GLFW Edition\footnote{Perceptually uniform \texttt{cubehelix (reversed)} default colormap with lifted graphite floor and modern palettes introduced in CalculiX GraphiX (GLFW Edition).}, the default colormap is \texttt{cubehelix (reversed)} (designed by D. A. Green \cite{cubehelix}, optimized for metallic 3D surface shading and monochrome print clarity). Available palettes include \texttt{cubehelix (reversed)}, \texttt{cubehelix}, \texttt{coolwarm}, \texttt{turbo}, \texttt{viridis}, \texttt{inferno}, \texttt{jet}, \texttt{classic}, and \texttt{gray}. See also ''\htmlref{cmap}{cmap}''.
 
 \subsection{\label{animation}Animate}
 This option allows the animation of displacements. See also ''\htmlref{anim}{anim}'', ''\htmlref{ds}{ds}'' and ''\htmlref{scal}{scal}'' to use this functionality with the command-line.
@@ -4475,6 +4479,7 @@ stack free
 \bibitem{glfw} GLFW - An Open Source, Multi-Platform Library for OpenGL, https://www.glfw.org/
 \bibitem{stb} stb\_truetype - Single-header vector font engine from Sean Barrett, https://github.com/nothings/stb
 \bibitem{paraview} ParaView - Open-source, multi-platform data analysis and visualization application, Kitware, https://www.paraview.org/
+\bibitem{cubehelix} D. A. Green, 'A colour scheme for the display of astronomical intensity images', Bulletin of the Astronomical Society of India, Vol. 39, pp. 289-295 (2011), https://astron-soc.in/bulletin/11June/289392011.pdf
 \bibitem{glut} OpenGL Utility Toolkit (GLUT), from Mark J. Kilgard
 %, http://reality.sgi.com/mjk_asd/glut3/glut3.html, Copying-Policy: Freely redistributable, not public domain.
 \bibitem{cgx} CalculiX GraphiX (cgx), from Klaus Wittig, klaus.wittig@calculix.de

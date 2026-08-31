@@ -1,4 +1,4 @@
-# Installation Guide
+# CalculiX GraphiX (GLFW Edition) — Installation Guide
 
 This guide covers all methods to install or compile **CalculiX GraphiX (GLFW Edition)** on macOS, Linux, and Windows.
 
