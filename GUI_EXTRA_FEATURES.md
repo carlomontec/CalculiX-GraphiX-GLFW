@@ -71,3 +71,46 @@ Located at the bottom of the viewport for rapid command execution without needin
   - **Medium (20pt / Default)** — Comfortable modern reading.
   - **Big (32pt)** — Large scale for 4K / presentation viewports.
   - Switch anytime via right-click **`GUI Settings >`** $\rightarrow$ **`Text Size >`**.
+
+---
+
+## 6. 🚀 Modern GPU Pipeline (VBO + GLSL Shaders)
+
+CalculiX GraphiX includes an optimized **Modern GPU Pipeline** designed to eliminate CPU bottlenecks on massive multi-element models:
+
+* **1 Single Draw Call (`glDrawArrays`)**: Geometry and field results are uploaded into dedicated Vertex Buffer Objects (VBOs) in GPU VRAM, rendering the entire 3D model in a single instruction.
+* **Blinn-Phong Metallic Surface Shading**: Realistic specular glints ($\alpha = 96.0$, strength $= 0.38$) provide tactile 3D surface depth on CAD/FEA geometries.
+* **Exact Quadratic Element Accuracy**: Supports full-fidelity sub-triangle decomposition for high-order quadratic elements (**Quad8**, **Tri6**, **Quad4**).
+* **Dual-Pipeline Runtime Switch**: Toggle between the Modern GPU Pipeline and Klaus Wittig's legacy display lists anytime via **`GUI Settings >`** $\rightarrow$ **`[Experimental] Modern GPU Pipeline`**.
+
+> 📖 **Architecture Deep Dive**: For complete technical specifications of the buffer layouts and shader code, see [**MODERN_3D_PIPELINE.md**](MODERN_3D_PIPELINE.md).
+
+---
+
+## 7. 📊 ParaView-Style Logarithmic Color Scale
+
+Visualize physical quantities spanning multiple orders of magnitude (e.g. plastic strains, crack-tip stress concentrations, acoustic fields):
+
+* **1-Click Menu Toggle**: Right-click $\rightarrow$ **`Viewing >`** $\rightarrow$ **`Toggle Logarithmic Scale`**.
+* **Automatic Positive Range Floor**: If data contains zeros or negative numbers ($v \le 0$), the engine automatically establishes a positive floor ($\max(v_{\text{pos,min}}, v_{\max} \times 10^{-4})$), maps non-positive values to the bottom color band, and displays informative terminal diagnostics.
+* **Base-10 Power Labels (`10^x`)**: The 2D color scale bar dynamically renders decade ticks in clear mathematical power notation (`10^1`, `10^2`, `10^3`, `10^-2`).
+
+---
+
+## 8. 🌈 Perceptual Scientific Colormaps
+
+* **`cubehelix (reversed)` (Default)**:
+  - Developed by **D. A. Green (2011)** (*Cavendish Laboratory, Cambridge*), Cubehelix is designed with strictly monotonic perceived lightness.
+  - **Black & White Print Safe**: When printed or photocopied in grayscale, the gradient converts to a perfectly monotonic linear brightness profile.
+  - **Colorblind Friendly**: Eliminates artificial color boundaries common in classic Jet/Rainbow palettes.
+* **Colormap Palette Suite**:
+  - `cubehelix (reversed)` (Default)
+  - `cubehelix` (Standard)
+  - `viridis`
+  - `turbo`
+  - `inferno`
+  - `coolwarm`
+  - `jet`
+  - `classic`
+  - `gray`
+  - Switch anytime via **`Viewing >`** $\rightarrow$ **`Colormap >`** or the command bar (`cmap <name>`).

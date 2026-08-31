@@ -22,15 +22,17 @@ There are two objectives of this project. First, is to explore agent-assisted re
 
 ## Highlights & New Features
 
-* **New 3D backend via GLFW**: Windowing and input events are routed through a modern, native [**GLFW3**](https://www.glfw.org/) layer across macOS (Apple Silicon), Linux (x64/Arm), and Windows. Same codebase can be compiled among the three OSes.
-* **Signature Dark Mode by Default**: Modern dark slate aesthetic.
-* **True 3D Perspective Projection**
+* **Modern GPU Pipeline (1-Draw-Call VBO + GLSL Shaders)**: High-performance rendering pipeline with packed Vertex Buffer Objects, custom GLSL shaders, Blinn-Phong metallic lighting, and quadratic element face accuracy.
+* **New 3D Backend via GLFW**: Windowing and input events are routed through a modern, native [**GLFW3**](https://www.glfw.org/) layer across macOS (Apple Silicon), Linux (Wayland/X11), and Windows from a unified codebase.
+* **Signature Dark Mode & Perspective 3D by Default**: Signature dark slate aesthetic (`#0D121A`) with realistic 3D perspective projection.
+* **Cubehelix (Reversed) Scientific Colormap**: Default perceptually monotonic colormap (Green, 2011) that is 100% black & white print safe and colorblind friendly.
+* **ParaView-Style Logarithmic Color Scale**: Automatic positive floor clamping and $10^x$ power labels for multi-decade result fields.
 * **Interactive Command Bar with Fuzzy Suggestions**: In-window command line bar with history navigation (<kbd>↑</kbd>/<kbd>↓</kbd>) and intelligent Levenshtein typo suggestions (e.g. `fram` $\rightarrow$ `frame`).
 * **Keyboard Navigation Modifiers**: <kbd>Shift</kbd>/<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + Left Drag to Pan, and <kbd>Alt</kbd>/<kbd>Option</kbd> + Left Drag to Zoom.
-* **Native VTU/PVD Exporter**: export of results to VTK VTU [ParaView-compatible](https://vtk.org/) format (`send all vtu all`).
-* Tetrahedral meshing is carried out via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1), internally.
+* **Native VTU/PVD Exporter**: Direct export of FEA results to ParaView-compatible `.vtu` and `.pvd` formats (`send all vtu all`).
+* **Integrated TetGen Mesher**: Native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1).
 
-> 📖 **Deep Dive**: For full details on all graphical enhancements, rendering options, and shortcuts, see [**GUI Extra Features**](GUI_EXTRA_FEATURES.md).
+> 📖 **Deep Dive**: For full details on all GUI enhancements, see [**GUI Extra Features**](GUI_EXTRA_FEATURES.md). For technical rendering architecture, see [**Modern 3D Pipeline Architecture**](MODERN_3D_PIPELINE.md).
 
 ---
 
