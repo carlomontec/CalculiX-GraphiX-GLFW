@@ -1,0 +1,34 @@
+# ==============================================================================
+# Test: 01_geometry / test_primitives.fbl
+# Description: Validates creation of points, lines, arcs, surfaces, and bodies
+# ==============================================================================
+
+# 1. Define Points in Cartesian Space
+pnt p1 0.0 0.0 0.0
+pnt p2 10.0 0.0 0.0
+pnt p3 10.0 10.0 0.0
+pnt p4 0.0 10.0 0.0
+
+# 2. Define Lines
+line l1 p1 p2 5
+line l2 p2 p3 5
+line l3 p3 p4 5
+line l4 p4 p1 5
+
+# 3. Create Combined Line and Surface
+lcmb c1 + l1 + l2
+gsur s1 + BLEND + l1 + l2 + l3 + l4
+
+# 4. Define Arc with Center Point
+pnt pc 15.0 5.0 0.0
+pnt p5 20.0 5.0 0.0
+line larc p2 p5 pc 6
+
+# 5. Create 3D Body by surface sweep
+swep s1 s2 tra 0.0 0.0 10.0 5
+
+# 6. Check entity counts
+prnt se all
+
+# Done
+quit

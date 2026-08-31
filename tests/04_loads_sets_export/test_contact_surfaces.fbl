@@ -1,0 +1,45 @@
+# ==============================================================================
+# Test: 04_loads_sets_export / test_contact_surfaces.fbl
+# Description: Validates creation and export of Abaqus contact surfaces (*.sur)
+# ==============================================================================
+
+# Two adjoining blocks
+# Block 1 (bottom)
+pnt p1 0.0 0.0 0.0
+pnt p2 10.0 0.0 0.0
+pnt p3 10.0 10.0 0.0
+pnt p4 0.0 10.0 0.0
+
+line l1 p1 p2 4
+line l2 p2 p3 4
+line l3 p3 p4 4
+line l4 p4 p1 4
+
+gsur s_bot + BLEND + l1 + l2 + l3 + l4
+swep s_bot s_mid tra 0.0 0.0 10.0 4
+
+# Define Master Contact Surface at interface (s_mid)
+seta master s s_mid
+
+# Block 2 (top)
+swep s_mid s_top tra 0.0 0.0 10.0 4
+
+# Define Slave Contact Surface at interface (s_mid)
+seta slave s s_mid
+
+# Mesh all with he8
+elty all he8
+mesh all
+
+# Complete sets to contain elements/faces
+comp master do
+comp slave do
+
+# Export contact surfaces (*.sur)
+send master abq surf
+send slave abq surf
+
+# Export mesh
+send all abq
+
+quit

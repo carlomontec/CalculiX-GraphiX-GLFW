@@ -27,6 +27,7 @@ Peter Heppel Jan 2016
 */
 
 #include <cgx.h>
+#include "cgx_capture.h"
 #include <dirent.h>
 #include <xwd.h>
 
@@ -14169,137 +14170,97 @@ void pre_norm(char *name)
 
 void pre_movie(char *string)
 {
-  int i,j,k, length;
-  static int delay=10;
-  static int loops=0;
+  int length;
   double val1=0, val2=0;
   char type[MAX_LINE_LENGTH], name[MAX_LINE_LENGTH], movie[MAX_LINE_LENGTH];
-  movie[0]=0;
+  type[0]=name[0]=movie[0]=0;
   length=sscanf(string, "%s %lf %lf %s", type, &val1, &val2, movie );
 
-  if (compareStrings(type, "delay")>0) { if(length==2) delay=100.*val1; else delay=10; }
-  if (compareStrings(type, "loops")>0) { if(length==2) loops=val1; else loops=0; }
-  if (compareStrings(type, "start")>0) { movieFlag=1; stopFlag=0; }
-  if (compareStrings(type, "stop")>0)
+  extern int anim_steps;
+  extern int time_per_period;
+  extern char sequenceFlag;
+  extern DsSequence dsSequence;
+  extern int animList;
+
+  int cycle_frames = (sequenceFlag && dsSequence.nds > 1) ? dsSequence.nds : (anim_steps > 1 ? anim_steps : 30);
+  double cycle_delay = 0.04;
+  if (cgx_movie_has_custom_delay())
   {
-    printf("movie stopped, make movie with 'movie make <nr> <nr> [movie]'\n");
-    printf("optionally define the delay-time between pictures with:'movie delay <sec>' before 'movi make'\n");
-    printf("optionally reset the counter and delete the single frames with 'movi clean'\n");
-    printf("you might use the program 'realplay' or 'firefox' to play the movie.gif file\n");
-    movieFlag=0;
-#ifdef WIN32
-    sprintf( buffer, "del /f  \"hcpy_0.tga\" %s", " 2> NUL");
-#else
-    sprintf( buffer, "rm -f  hcpy_0.tga %s", DEV_NULL2);
-#endif
-    system (buffer);
+    cycle_delay = cgx_movie_get_delay();
   }
-  if (compareStrings(type, "frames")>0)
+  else if (time_per_period > 0 && cycle_frames > 0)
   {
-#ifdef WIN32
-    sprintf( buffer, "del /f \"_*.gif\" %s", " 2> NUL");
-#else
-    sprintf( buffer, "rm -f _*.gif %s", DEV_NULL2);
-#endif
-    system (buffer);
-    gifNr=0;
+    cycle_delay = (double)time_per_period / (1000.0 * (double)cycle_frames);
+    if (cycle_delay < 0.005) cycle_delay = 0.005;
+  }
+
+  if (compareStrings(type, "delay")>0)
+  {
+    if(length>=2 && val1>0.001) cycle_delay=val1;
+    else cycle_delay=0.04;
+    cgx_movie_set_delay(cycle_delay);
+    printf("Movie frame delay set to %.4f sec (approx %d fps)\n", cycle_delay, (int)(1.0/cycle_delay + 0.5));
+  }
+  else if (compareStrings(type, "cycle")>0 || compareStrings(type, "startcycle")>0 || compareStrings(type, "loop")>0)
+  {
+    length=sscanf(string, "%*s %s", movie);
+    if(length<1) strcpy(movie, "movie_cycle.mp4");
+    animList = 0; /* sync to start of cycle */
+    movieFrames = cycle_frames;
+    movieFlag = 1;
+    stopFlag = 0;
+    printf("[CGX] Recording 1 full cycle (%d frames @ %.1f fps, period %.2fs) to '%s'...\n",
+           movieFrames, 1.0/cycle_delay, cycle_delay * movieFrames, movie);
+    cgx_movie_start(movie, movieFrames, cycle_delay);
+  }
+  else if (compareStrings(type, "start")>0)
+  {
+    length=sscanf(string, "%*s %s", movie);
+    if(length<1) strcpy(movie, "movie.mp4");
     movieFlag=1;
     stopFlag=0;
-    length=sscanf(string, "%*s %s %s", name, movie);
-    if((length==1)&&(name[0]=='a'))
-    { movieFrames=-1; movieCommandFile[0]=0; }
-    else
-    {
-      movieFrames=(int)val1;
-      length=sscanf(string, "%*s %*s %s", movieCommandFile);
-      if(length<1) movieCommandFile[0]=0;
-    }
-    //printf("movieFrames:%d movieCommandFile:%s\n",movieCommandFile);
+    movieFrames=0;
+    cgx_movie_start(movie, 0, cycle_delay);
   }
-  if (compareStrings(type, "clean")>0)
+  else if (compareStrings(type, "stop")>0)
   {
-#ifdef WIN32
-    sprintf( buffer, "del /f \"_*.gif\" %s", " 2> NUL");
-#else
-    sprintf( buffer, "rm -f _*.gif %s", DEV_NULL2);
-#endif
-    system (buffer);
-    gifNr=0;
+    movieFlag=0;
+    stopFlag=1;
+    movieFrames=0;
+    cgx_movie_finish();
   }
-  if (compareStrings(type, "make")>0)
+  else if (compareStrings(type, "frames")>0)
   {
-    if(length==1) {  val2=gifNr, val1=1; length=3; }  
-    else if(length==2) {  val2=val1, val1=1; length=3; }  
-
-    if(length>2)
+    char arg1[MAX_LINE_LENGTH];
+    arg1[0] = 0;
+    movie[0] = 0;
+    length = sscanf(string, "%*s %s %s", arg1, movie);
+    if (compareStrings(arg1, "auto")>0)
     {
-      if(length==4)
-      {
-        printf("make movie from %s and pic:%d to %d, wait for ready\n", movie, (int)val1,(int)val2);
-#ifdef WIN32
-        sprintf( buffer, "copy /y \"%s\" \"movie.gif\" %s", movie, " 2> NUL");
-#else
-        sprintf( buffer, "cp %s movie.gif %s", movie, DEV_NULL2);
-#endif
-        system (buffer);
-      }
-      else
-      {
-        printf("make movie from pic:%d to %d, wait for ready\n", (int)val1,(int)val2);
-        movie[0]=0;
-      }
-        
-      /* generate movie from single gif files */
-      j=k=0;
-      for(i=(int)val1; i<=(int)val2; i++)
-      { 
-        sprintf(&name[j*10], "_%d.gif     ",i); j++;
-        if(j==9)
-        {
-  	j=0;
-	sprintf( buffer, "convert -loop %d -delay %d %s __%d.gif %s", loops, delay, name, k++,DEV_NULL2);
-          system (buffer);
-        }
-      }
-      if(j)
-      {
-        sprintf( buffer, "convert -loop %d -delay %d %s __%d.gif %s", loops, delay, name, k++,DEV_NULL2);
-        system (buffer);
-      }
-  
-      /* assemble all movies */
-      j=0;
-      for(i=0; i<k; i++)
-      { 
-        sprintf(&name[j*12], "__%d.gif     ",i); j++;
-        if(j==9)
-        {
-  	  j=0;
-          if (i==9) sprintf( buffer, "convert -loop %d -delay %d %s %s movie.gif %s", loops, delay, movie, name,DEV_NULL2);
-          else sprintf( buffer, "convert -loop %d -delay %d movie.gif %s movie.gif %s", loops, delay, name,DEV_NULL2);
-          system (buffer);
-        }
-      }
-      if(j)
-      {
-        if (k<9) sprintf( buffer, "convert -loop %d -delay %d %s %s movie.gif %s", loops, delay, movie, name,DEV_NULL2);
-        else sprintf( buffer, "convert -loop %d -delay %d movie.gif %s movie.gif %s", loops, delay, name,DEV_NULL2);
-        system (buffer);
-      }
-#ifdef WIN32
-      // The `/f` option is preferred. Right? Unix doesn't have `-f`. Why?
-      sprintf( buffer, "del /f \"__*.gif\" %s", " 2> NUL");
-#else
-      sprintf( buffer, "rm __*.gif %s", DEV_NULL2);
-#endif
-      system (buffer);
-      printf("\nready\n");
-      printf("\nyou might use the program 'realplay' or 'firefox' to play the movie.gif file\n\n");
+      animList = 0;
+      movieFrames = cycle_frames;
+      if (length < 2 || movie[0] == 0) strcpy(movie, "movie_cycle.mp4");
     }
     else
     {
-      printf(" ERROR: make movie with 'movie make <nr> <nr> [movie]'\n");
+      val1 = atof(arg1);
+      if (val1 > 0) movieFrames = (int)val1;
+      else movieFrames = 30;
+      if (length < 2 || movie[0] == 0) strcpy(movie, "movie.mp4");
     }
+    movieFlag=1;
+    stopFlag=0;
+    printf("[CGX] Recording %d frames (@ %.1f fps) to '%s'...\n", movieFrames, 1.0/cycle_delay, movie);
+    cgx_movie_start(movie, movieFrames, cycle_delay);
+  }
+  else if (compareStrings(type, "clean")>0)
+  {
+    cgx_movie_clean();
+  }
+  else if (compareStrings(type, "make")>0)
+  {
+    printf("Movies are now recorded in real-time during animation.\n");
+    printf("Use 'movie cycle [filename.mp4|filename.gif]' or 'movie start [filename]'.\n");
   }
 }
 
@@ -17403,131 +17364,27 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
   else if (compareStrings(type, "HCPY")>0)
   {
     format[0]=0;
+    name[0]=0;
     args=sscanf(string,"%*s %s %s", name, format);
     if(args==2) sbuf=format; else sbuf=NULL;
-    if     (compareStrings(name, "ps")>0)  createHardcopy(1,sbuf);
-    else if(compareStrings(name, "tga")>0) createHardcopy(2,sbuf);
-    else if(compareStrings(name, "gif")>0) createHardcopy(4,sbuf);
-    else if(compareStrings(name, "png")>0) createHardcopy(5,sbuf);
-    else if(compareStrings(name, "clean")>0)
+    if (compareStrings(name, "clean")>0 || compareStrings(&string[na+1], "clean")>0)
     {
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_*.*\" %s", " 2> NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_*.* %s", DEV_NULL2);
-#endif
-      system (buffer);
+      cgx_clean_hcpy_files();
       psNr=tgaNr=gifNr=pngNr=0;
     }
-    else if(compareStrings(name, "make")>0)
+    else if(compareStrings(name, "png")>0 || compareStrings(name, "ps")>0 ||
+            compareStrings(name, "tga")>0 || compareStrings(name, "gif")>0)
     {
-      /* open the actual dir and get the available hcpy files */
-      pics=0;
-      dirp = opendir(".");
-      if (dirp != NULL) while ((dp = readdir(dirp)) != NULL)
-      {
-        /* search for hcpy_xx.ps files  */
-        if( (compare(dp->d_name, "hcpy", 4) == 4) && ( dp->d_name[strlen(dp->d_name)-2]=='p') && ( dp->d_name[strlen(dp->d_name)-1]=='s') )
-        {
-          printf(" found %s \n", dp->d_name);
-          /* get the pic-nr */
-          i=0; while(dp->d_name[i]!='_') i++; i++;
-          j=0; while(dp->d_name[i]!='.') { posn[j]=dp->d_name[i]; j++; i++;}
-          posn[j]=0;
-          if ( (picnr = (int *)realloc( (int *)picnr, (pics+2) * sizeof(int))) == NULL )
-          {  printf("\n\n ERROR: realloc failed, hcpy\n\n"); }
-          picnr[pics]=atoi(posn); pics++;
-        }
-      }
-      closedir(dirp);
-      qsort( picnr, pics, sizeof(int), (void *)compareInt );
-
-      nr=0; /* page-nr */
-      ibuf=0; /* pic-nr */
-      do
-      {
-        sprintf( buffer, "gs -dNOPAUSE -dBATCH -sDEVICE=ps2write -sOutputFile=tmp.ps ");
-        for(j=0; j<6; j++) /* 6 pics per page */
-	{
-          if(ibuf==pics) break;
-          sprintf( &buffer[strlen(buffer)], " hcpy_%d.ps", picnr[ibuf++]);
-	}
-        system (buffer);
-        printf("%s\n",buffer);
-        if ( compareStrings(format, "ls")>0)
-        {
-          pscal=0.42;
-          x=11.; dx=9.;
-          y=1.5;  dy=9.;
-          /* sscanf(string,"%*s %*s %*s %lf %lf %lf %lf %lf", &x, &y, &dx, &dy, &pscal); */
-          
-          // activate this lined if ps2write is used
-          //sprintf( buffer, "convert -density %dx%d tmp.ps tmp.ps", (int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)),(int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)));
-          system (buffer);
-          printf("%s\n",buffer);
-
-          sprintf( buffer, "pstops '6:0L@%lf(%lfcm,%lfcm)+3L@%lf(%lfcm,%lfcm)+1L@%lf(%lfcm,%lfcm)+4L@%lf(%lfcm,%lfcm)+2L@%lf(%lfcm,%lfcm)+5L@%lf(%lfcm,%lfcm)' tmp.ps tmp_%d.ps", pscal, x,y, pscal, x+dx,y, pscal, x,y+dy, pscal, x+dx,y+dy, pscal, x,y+2.*dy, pscal, x+dx,y+2.*dy, nr);
-        }
-        else
-        {
-          pscal=0.42;
-          x=2.; dx=9.;
-          y=1.; dy=9.;
-          /* sscanf(string,"%*s %*s %*s %lf %lf %lf %lf %lf", &x, &y, &dx, &dy, &pscal); */
-          
-          // activate this lined if ps2write is used
-          //sprintf( buffer, "convert -density %dx%d tmp.ps tmp.ps", (int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)),(int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)));
-          system (buffer);
-          printf("%s\n",buffer);
-
-          sprintf( buffer, "pstops '6:4@%lf(%lfcm,%lfcm)+5@%lf(%lfcm,%lfcm)+2@%lf(%lfcm,%lfcm)+3@%lf(%lfcm,%lfcm)+0@%lf(%lfcm,%lfcm)+1@%lf(%lfcm,%lfcm)' tmp.ps tmp_%d.ps", pscal, x,y, pscal, x+dx,y, pscal, x,y+dy, pscal, x+dx,y+dy, pscal, x,y+2.*dy, pscal, x+dx,y+2.*dy, nr);
-        }
-        system (buffer);
-        printf("%s\n",buffer);
-        sprintf( buffer, "gs -dNOPAUSE -dBATCH -sDEVICE=ps2write -sOutputFile=cgx_%d.ps tmp_%d.ps", nr, nr);
-        system (buffer);
-        printf("%s\n",buffer);
-#ifdef WIN32
-        sprintf( buffer, "del /f \"tmp*.ps\" %s"," > NUL");
-#else
-        sprintf( buffer, "rm -f tmp*.ps %s",DEV_NULL);
-#endif
-        system (buffer);
-        nr++;
-      }while(j==6);
-      sprintf( buffer, "gs -dNOPAUSE -dBATCH -sDEVICE=ps2write -sOutputFile=cgx.ps ");
-      for(j=0; j<nr; j++)
-      {
-        sprintf( &buffer[strlen(buffer)], " cgx_%d.ps", j);
-      }
-      system (buffer);
-      printf("%s\n",buffer);
-#ifdef WIN32
-      sprintf( buffer, "del /f \"cgx_*.ps\" %s"," > NUL");
-#else
-      sprintf( buffer, "rm -f cgx_*.ps %s",DEV_NULL);
-#endif
-      system (buffer);
-      // TBD: if ( compareStrings(format, "ls")>0)
-      if(inpformat) sprintf(buffer, "%s cgx.ps &", psviewer);
-      system (buffer);
-      printf("ready\n");
-
-      // activate this lined if ps2write is used
-      printf(" you may convert to pdf with 'convert -density 600x600 cgx.ps cgx.pdf\n");
-
+      createHardcopy(5, sbuf);
     }
-    else if(compareStrings(&string[na+1], "clean")>0)
+    else if(args>=1 && strlen(name)>0)
     {
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_*\" %s"," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_* %s",DEV_NULL);
-#endif
-      system (buffer);
-      psNr=tgaNr=gifNr=pngNr=0;
-    }           
-    else createHardcopy(2, NULL);
+      createHardcopy(5, name);
+    }
+    else
+    {
+      createHardcopy(5, NULL);
+    }
   }
   else if (compareStrings(type, "INT")>0)
   {
@@ -17825,7 +17682,7 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
     pre_move( &string[na+1] );
     redraw();
   }
-  else if (compareStrings(type, "MOVI")>0)
+  else if (compareStrings(type, "MOVI")>0 || compareStrings(type, "MOVIE")>0)
   {
     pre_movie( &string[na+1] );
   }
