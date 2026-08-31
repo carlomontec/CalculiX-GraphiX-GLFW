@@ -66,8 +66,8 @@ This document records the architectural standards, technical decisions, cross-pl
   * Initial launch background must exactly match the toggle and command line bar color on startup in `initModel()`.
 * **Perspective 3D Projection by Default**:
   * `perspectiveFlag = 1` on startup.
-* **Cubehelix Colormap by Default**:
-  * `cmap_name = "cubehelix"` on startup with dark graphite floor lift ($0.12$) for optimal 3D diffuse shading and black-and-white printing safety.
+* **Cubehelix (Reversed) Colormap by Default**:
+  * `cmap_name = "cubehelix (reversed)"` on startup with dark graphite floor lift ($0.12$) for optimal 3D diffuse shading and black-and-white printing safety.
 
 ---
 

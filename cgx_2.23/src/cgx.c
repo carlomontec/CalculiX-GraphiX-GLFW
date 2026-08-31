@@ -288,9 +288,9 @@ int   lcase_animList={-1};                       /* additional lcase for the val
 int   read_mode=0;                               /* if 1 read data immediatelly, else read on demand */
 int   step_mode=0;                               /* if 1 read step data and write the single parts from an assembly to the filesystem */
 int   centerNode=0;                    /* Nr of center Node, 0:no centernode */
-int   cmaps=8;                         /* nr of colormap names */
-char *cmap_names[] = {"classic", "jet", "turbo", "viridis", "inferno", "coolwarm", "cubehelix", "gray"};   /* Colormap names */
-char  cmap_name[MAX_LINE_LENGTH] = "cubehelix";       /* default Colormap */
+int   cmaps=9;                         /* nr of colormap names */
+char *cmap_names[] = {"classic", "jet", "turbo", "viridis", "inferno", "coolwarm", "cubehelix", "cubehelix (reversed)", "gray"};   /* Colormap names */
+char  cmap_name[MAX_LINE_LENGTH] = "cubehelix (reversed)";       /* default Colormap */
 char  inpformat=0;                     /* defines the start-up mode of cgx */
 char  allowSysFlag=ALLOW_SYS_FLAG;                  /* 1: allow the execution of system calls (sys command) */
 char  autoDivFlag=1;                   /* The div command will set it to 0 and no auto-div is executed */
@@ -646,8 +646,35 @@ void nodalDataset( int entity, int lc, Summen *anz, Scale *scale, Nodes *node_du
     {
       if(scale->format=='l')
       {
-        scale->smin=log10(vmin);
-        scale->smax=log10(vmax);
+        if(vmax <= 0.0)
+        {
+          printf("\n ERROR: Logarithmic scale not possible (dataset has no positive values: max = %e <= 0)\n", vmax);
+          scale->format = 'e';
+          scale->smin = vmin;
+          scale->smax = vmax;
+        }
+        else
+        {
+          double vpos_min = vmax;
+          int has_non_positive = 0;
+          for (i=0; i<anz->n; i++ )
+          {
+            if(node[node[i].nr].pflag==-1) continue;
+            double val = lcase[lc].dat[entity][node[i].nr];
+            if (val > 1e-30 && val < vpos_min) vpos_min = val;
+            if (val <= 0.0) has_non_positive = 1;
+          }
+          double floor_limit = vmax * 1e-4; /* 4-decade default range matching ParaView */
+          if (vpos_min < floor_limit) vpos_min = floor_limit;
+          scale->smin = log10(vpos_min);
+          scale->smax = log10(vmax);
+          if (scale->smin >= scale->smax) scale->smin = scale->smax - 1.0;
+
+          if (has_non_positive) {
+            printf("\n [Log Scale] Note: Dataset contains non-positive values (min = %e).\n", vmin);
+            printf("             Adjusted log minimum to 10^%.1f (%e). Values <= 0 mapped to lower bound.\n", scale->smin, pow(10.0, scale->smin));
+          }
+        }
       }
       else
       {
@@ -685,20 +712,27 @@ void nodalDataset( int entity, int lc, Summen *anz, Scale *scale, Nodes *node_du
      for (i=0; i<anz->n; i++ )
      {
       if(node[node[i].nr].pflag==-1) continue;
-      if ( log10(lcase[lc].dat[entity][node[i].nr]) <= min )
+      double val = lcase[lc].dat[entity][node[i].nr];
+      if (val <= 0.0)
       {
-        colNr[node[i].nr] = 0.;
-      }
-      else if ( log10(lcase[lc].dat[entity][node[i].nr]) >= max )
-      {
-        colNr[node[i].nr] = (double)steps/(double)TEX_PIXELS;
+        colNr[node[i].nr] = 0.0;
       }
       else
       {
-        if(lcase[lc].dat[entity][node[i].nr]>=0.) colNr[node[i].nr] = (log10(lcase[lc].dat[entity][node[i].nr])-min)/(max-min) *(double)steps/(double)TEX_PIXELS;
-	else colNr[node[i].nr] = 0.;
+        double log_val = log10(val);
+        if ( log_val <= min )
+        {
+          colNr[node[i].nr] = 0.;
+        }
+        else if ( log_val >= max )
+        {
+          colNr[node[i].nr] = (double)steps/(double)TEX_PIXELS;
+        }
+        else
+        {
+          colNr[node[i].nr] = (log_val - min) / (max - min) * (double)steps / (double)TEX_PIXELS;
+        }
       }
-      //printf("i:%d n:%d e:%d lc:%d smin:%f v:%f log10(v):%f c:%f\n", i,node[i].nr,entity,lc,scale->smin,lcase[lc].dat[entity][node[i].nr],log10(lcase[lc].dat[entity][node[i].nr]),colNr[node[i].nr]);
      }
     }
     else
@@ -4463,6 +4497,33 @@ void selectView( int selection )
     else printf("\n Orthographic (Iso) projection enabled.\n\n");
     redraw();
     break;
+  case 20: /* Toggle Logarithmic Color Scale */
+    if (scale->format == 'l')
+    {
+      scale->format = 'e';
+      scale->smin = 0.0;
+      scale->smax = 0.0;
+      printf("\n Color Scale: LINEAR\n\n");
+    }
+    else
+    {
+      if (anz->l && cur_lc >= 0 && lcase[cur_lc].max[cur_entity] <= 0.0)
+      {
+        printf("\n ERROR: Logarithmic scale not possible (dataset has no positive values: max = %e <= 0)\n\n", lcase[cur_lc].max[cur_entity]);
+        break;
+      }
+      scale->format = 'l';
+      scale->smin = 0.0;
+      scale->smax = 0.0;
+      printf("\n Color Scale: LOGARITHMIC (Log10)\n\n");
+    }
+    if (anz->l && cur_lc >= 0)
+    {
+      nodalDataset(cur_entity, cur_lc, anz, scale, node, lcase, colNr, 1);
+      updateDispLists();
+    }
+    redraw();
+    break;
   }
   glutSetWindow( w0);
   glutPostRedisplay();
@@ -4508,9 +4569,10 @@ void selectGUI(int value)
     case 3: /* Toggle Command Line Bar */
       menu(5);
       break;
-    case 4: /* Toggle Modern GPU Pipeline */
+    case 4: /* [Experimental] Modern GPU Pipeline */
       modernGpuFlag = !modernGpuFlag;
-      printf(" Modern GPU Rendering Pipeline: %s\n", modernGpuFlag ? "ON (VBO / GLSL Shaders)" : "OFF (Legacy Display Lists)");
+      printf("\n [Experimental] Modern GPU Rendering Pipeline: %s (Work in progress)\n\n",
+             modernGpuFlag ? "ON (VBO / GLSL Shaders)" : "OFF (Legacy Display Lists)");
       glutPostRedisplay();
       break;
   }
@@ -7958,7 +8020,7 @@ int main( int argc, char **argv )
   glutAddMenuEntry("Toggle Dark Mode", 1);
   glutAddMenuEntry("Toggle Perspective 3D", 2);
   glutAddMenuEntry("Toggle Command Line Bar", 3);
-  glutAddMenuEntry("Toggle Modern GPU Pipeline", 4);
+  glutAddMenuEntry("[Experimental] Modern GPU Pipeline", 4);
   glutAddSubMenu  ("Text Size", subsubmenu_fontsize );
   
   submenu_view = glutCreateMenu( selectView );
@@ -7979,6 +8041,7 @@ int main( int argc, char **argv )
   glutAddMenuEntry("Toggle Shaded Results", 14);
   glutAddMenuEntry("Toggle Transparency", 16);
   glutAddMenuEntry("Toggle Ruler", 17);
+  glutAddMenuEntry("Toggle Logarithmic Scale", 20);
   glutAddSubMenu  ("Colormap", subsubmenu_colormap );
 
   submenu_animate = glutCreateMenu( changeAnimation );
