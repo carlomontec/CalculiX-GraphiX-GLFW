@@ -67,7 +67,9 @@ This document records the architectural standards, technical decisions, cross-pl
 * **Perspective 3D Projection by Default**:
   * `perspectiveFlag = 1` on startup.
 * **Cubehelix (Reversed) Colormap by Default**:
-  * `cmap_name = "cubehelix (reversed)"` on startup with dark graphite floor lift ($0.12$) for optimal 3D diffuse shading and black-and-white printing safety.
+  * `cmap_name = "cubehelix (reversed)"` on startup with dark graphite floor lift ($0.12$) and red darkest hue rotation (`start = 1.5`) for optimal 3D diffuse shading and black-and-white printing safety.
+* **Shaded Results ON by Default**:
+  * `illumResultFlag = 1` (`ILLUMINATE_RESULTS = 1`) on startup with metallic Blinn-Phong specular glints (`MAT_SPEC = 0.38`, shininess `96.0`).
 
 ---
 

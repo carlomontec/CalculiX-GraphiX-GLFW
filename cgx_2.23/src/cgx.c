@@ -7146,8 +7146,14 @@ void iniDrawMenu()
     i=strlen(picture_caption)-maxchars;
     if (i>0) strcpy(buffer, &picture_caption[i]);
     else strcpy(buffer, picture_caption);
-    x=  -(double)(strlen( buffer )*pixPerCharx[legend_font]) / (double)(width_w0);
-    y= 1-(height_menu/10+height_w1+4+pixPerChary[legend_font])*2./height_w0;
+    double fb_scale = (double)cgx_get_fb_scale();
+    if (fb_scale < 0.5) fb_scale = 1.0;
+    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer) / fb_scale;
+    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * (double)pixPerCharx[legend_font];
+    double center_w1 = (double)width_menu * 19.0 / 20.0 + (double)width_w1 * 0.5;
+    double start_x = center_w1 - str_width_points * 0.5;
+    x = -1.0 + (2.0 * start_x) / (double)width_w0;
+    y = 1.0 - (height_menu / 10.0 + height_w1 + 4.0 + pixPerChary[legend_font]) * 2.0 / (double)height_w0;
     text( x, y, 0., buffer, glut_font[legend_font] );
   }
   if (textFlag)
@@ -7155,8 +7161,14 @@ void iniDrawMenu()
     i=strlen(picture_text)-maxchars;
     if (i>0) strcpy(buffer, &picture_text[i]);
     else strcpy(buffer, picture_text);
-    x=  -(double)(strlen( buffer )*pixPerCharx[legend_font]) / (double)(width_w0);
-    y= 1-(height_menu/10+height_w1+6+pixPerChary[legend_font]*2)*2./height_w0;
+    double fb_scale = (double)cgx_get_fb_scale();
+    if (fb_scale < 0.5) fb_scale = 1.0;
+    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer) / fb_scale;
+    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * (double)pixPerCharx[legend_font];
+    double center_w1 = (double)width_menu * 19.0 / 20.0 + (double)width_w1 * 0.5;
+    double start_x = center_w1 - str_width_points * 0.5;
+    x = -1.0 + (2.0 * start_x) / (double)width_w0;
+    y = 1.0 - (height_menu / 10.0 + height_w1 + 6.0 + pixPerChary[legend_font] * 2.0) * 2.0 / (double)height_w0;
     text( x, y, 0., buffer, glut_font[legend_font] );
   }
 }

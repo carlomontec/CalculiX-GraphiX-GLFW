@@ -1687,7 +1687,7 @@ void get_cmap_cubehelix(float v, float **r, float **g, float **b)
   float floor_val = 0.12f;
   float lam = floor_val + (1.0f - floor_val) * v;
   
-  float start = 0.5f;
+  float start = 1.5f; /* start = 1.5 rotates hue so darkest end is rich red */
   float rots = -1.5f;
   float hue = 1.0f;
   

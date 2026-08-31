@@ -178,7 +178,7 @@
 /*
 used fom material illumination
 */
-#define ILLUMINATE_RESULTS 0           /* 0: pure unshaded colormap results by default (1 for illumination) */
+#define ILLUMINATE_RESULTS 1           /* 1: shaded colormap results by default (0 for unshaded) */
 
 #define GAMB     0.18
 #define AMB      0.22
