@@ -22,7 +22,7 @@
  This document is the description of CalculiX GraphiX (cgx). This program is designed to generate and display finite elements (FE) and results coming from CalculiX CrunchiX (ccx). If you have any problems using cgx, this document should solve them. If not, you might send an email to the author \cite{cgx}.
 
 \paragraph{CalculiX GraphiX (GLFW Edition) Extension Notice:}
-This edition of the manual is an extension of the original CalculiX GraphiX documentation by Klaus Wittig. It incorporates the enhancements of the modern \textbf{CalculiX GraphiX (GLFW Edition)}, which replaces legacy X11/GLUT dependencies with native GLFW3 windowing across macOS, Linux, and Windows, integrates vector typography (\texttt{stb\_truetype}), an interactive in-window command bar with fuzzy suggestions, standard CAD/Blender navigation gestures, default Dark Mode and 3D Perspective projection, embedded in-memory TetGen 1.6.0 meshing, and native ParaView VTU/PVD export. Features and capabilities introduced in the GLFW Edition are annotated throughout this manual with footnotes.
+This edition of the manual is an extension of the original CalculiX GraphiX documentation by Klaus Wittig. It incorporates the enhancements of the modern \textbf{CalculiX GraphiX (GLFW Edition)}, which replaces legacy X11/GLUT dependencies with native GLFW3 windowing across macOS, Linux, and Windows, integrates vector typography (\texttt{stb\_truetype}), an interactive in-window command bar with fuzzy suggestions, standard CAD/Blender navigation gestures, default Dark Mode and 3D Perspective projection, standard axonometric viewpoints (Isometric, Dimetric, Trimetric), direct PNG and MP4/GIF hardcopy captures without ImageMagick, embedded in-memory TetGen 1.6.0 meshing, and native ParaView VTU/PVD export. Features and capabilities introduced in the GLFW Edition are annotated throughout this manual with footnotes.
 
 The Concept and File Format sections give some background on functionality and mesher capabilities. The Getting Started section describes how to run the verification examples you should have obtained along with the code of the program. You might use this section to check whether you installed CalculiX correctly. Then, a detailed overview is given of the menu and all the available keywords in alphabetical order in the Menu and Commands sections respectively. Finally, the User's Manual ends with the appendix and some references used while writing the code.
 
@@ -420,6 +420,7 @@ Used to generate a 2D-plot. The option ``Length'' will provide a plot ``value ov
 This menu item does not exist until the first ''\htmlref{menu}{menu}'' command was executed. Each ``menu'' command adds a new user command to the menu. This ``menu'' commands are usually stored in a ``.cgx'' file in the home directory to link them to the menu during startup.
 
 \subsection{\label{Orientation}Orientation}
+In CalculiX GraphiX (GLFW Edition)\footnote{In CalculiX GraphiX (GLFW Edition), standard axonometric viewpoints (Isometric, Dimetric, Trimetric) are available alongside the principal Cartesian axis views.}, the orientation menu sets the camera view direction.
 \subsubsection{+x View}
 To look along the x-axis.
 \subsubsection{-x View}
@@ -432,6 +433,12 @@ To look against the y-axis.
 To look along the z-axis.
 \subsubsection{-z View}
 To look against the z-axis.
+\subsubsection{Isometric}
+To rotate into standard isometric view (yaw $45^\circ$, pitch $35.264^\circ$).
+\subsubsection{Dimetric}
+To rotate into standard dimetric view (yaw $26.565^\circ$, pitch $19.471^\circ$).
+\subsubsection{Trimetric}
+To rotate into standard trimetric view (yaw $30^\circ$, pitch $20^\circ$).
 
 \subsection{\label{Hardcopy}Hardcopy}
 In CalculiX GraphiX (GLFW Edition)\footnote{In CalculiX GraphiX (GLFW Edition), screenshot captures and movie recordings are written directly from the OpenGL framebuffer to PNG, MP4, and GIF without requiring ImageMagick.}, screenshots and animation movies can be recorded directly from the viewport. To create a hard-copy during animation, it is useful to stop the animation first with the middle mouse button while inside the menu area of the main window and then release one picture after the other with the right button until the desired amplitude or step is reached.
@@ -2041,9 +2048,10 @@ This keyword is used to rename a set.
 \begin{verbatim}
    'rot' ['n' <set>|'nodenr'] |
          [['u'|'d'|'r'|'l'|'c' <angle>]|->
-          ['x'|'-x'|'y'|'-y'|'z'|'-z']]
+          ['x'|'-x'|'y'|'-y'|'z'|'-z']|->
+          ['iso'|'dim'|'trim']]
 \end{verbatim}
-This keyword is used to rotate the view-direction to the model. For example\\\\rot u 10\\\\will rotate the view-direction 10 degrees upwards. The meaning of the other letters is down d, right r, left l, clockwise c. The remaining letters will rotate the view into a pre-defined direction. For example the user will look in x direction after the command\\\\rot x\\\\and against the x direction with the command\\\\rot -x\\\\and so on.
+This keyword is used to rotate the view-direction to the model. For example\\\\rot u 10\\\\will rotate the view-direction 10 degrees upwards. The meaning of the other letters is down d, right r, left l, clockwise c. The remaining parameters will rotate the view into a pre-defined direction. For example the user will look in x direction after the command\\\\rot x\\\\and against the x direction with the command\\\\rot -x\\\\In CalculiX GraphiX (GLFW Edition)\footnote{Axonometric projection viewpoints (Isometric, Dimetric, Trimetric) introduced in CalculiX GraphiX (GLFW Edition).}, the parameters ''iso'' (or ''isometric''), ''dim'' (or ''dimetric''), and ''trim'' (or ''trimetric'') rotate the model into standard axonometric projections.
 
 The parameter 'n' is used to rotate the model in a way that the viewing direction is in normal direction at the location of a given node. Either a node-nr or a set with a node can be given:\\\\rot n nodeset\\\\Nevertheless the node might be obscured by other parts of the model. This can be checked with the ''\htmlref{test}{test}'' command.
 

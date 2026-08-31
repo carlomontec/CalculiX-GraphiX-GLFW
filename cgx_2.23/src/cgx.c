@@ -1466,6 +1466,24 @@ void orientModel( int selection )
     rot_z(-1);
     rot_c(90);
     break;
+  case 7:
+    /* Isometric: +Z up, viewing from above down onto the top face */
+    rot_z(1);
+    rot_c(-45.0);
+    rot_u(-35.26438968);
+    break;
+  case 8:
+    /* Dimetric */
+    rot_z(1);
+    rot_c(-26.565);
+    rot_u(-19.471);
+    break;
+  case 9:
+    /* Trimetric */
+    rot_z(1);
+    rot_c(-30.0);
+    rot_u(-20.0);
+    break;
   }
 }
 
@@ -2778,7 +2796,10 @@ void pre_rot( char *record)
 
   length = sword( record, type );
   angle = atof( &record[length+1]);
-  if (type[0]=='u') rot_u(angle);
+  if (compare(type, "iso", 3)==3 || compare(type, "isometric", 9)==9) orientModel(7);
+  else if (compare(type, "dim", 3)==3 || compare(type, "dimetric", 8)==8) orientModel(8);
+  else if (compare(type, "trim", 4)==4 || compare(type, "trimetric", 9)==9) orientModel(9);
+  else if (type[0]=='u') rot_u(angle);
   else if (type[0]=='r') rot_r(angle);
   else if (type[0]=='c') rot_c(angle);
   else if (type[0]=='d') rot_u(-angle);
@@ -7951,6 +7972,9 @@ int main( int argc, char **argv )
   glutAddMenuEntry( "-y View     ", 4);
   glutAddMenuEntry( "+z View     ", 5);
   glutAddMenuEntry( "-z View     ", 6);
+  glutAddMenuEntry( "Isometric  ", 7);
+  glutAddMenuEntry( "Dimetric   ", 8);
+  glutAddMenuEntry( "Trimetric  ", 9);
 
   submenu_hardcopy = glutCreateMenu( markHardcopy );
   glutAddMenuEntry( "Save PNG Screenshot", 5);
