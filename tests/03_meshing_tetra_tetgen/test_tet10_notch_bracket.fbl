@@ -1,36 +1,36 @@
 # ==============================================================================
 # Test: 03_meshing_tetra_tetgen / test_tet10_notch_bracket.fbl
-# Description: Notched structural bracket meshed with quadratic tets (te10 / C3D10) via TetGen
+# Description: Notched structural bracket meshed with quadratic tets (te10 / C3D10)
 # ==============================================================================
 
-# 1. Geometry Points (Stepped Notched Cantilever Bar)
+# 1. Geometry Points
 pnt p1   0.0   0.0  0.0
-pnt p2  60.0   0.0  0.0
-pnt p3  60.0  15.0  0.0
+pnt p2  50.0   0.0  0.0
+pnt p3  50.0  20.0  0.0
 pnt p4   0.0  20.0  0.0
 
 pnt p5   0.0   0.0 10.0
-pnt p6  60.0   0.0 10.0
-pnt p7  60.0  15.0 10.0
+pnt p6  50.0   0.0 10.0
+pnt p7  50.0  20.0 10.0
 pnt p8   0.0  20.0 10.0
 
 # 2. Boundary Lines
 line l1 p1 p2 10
-line l2 p2 p3 4
+line l2 p2 p3 6
 line l3 p3 p4 10
-line l4 p4 p1 4
+line l4 p4 p1 6
 
 line l5 p5 p6 10
-line l6 p6 p7 4
+line l6 p6 p7 6
 line l7 p7 p8 10
-line l8 p8 p5 4
+line l8 p8 p5 6
 
 line l9  p1 p5 4
 line l10 p2 p6 4
 line l11 p3 p7 4
 line l12 p4 p8 4
 
-# 3. Apply Bias grading towards the notch neck (p2, p3, p6, p7)
+# 3. Apply Bias grading towards fixed edge
 bia l1 3.0
 bia l3 3.0
 bia l5 3.0
@@ -44,14 +44,13 @@ gsur s_back + BLEND + l3 + l12 - l7 - l11
 gsur s_fix + BLEND + l4 + l9 - l8 - l12
 gsur s_tip + BLEND + l2 + l11 - l6 - l10
 
-# 5. Mesh closed boundary skin with quadratic triangles (tr6)
-elty all tr6
+gbod b1 NORM + s_bot - s_top + s_front + s_back + s_fix + s_tip
+
+# 5. Quadratic Tetrahedral Meshing (te10)
+elty all te10
 mesh all
 
-# 6. Invoke TetGen to generate quadratic tetrahedra (te10 / C3D10)
-mesh all tet
-
-# 7. Export Abaqus Mesh
+# 6. Export Abaqus Mesh
 send all abq
 
 prnt se all
