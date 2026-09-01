@@ -47,11 +47,18 @@ echo -e "${BOLD}${BLUE}=====================================================${NC
 echo -e "${BOLD}${BLUE}   CalculiX GraphiX (GLFW Edition) — Uninstaller     ${NC}"
 echo -e "${BOLD}${BLUE}=====================================================${NC}"
 
-# Target install directory
+# Target install directory (~/.local/bin default, user level)
 DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
 INSTALL_DIR="${CGX_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 SOURCE_DIR="${HOME}/.cgx"
 GLOBAL_BIN="/usr/local/bin/cgx_glfw"
+GLOBAL_ALIAS="/usr/local/bin/cgx"
+
+OS_RAW="$(uname -s)"
+BIN_EXT=""
+if [[ "${OS_RAW}" =~ ^MINGW ]] || [[ "${OS_RAW}" =~ ^MSYS ]] || [[ "${OS_RAW}" =~ ^CYGWIN ]] || [ "${OS_RAW}" = "Windows_NT" ]; then
+    BIN_EXT=".exe"
+fi
 
 NON_INTERACTIVE=""
 KEEP_SOURCE=""
@@ -95,18 +102,24 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-TARGET_BIN="${INSTALL_DIR}/cgx_glfw"
+TARGET_BIN="${INSTALL_DIR}/cgx_glfw${BIN_EXT}"
+TARGET_ALIAS="${INSTALL_DIR}/cgx${BIN_EXT}"
 
 # Detect installed components
 FOUND_ITEMS=0
-echo -e "\n${BOLD}--> Detecting installed components...${NC}"
+echo -e "\n${BOLD}--> Detecting installed components..."
 
 if [ -f "${TARGET_BIN}" ] || [ -L "${TARGET_BIN}" ]; then
     echo -e "  [Found] Binary: ${BOLD}${TARGET_BIN}${NC}"
     FOUND_ITEMS=$((FOUND_ITEMS + 1))
 fi
 
-if [ -f "${GLOBAL_BIN}" ] || [ -L "${GLOBAL_BIN}" ]; then
+if [ -f "${TARGET_ALIAS}" ] || [ -L "${TARGET_ALIAS}" ]; then
+    echo -e "  [Found] User Alias: ${BOLD}${TARGET_ALIAS}${NC}"
+    FOUND_ITEMS=$((FOUND_ITEMS + 1))
+fi
+
+if [ -w "/usr/local/bin" ] && { [ -f "${GLOBAL_BIN}" ] || [ -L "${GLOBAL_BIN}" ]; }; then
     echo -e "  [Found] Global Link: ${BOLD}${GLOBAL_BIN}${NC}"
     FOUND_ITEMS=$((FOUND_ITEMS + 1))
 fi
@@ -123,7 +136,8 @@ if [ "$FOUND_ITEMS" -eq 0 ]; then
         if [[ "$CHECK_CUSTOM" =~ ^[Yy]$ ]]; then
             prompt_read "Enter custom directory path: " "${DEFAULT_INSTALL_DIR}" CUSTOM_PATH
             CUSTOM_PATH="${CUSTOM_PATH/#\~/$HOME}"
-            TARGET_BIN="${CUSTOM_PATH}/cgx_glfw"
+            TARGET_BIN="${CUSTOM_PATH}/cgx_glfw${BIN_EXT}"
+            TARGET_ALIAS="${CUSTOM_PATH}/cgx${BIN_EXT}"
             if [ -f "${TARGET_BIN}" ] || [ -L "${TARGET_BIN}" ]; then
                 echo -e "  [Found] Binary: ${BOLD}${TARGET_BIN}${NC}"
                 FOUND_ITEMS=1
@@ -149,22 +163,20 @@ if [ -z "$NON_INTERACTIVE" ]; then
     fi
 fi
 
-# 1. Remove binary
+# 1. Remove user binary & user alias (no sudo needed)
 if [ -f "${TARGET_BIN}" ] || [ -L "${TARGET_BIN}" ]; then
     rm -f "${TARGET_BIN}"
     echo -e "${GREEN}[OK] Removed binary: ${TARGET_BIN}${NC}"
 fi
 
-# 2. Remove /usr/local/bin symlink
-if [ -f "${GLOBAL_BIN}" ] || [ -L "${GLOBAL_BIN}" ]; then
-    if [ -w "/usr/local/bin" ]; then
-        rm -f "${GLOBAL_BIN}"
-        echo -e "${GREEN}[OK] Removed global link: ${GLOBAL_BIN}${NC}"
-    else
-        echo "Requesting sudo to remove ${GLOBAL_BIN}..."
-        sudo rm -f "${GLOBAL_BIN}" 2>/dev/null || true
-        echo -e "${GREEN}[OK] Removed global link: ${GLOBAL_BIN}${NC}"
-    fi
+if [ -f "${TARGET_ALIAS}" ] || [ -L "${TARGET_ALIAS}" ]; then
+    rm -f "${TARGET_ALIAS}"
+    echo -e "${GREEN}[OK] Removed user alias: ${TARGET_ALIAS}${NC}"
+fi
+
+# 2. Clean /usr/local/bin symlink only if writable
+if [ -w "/usr/local/bin" ]; then
+    rm -f "${GLOBAL_BIN}" "${GLOBAL_ALIAS}" 2>/dev/null || true
 fi
 
 # 3. Clean source cache directory
@@ -190,7 +202,7 @@ clean_shell_path() {
     local profile="$1"
     if [ -f "$profile" ] && grep -q "# CalculiX GraphiX PATH" "$profile"; then
         sed -i.cgxbak '/# CalculiX GraphiX PATH/d' "$profile" 2>/dev/null || true
-        sed -i.cgxbak "/export PATH=.*\.local\/bin:\$PATH.*/d" "$profile" 2>/dev/null || true
+        sed -i.cgxbak '/export PATH=.*\.local\/bin:\$PATH.*/d' "$profile" 2>/dev/null || true
         rm -f "${profile}.cgxbak"
         echo -e "${GREEN}[OK] Cleaned PATH entry from ${profile}${NC}"
     fi
@@ -202,5 +214,5 @@ clean_shell_path "${HOME}/.bash_profile"
 clean_shell_path "${HOME}/.profile"
 
 echo -e "\n${BOLD}${GREEN}=====================================================${NC}"
-echo -e "${BOLD}${GREEN}   Uninstall Complete!                            ${NC}"
+echo -e "${BOLD}${GREEN}   Uninstall Complete! (Zero Sudo / No Root)      ${NC}"
 echo -e "${BOLD}${GREEN}=====================================================${NC}"

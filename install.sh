@@ -54,7 +54,7 @@ echo -e "${BOLD}${BLUE}=====================================================${NC
 echo -e "${BOLD}${BLUE}   CalculiX GraphiX (GLFW Edition) — Installer       ${NC}"
 echo -e "${BOLD}${BLUE}=====================================================${NC}"
 
-# Target install directory (~/.local/bin default)
+# Target install directory (~/.local/bin default, strictly in user space)
 DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
 INSTALL_DIR="${CGX_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 
@@ -269,6 +269,19 @@ install_build_deps() {
     fi
 }
 
+# Function: Create User-level Symlink / Alias for cgx
+create_user_alias() {
+    local target_bin="$1"
+    local alias_bin="${INSTALL_DIR}/cgx${BIN_EXT}"
+    
+    if [ "$IS_WINDOWS" -eq 1 ]; then
+        cp -f "${target_bin}" "${alias_bin}" 2>/dev/null || true
+    else
+        ln -sf "cgx_glfw${BIN_EXT}" "${alias_bin}" 2>/dev/null || ln -sf "${target_bin}" "${alias_bin}" 2>/dev/null || true
+    fi
+    echo -e "${GREEN}[OK] User alias created: ${alias_bin} -> cgx_glfw${BIN_EXT}${NC}"
+}
+
 # Function: Fast Install via Pre-built Binary
 do_fast_install() {
     if [ -z "${BINARY_NAME}" ]; then
@@ -290,6 +303,7 @@ do_fast_install() {
         if [ "${OS}" = "Darwin" ]; then
             xattr -d com.apple.quarantine "${TARGET_BIN}" 2>/dev/null || true
         fi
+        create_user_alias "${TARGET_BIN}"
         echo -e "${GREEN}[OK] Successfully installed: ${TARGET_BIN}${NC}"
     else
         echo -e "${YELLOW}Notice: Pre-compiled binary not found on GitHub Releases yet (${DOWNLOAD_URL}).${NC}"
@@ -412,6 +426,7 @@ do_build_install() {
         if [ "${OS}" = "Darwin" ]; then
             xattr -d com.apple.quarantine "${TARGET_DEST}" 2>/dev/null || true
         fi
+        create_user_alias "${TARGET_DEST}"
         echo -e "${GREEN}[OK] Successfully installed: ${TARGET_DEST}${NC}"
     else
         echo -e "${RED}Error: Build failed. Binary not found at ${SRC_ROOT}/bin/cgx_glfw${BIN_EXT}.${NC}"
@@ -419,7 +434,7 @@ do_build_install() {
     fi
 }
 
-# Function: Configure PATH in Shell Profile
+# Function: Configure PATH in Shell Profile (User Level, No Sudo Required)
 ensure_path_configured() {
     # Check if INSTALL_DIR is already in PATH
     if [[ ":$PATH:" == *":$INSTALL_DIR:"* ]]; then
@@ -457,37 +472,23 @@ ensure_path_configured() {
     export PATH="${INSTALL_DIR}:${PATH}"
 }
 
-# Function: Optional Global /usr/local/bin Symlink (Unix only)
-prompt_global_install() {
+# Function: Finalize Installation Notice
+finalize_installation() {
     ensure_path_configured
 
-    # Check if /usr/local/bin exists and is distinct from INSTALL_DIR (Unix only)
-    if [ "$IS_WINDOWS" -eq 0 ] && [ -z "$NON_INTERACTIVE" ] && [ -d "/usr/local/bin" ] && [ "${INSTALL_DIR}" != "/usr/local/bin" ]; then
-        prompt_read "Would you also like to link 'cgx_glfw' to /usr/local/bin? [Y/n] " "Y" LINK_CHOICE
-        if [[ "$LINK_CHOICE" =~ ^[Yy]$ ]]; then
-            if [ -w /usr/local/bin ]; then
-                ln -sf "${INSTALL_DIR}/cgx_glfw" /usr/local/bin/cgx_glfw
-                echo -e "${GREEN}[OK] Linked to /usr/local/bin/cgx_glfw${NC}"
-            else
-                echo "Requesting sudo to create symlink in /usr/local/bin..."
-                sudo ln -sf "${INSTALL_DIR}/cgx_glfw" /usr/local/bin/cgx_glfw 2>/dev/null || true
-                echo -e "${GREEN}[OK] Linked to /usr/local/bin/cgx_glfw${NC}"
-            fi
-        fi
-    fi
-
     echo -e "\n${BOLD}${GREEN}=====================================================${NC}"
-    echo -e "${BOLD}${GREEN}   Installation Complete!                         ${NC}"
+    echo -e "${BOLD}${GREEN}   Installation Complete! (User-Level / No Sudo)  ${NC}"
     echo -e "${BOLD}${GREEN}=====================================================${NC}"
-    echo -e "You can now run CGX from your terminal:"
+    echo -e "You can now run CGX from your terminal using either command:"
     echo -e "    ${BOLD}cgx_glfw <model.frd>${NC}"
+    echo -e "    ${BOLD}cgx <model.frd>${NC}"
     echo -e "\n${BOLD}Features:${NC}"
     echo -e "  - ${GREEN}PNG Screenshots:${NC} 'hcpy' (zero external dependencies)"
     echo -e "  - ${GREEN}Animated GIFs:${NC}   'movie start my.gif' (zero external dependencies)"
     echo -e "  - ${GREEN}MP4 Video:${NC}       'movie start my.mp4' (requires ffmpeg)"
     echo -e "  See ${BOLD}exporting_videos.md${NC} for complete details."
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        echo -e "\n${YELLOW}Note: To use 'cgx_glfw' immediately in this current shell, run:${NC}"
+        echo -e "\n${YELLOW}Note: To use 'cgx' or 'cgx_glfw' immediately in this current shell, run:${NC}"
         echo -e "    export PATH=\"${INSTALL_DIR}:\$PATH\""
     fi
     echo ""
@@ -550,7 +551,7 @@ done
 # Prompt for install directory if interactive and not specified via CLI
 if [ -z "$NON_INTERACTIVE" ] && [ -z "$CUSTOM_DIR_SPECIFIED" ]; then
     echo -e "\nChoose install destination:"
-    prompt_read "Directory for 'cgx_glfw' binary [Default: ${DEFAULT_INSTALL_DIR}]: " "${DEFAULT_INSTALL_DIR}" USER_DIR
+    prompt_read "Directory for binaries [Default: ${DEFAULT_INSTALL_DIR}]: " "${DEFAULT_INSTALL_DIR}" USER_DIR
     USER_DIR="${USER_DIR/#\~/$HOME}"
     INSTALL_DIR="${USER_DIR:-$DEFAULT_INSTALL_DIR}"
 fi
@@ -568,11 +569,11 @@ fi
 case "$CHOICE" in
     1)
         do_fast_install
-        prompt_global_install
+        finalize_installation
         ;;
     2)
         do_build_install
-        prompt_global_install
+        finalize_installation
         ;;
     *)
         echo -e "${RED}Invalid selection. Exiting.${NC}"
