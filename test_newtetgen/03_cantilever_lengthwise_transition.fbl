@@ -1,0 +1,49 @@
+# 150 x 20 x 20 mm Bar with 10x lengthwise transition
+pnt p1 0 0 0
+pnt p2 150 0 0
+pnt p3 150 20 0
+pnt p4 0 20 0
+pnt p5 0 0 20
+pnt p6 150 0 20
+pnt p7 150 20 20
+pnt p8 0 20 20
+
+# Longitudinal lines with 10x bias from X=0 to X=150
+line l1 p1 p2 40
+line l2 p2 p3 4
+line l3 p4 p3 40
+line l4 p4 p1 16
+
+line l5 p5 p6 40
+line l6 p6 p7 4
+line l7 p8 p7 40
+line l8 p8 p5 16
+
+line l9 p1 p5 16
+line l10 p2 p6 4
+line l11 p3 p7 4
+line l12 p4 p8 16
+
+bia l1 10.0
+bia l3 10.0
+bia l5 10.0
+bia l7 10.0
+
+gsur s_bot + BLEND + l1 + l2 - l3 + l4
+gsur s_top + BLEND + l5 + l6 - l7 + l8
+gsur s_front + BLEND + l1 + l10 - l5 - l9
+gsur s_back + BLEND + l3 + l11 - l7 - l12
+gsur s_left + BLEND + l4 + l9 - l8 - l12
+gsur s_right + BLEND + l2 + l11 - l6 - l10
+
+gbod b1 NORM + s_bot - s_top + s_front + s_back + s_left + s_right
+
+# Mesh directly with quadratic tetrahedra (pure boundary-driven transition)
+elty all te10
+mesh all
+
+plot e all
+view elem
+view sh
+rot z 40
+rot x 30

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=CalculiX GraphiX GLFW
+GenericName=FEA Pre- and Post-Processor
+Comment=3D Pre- and Post-Processor for Finite Element Analysis (GLFW Edition)
+Exec=cgx_glfw %f
+Icon=calculix-cgx
+Terminal=true
+Type=Application
+Categories=Science;Engineering;Physics;Graphics;3DGraphics;
+MimeType=application/x-calculix-frd;application/x-calculix-fbl;application/x-calculix-inp;model/step;model/stl;
+Keywords=calculix;cgx;fea;fem;mesh;preprocessor;postprocessor;

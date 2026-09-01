@@ -25,6 +25,7 @@ TODO:
 */
 
 #include <cgx.h>
+#include "cgx_vbo.h"
 
 #define     TEST            0
 
@@ -58,7 +59,7 @@ void drawModelEdges( GLuint list_model_edges, int color, double width, int numEd
 
   glNewList( list_model_edges, GL_COMPILE );
   glColor3d(color,color,color);
-  glLineWidth(width);
+  cgx_glLineWidth(width > 0 ? (float)(width * 0.5f) : 0.8f);
    glBegin ( GL_LINES );
    for (i=0; i<numEdges; i++ )
    {
@@ -86,8 +87,7 @@ void drawDispListEdges( GLuint list, int color, double width, char key, Nodes *n
   if(!anzGeo->psets) return;
 
   glNewList( list, GL_COMPILE );
-
-  /* glLineWidth(width) not implemented */
+  cgx_glLineWidth(width > 0 ? (float)(width * 0.5f) : 0.8f);
 
   for (j=0; j<anzGeo->psets; j++ )
   {
@@ -117,6 +117,7 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
   if((key=='f')&&(!anz->f)) return;
   if((key=='e')&&(!anz->e)) return;
   if(!anzGeo->psets) return;
+  if(key == 'f') cgx_vbo_sync_from_psets(key, node, face, (void*)set, (void*)pset, anzGeo->psets, colNr);
 
   glNewList( list, GL_COMPILE );
   for (j=0; j<anzGeo->psets; j++ )
@@ -128,7 +129,10 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
         /* don't draw the transparent faces */
         if((pset[j].type[0]=='f')&&(pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
         {
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, pset[j].type[1], pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
         }
         else
         {
@@ -139,9 +143,12 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
           glDepthMask(GL_FALSE);
           glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
           glCullFace ( GL_FRONT );
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width,!PICK );
           glCullFace ( GL_BACK );
           drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
           glDepthMask(GL_TRUE);
           glDisable (GL_BLEND);
           glDepthFunc(GL_LEQUAL);
@@ -154,7 +161,10 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
         /* don't draw the transparent faces */
         if((pset[j].type[0]=='e')&&(pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
         {
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, pset[j].type[1], pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
         }
         else
         {
@@ -165,9 +175,12 @@ void drawDispList( GLuint list, char key, Nodes *node, double *colNr )
           glDepthMask(GL_FALSE);
           glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
           glCullFace ( GL_FRONT );
+          glEnable(GL_POLYGON_OFFSET_FILL);
+          glPolygonOffset(1.0f, 1.0f);
           drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width,!PICK );
           glCullFace ( GL_BACK );
           drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width,!PICK );
+          glDisable(GL_POLYGON_OFFSET_FILL);
           glDepthMask(GL_TRUE);
           glDisable (GL_BLEND);
           glDepthFunc(GL_LEQUAL);

@@ -1,0 +1,30 @@
+# ==============================================================================
+# Test: 02_meshing_hexa_sweep / test_wedge_sweep_penta.fbl
+# Description: Triangular 2D surface mesh swept into 3D pentahedral/wedge elements (pe15 / C3D15)
+# ==============================================================================
+
+# 1. 2D Triangular Surface
+pnt p1 0.0 0.0 0.0
+pnt p2 20.0 0.0 0.0
+pnt p3 0.0 20.0 0.0
+
+line l1 p1 p2 6
+line l2 p2 p3 6
+line l3 p3 p1 6
+
+gsur s1 + BLEND + l1 + l2 + l3
+seta s1 s s1
+
+# 2. Mesh 2D surface with quadratic unstructured triangles
+elty all tr6u
+mesh all
+
+# 3. Sweep surface elements to create 3D quadratic pentahedral elements (pe15)
+swep s1 s2 tra 0.0 0.0 40.0 8 append
+
+# 4. Export mesh
+send all abq
+
+prnt se all
+
+quit

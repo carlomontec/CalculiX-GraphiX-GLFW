@@ -1,0 +1,47 @@
+pnt p1 0 0 0
+pnt p2 100 0 0
+pnt p3 100 10 0
+pnt p4 0 10 0
+pnt p5 0 0 10
+pnt p6 100 0 10
+pnt p7 100 10 10
+pnt p8 0 10 10
+
+line l1 p1 p2 20
+line l2 p2 p3 4
+line l3 p3 p4 20
+line l4 p4 p1 4
+
+line l5 p5 p6 20
+line l6 p6 p7 4
+line l7 p7 p8 20
+line l8 p8 p5 4
+
+line l9 p1 p5 4
+line l10 p2 p6 4
+line l11 p3 p7 4
+line l12 p4 p8 4
+
+gsur s_bot + BLEND + l1 + l2 + l3 + l4
+gsur s_top + BLEND + l5 + l6 + l7 + l8
+gsur s_front + BLEND + l1 + l10 - l5 - l9
+gsur s_back + BLEND + l3 + l12 - l7 - l11
+gsur s_fix + BLEND + l4 + l9 - l8 - l12
+gsur s_tip + BLEND + l2 + l11 - l6 - l10
+
+gbod b1 NORM + s_bot - s_top + s_front + s_back + s_fix + s_tip
+
+seta fix s s_fix
+seta tip s s_tip
+
+elty all te10 2.5
+mesh all
+
+comp fix do
+comp tip do
+
+send all abq
+send fix abq spc 123
+send tip abq nam
+
+quit

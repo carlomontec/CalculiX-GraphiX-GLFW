@@ -1656,7 +1656,27 @@ void get_cmap_gray(float v, float **r, float **g, float **b)
 }
 
 
-// Dave Green's Cubehelix colormap (perceptually monotonic in lightness)
+/* --------------------------------------------------------------------  */
+/*  D. A. GREEN'S CUBEHELIX COLORMAP SCHEME                              */
+/*                                                                       */
+/*  Reference:                                                           */
+/*    Green, D. A., "A colour scheme for the display of astronomical     */
+/*    intensity images", Bulletin of the Astronomical Society of India,  */
+/*    Vol. 39, pp. 289-295 (2011).                                       */
+/*    Source: https://astron-soc.in/bulletin/11June/289392011.pdf         */
+/*                                                                       */
+/*  Key Advantages:                                                      */
+/*  1. Monotonic Lightness: Lightness increases monotonically from       */
+/*     dark to light along a helical path in the RGB color cube.         */
+/*  2. Black & White / Print Safe: Converts to a strictly linear         */
+/*     grayscale gradient when printed or photocopied in monochrome.     */
+/*  3. Colorblind Accessibility: Avoids perceptual dead zones and        */
+/*     provides clear gradient separation for dichromatic vision.        */
+/*  4. No False Visual Artifacts: Eliminates artificial bands/plateaus   */
+/*     caused by non-uniform color schemes like Jet / Rainbow.           */
+/*  5. 3D FEA Optimized: Floor lift (0.12) ensures minimum regions       */
+/*     retain visible surface curvature and metallic specular glints.    */
+/* --------------------------------------------------------------------  */
 void get_cmap_cubehelix(float v, float **r, float **g, float **b)
 {
   if (v < 0.0f) v = 0.0f;
@@ -1667,7 +1687,7 @@ void get_cmap_cubehelix(float v, float **r, float **g, float **b)
   float floor_val = 0.12f;
   float lam = floor_val + (1.0f - floor_val) * v;
   
-  float start = 0.5f;
+  float start = 1.5f; /* start = 1.5 rotates hue so darkest end is rich red */
   float rots = -1.5f;
   float hue = 1.0f;
   
@@ -1702,8 +1722,13 @@ void define_rgb(float v, float *r, float *g, float *b)
     get_cmap_inferno(v, &r, &g, &b);
   else if( compare( cmap_name, "coolwarm", 2)==2)
     get_cmap_coolwarm(v, &r, &g, &b);
-  else if( compare( cmap_name, "cubehelix", 4)==4 || compare( cmap_name, "cube", 4)==4)
-    get_cmap_cubehelix(v, &r, &g, &b);
+  else if( compare( cmap_name, "cubehelix", 4)==4 || compare( cmap_name, "cube", 4)==4 || compare( cmap_name, "CubeHelix", 4)==4)
+  {
+    if( strstr(cmap_name, "rev") || strstr(cmap_name, "Rev") || strstr(cmap_name, "_r") )
+      get_cmap_cubehelix(1.0f - v, &r, &g, &b);
+    else
+      get_cmap_cubehelix(v, &r, &g, &b);
+  }
   else if( compare( cmap_name, "classic", 2)==2)
     get_cmap_classic(v, &r, &g, &b);
   else if( compare( cmap_name, "jet", 2)==2)
@@ -1833,7 +1858,17 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
   glDisable(GL_TEXTURE_1D);
   glDisable(GL_TEXTURE_2D);
   glDisable(GL_DEPTH_TEST);
+  glEnable(GL_BLEND);
+  glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+  glMatrixMode(GL_PROJECTION);
+  glPushMatrix();
+  glLoadIdentity();
+  glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
 
   for (i=0; i<divisions; i++)
   {
@@ -1859,7 +1894,7 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
     glEnd();
 
     glColor3dv ( col );
-    glLineWidth(1.0f);
+    cgx_glLineWidth(1.0f);
     glBegin ( GL_LINE_LOOP );
       glVertex2d ( dx-kb*1., dy+kh*0. );
       glVertex2d ( dx-kb*0., dy+kh*0. );
@@ -1871,7 +1906,13 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
     {
       if(format=='f') sprintf ( string, "%-10f ", f);
       else if(format=='i') sprintf ( string, "%-10d ", (int)f);
-      else if(format=='l') sprintf ( string, "1e%-.2f ", f);
+      else if(format=='l')
+      {
+        char tmp[16];
+        if (fabs(f - floor(f + 0.5)) < 0.05) sprintf(tmp, "10^%d", (int)floor(f + 0.5));
+        else sprintf(tmp, "10^%.1f", f);
+        sprintf(string, "%-10s", tmp);
+      }
       else
       {
         if((fnr)&&(i==1) && (abs(f)<df*1e-4)) sprintf ( string, "%-10.2e ", 0.);
@@ -1891,12 +1932,23 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
   {
     if(format=='f') sprintf ( string, "%-10f ", bmax);
     else if(format=='i') sprintf ( string, "%-10d ", (int)bmax);
-    else if(format=='l') sprintf ( string, "1e%-.2f ", bmax);
+    else if(format=='l')
+    {
+      char tmp[16];
+      if (fabs(bmax - floor(bmax + 0.5)) < 0.05) sprintf(tmp, "10^%d", (int)floor(bmax + 0.5));
+      else sprintf(tmp, "10^%.1f", bmax);
+      sprintf(string, "%-10s", tmp);
+    }
     else sprintf ( string, "%-10.2e ", bmax);
     glColor3dv ( col );
     glRasterPos2d( (dx+kb*0.2), dy-kh*0.1 );
     for ( j=0; j<10; j++) glutBitmapCharacter(glut_font, string[j]);
   }
+
+  glMatrixMode(GL_PROJECTION);
+  glPopMatrix();
+  glMatrixMode(GL_MODELVIEW);
+  glPopMatrix();
   glPopAttrib();
 }
 

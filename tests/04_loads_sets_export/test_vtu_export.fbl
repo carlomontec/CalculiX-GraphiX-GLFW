@@ -1,0 +1,18 @@
+# ==============================================================================
+# Test: 04_loads_sets_export / test_vtu_export.fbl
+# Description: Validates VTK XML Unstructured Grid (.vtu) and PVD time-series export
+# ==============================================================================
+
+# 1. Read existing static FRD test model
+read ../../../../test/beam10p.frd
+
+# 2. Export single step VTU
+send all vtu
+
+# 3. Read modal multi-step FRD result
+read ../../../../test/beam_modal.frd
+
+# 4. Export all modal steps to PVD collection and separate VTU files
+send all vtu all
+
+quit

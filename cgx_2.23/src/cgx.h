@@ -178,7 +178,7 @@
 /*
 used fom material illumination
 */
-#define ILLUMINATE_RESULTS 1           /* 1: illumination of displayed results (Default) */
+#define ILLUMINATE_RESULTS 1           /* 1: shaded colormap results by default (0 for unshaded) */
 
 #define GAMB     0.18
 #define AMB      0.22
@@ -598,6 +598,8 @@ void createDatasetEntries(void);
 void selectDataset( int selection );
 void createNewMainMenu(void);
 void cgx_execute_command_string(const char *cmd_str);
+const char *cgx_get_command_suggestion(const char *cmd);
+void cgx_set_gui_status(const char *msg);
 void recompileEntitiesInMenu(int pre_lc);
 void addDispToCoordinates( Nodes *nodes);
 void selectView( int selection );

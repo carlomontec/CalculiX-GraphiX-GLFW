@@ -4,7 +4,9 @@
 
 
 #include <extUtil.h>
+#ifndef WIN32
 #include <sys/utsname.h>
+#endif
 
 #define     MAXIDENTIFIER  12        /* maximum in duns is 12 */
 #define MAXINTEGER 2147483647
