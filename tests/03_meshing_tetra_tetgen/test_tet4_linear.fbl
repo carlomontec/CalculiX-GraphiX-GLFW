@@ -33,10 +33,10 @@ gsur s_bot + BLEND + l1 + l2 + l3 + l4
 gsur s_top + BLEND + l5 + l6 + l7 + l8
 gsur s_front + BLEND + l1 + l10 - l5 - l9
 gsur s_back + BLEND + l3 + l12 - l7 - l11
-gsur s_left + BLEND + l4 + l9 - l8 - l12
-gsur s_right + BLEND + l2 + l11 - l6 - l10
+gsur s_fix + BLEND + l4 + l9 - l8 - l12
+gsur s_tip + BLEND + l2 + l11 - l6 - l10
 
-gbod b1 NORM + s_bot - s_top + s_front + s_back + s_left + s_right
+gbod b1 NORM + s_bot - s_top + s_front + s_back + s_fix + s_tip
 
 # 2. Assign linear tetrahedron element type (te4)
 elty all te4
