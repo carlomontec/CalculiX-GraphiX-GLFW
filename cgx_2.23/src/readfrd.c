@@ -88,7 +88,7 @@ int readfrd( char *datin, Summen *anz, Nodes **nptr, Elements **eptr, Datasets *
   int i=0, j=0, k;
   int  nodeflag=0, elemflag=0, errFlag=0, firsttime=1;
   int n;  /* used in format_flag */
-  long offset=0;
+  long long offset=0;
   fpos_t *filepntr=NULL;
   int elem_data=0,nod_data=0, nod_1st_block=0; /* nodes in resultblock, nodes in 1st block (if no "nr of nodes" are given in frd file, 100C-line) */
 
@@ -860,25 +860,25 @@ int readfrd( char *datin, Summen *anz, Nodes **nptr, Elements **eptr, Datasets *
               {
                 if (format_flag==2)
 		{
-                  offset= nod_data * (4+nvals*4); 
+                  offset= (long long)nod_data * (4+nvals*4); 
 		}
                 else if (format_flag==3)
 		{
-                  offset= nod_data * (4+nvals*8); 
+                  offset= (long long)nod_data * (4+nvals*8); 
 		}
                 else
 		{
                   /* just to get an approximate offset: */
                   if (!format_flag) n=8;
                   else n=13;
-                  if(nvals<=6) offset= nod_data * (n+nvals*12+1); 
+                  if(nvals<=6) offset= (long long)nod_data * (n+nvals*12+1); 
                   else
                   {
                     offset=0;
                     for(i=0; i<nvals/6; i++) 
-                      offset+= nod_data * (n+6*12+1);
+                      offset+= (long long)nod_data * (n+6*12+1);
                     if(nvals%6)
-                      offset+= nod_data * (n+(nvals%6)*12+1);
+                      offset+= (long long)nod_data * (n+(nvals%6)*12+1);
       	          }
 		  //printf("offset:%d nod_data:%d n:%d nvals:%d\n", offset,nod_data,n,nvals);
 		}
