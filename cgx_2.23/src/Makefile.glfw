@@ -39,24 +39,24 @@ ifeq ($(UNAME_S),Darwin)
            -lm -lpthread
 else ifneq ($(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstring CYGWIN,$(UNAME_S))$(findstring Windows,$(OS)),)
   # Windows MinGW-w64 / MSYS2 configuration
-  CFLAGS += -DWIN32 $(shell pkg-config --cflags glfw3 2>/dev/null)
-  CXXFLAGS += -DWIN32 $(shell pkg-config --cflags glfw3 2>/dev/null)
+  CFLAGS += -DWIN32 -DSEMINIT $(shell pkg-config --cflags glfw3 2>/dev/null)
+  CXXFLAGS += -DWIN32 -DSEMINIT $(shell pkg-config --cflags glfw3 2>/dev/null)
   LFLAGS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw3") -lopengl32 -lglu32 -lgdi32 -luser32 -lkernel32 -lm \
           -static-libgcc -static-libstdc++ -static -lpthread
-  OUT = ../../../bin/cgx_glfw.exe
+  OUT = ../../bin/cgx_glfw.exe
 else
   # Linux configuration (Native Wayland & X11 via GLFW)
   ifneq ($(wildcard /home/linuxbrew/.linuxbrew/include/GLFW/glfw3.h),)
-    CFLAGS += -I/home/linuxbrew/.linuxbrew/include
-    CXXFLAGS += -I/home/linuxbrew/.linuxbrew/include
+    CFLAGS += -DSEMINIT -I/home/linuxbrew/.linuxbrew/include
+    CXXFLAGS += -DSEMINIT -I/home/linuxbrew/.linuxbrew/include
     LFLAGS = -L/home/linuxbrew/.linuxbrew/lib -lglfw -lGL -lGLU -lm -lpthread -ldl
   else ifneq ($(wildcard $(HOME)/.linuxbrew/include/GLFW/glfw3.h),)
-    CFLAGS += -I$(HOME)/.linuxbrew/include
-    CXXFLAGS += -I$(HOME)/.linuxbrew/include
+    CFLAGS += -DSEMINIT -I$(HOME)/.linuxbrew/include
+    CXXFLAGS += -DSEMINIT -I$(HOME)/.linuxbrew/include
     LFLAGS = -L$(HOME)/.linuxbrew/lib -lglfw -lGL -lGLU -lm -lpthread -ldl
   else
-    CFLAGS += $(shell pkg-config --cflags glfw3 2>/dev/null)
-    CXXFLAGS += $(shell pkg-config --cflags glfw3 2>/dev/null)
+    CFLAGS += -DSEMINIT $(shell pkg-config --cflags glfw3 2>/dev/null)
+    CXXFLAGS += -DSEMINIT $(shell pkg-config --cflags glfw3 2>/dev/null)
     LFLAGS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw") -lGL -lGLU -lm -lpthread -ldl
   endif
 endif
