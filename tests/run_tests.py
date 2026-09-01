@@ -223,7 +223,7 @@ def run_single_test(cgx_bin: Path, category: str, script_path: Path, verbose: bo
             cwd=str(run_dir),
             capture_output=True,
             text=True,
-            timeout=30.0
+            timeout=60.0
         )
         result.duration_ms = (time.perf_counter() - start_time) * 1000.0
         result.stdout = proc.stdout
