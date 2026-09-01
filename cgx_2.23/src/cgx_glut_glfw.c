@@ -742,10 +742,12 @@ static void handle_command_bar_paste(void)
   /* Check if clipboard contains any newline characters */
   int has_newlines = (strchr(clip, '\n') != NULL || strchr(clip, '\r') != NULL);
 
+  g_cmd_bar_visible = 1;
+  g_cmd_focused = 1;
+
   if (!has_newlines)
   {
     /* Single-line text: append directly into the command bar buffer */
-    g_gui_status_msg[0] = '\0';
     while (*clip && g_cmd_len < (int)sizeof(g_cmd_buf) - 2)
     {
       if ((unsigned char)*clip >= 32 && (unsigned char)*clip < 127)
@@ -755,6 +757,7 @@ static void handle_command_bar_paste(void)
       clip++;
     }
     g_cmd_buf[g_cmd_len] = '\0';
+    cgx_set_gui_status("Pasted text into command bar");
     g_need_redisplay = 1;
     return;
   }
@@ -1488,16 +1491,20 @@ static void glfw_key_callback(GLFWwindow *window, int key, int scancode, int act
     return;
   }
 
+  /* Universal Clipboard Paste: Cmd+V / Ctrl+V / Shift+Insert from anywhere in the window */
+  if ((key == GLFW_KEY_V && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER))) ||
+      (key == GLFW_KEY_INSERT && (mods & GLFW_MOD_SHIFT)))
+  {
+    g_cmd_bar_visible = 1;
+    g_cmd_focused = 1;
+    handle_command_bar_paste();
+    return;
+  }
+
   if (g_cmd_bar_visible && g_cmd_focused && g_cascade_depth <= 0)
   {
-    /* Clipboard Paste: Cmd+V (macOS) or Ctrl+V (Linux/Windows) */
-    if (key == GLFW_KEY_V && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))
-    {
-      handle_command_bar_paste();
-      return;
-    }
     /* Clipboard Copy: Cmd+C (macOS) or Ctrl+C (Linux/Windows) */
-    else if (key == GLFW_KEY_C && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))
+    if (key == GLFW_KEY_C && (mods & (GLFW_MOD_CONTROL | GLFW_MOD_SUPER)))
     {
       if (g_cmd_len > 0)
       {
