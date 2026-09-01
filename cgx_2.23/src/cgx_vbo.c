@@ -44,9 +44,15 @@ static inline void add_static_vertex(CgxStaticVertex *v_out, int *nodes_out, int
                                      Nodes *node, int node_idx, double normal[3])
 {
     int idx = *count;
-    v_out[idx].x = (float)node[node_idx].nx;
-    v_out[idx].y = (float)node[node_idx].ny;
-    v_out[idx].z = (float)node[node_idx].nz;
+    if (node_idx > 0 && node) {
+        v_out[idx].x = (float)node[node_idx].nx;
+        v_out[idx].y = (float)node[node_idx].ny;
+        v_out[idx].z = (float)node[node_idx].nz;
+    } else {
+        v_out[idx].x = 0.0f;
+        v_out[idx].y = 0.0f;
+        v_out[idx].z = 0.0f;
+    }
 
     if (normal) {
         v_out[idx].nx = (float)normal[0];
@@ -129,39 +135,31 @@ int cgx_vbo_build_static_faces(CgxMeshVBO *mesh, Faces *face, Nodes *node, int n
                 add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[3], n0);
                 break;
 
-            case 10: /* 8-node Quadratic Quad (GL_TRIANGLE_FAN centered at nod[8]) */
-                /* Tri 1: (8, 0, 4) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n0);
+            case 10: /* 8-node Quadratic Quad */
+                /* Tri 1: (0, 4, 7) */
                 add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[0], n0);
                 add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[4], n0);
-                /* Tri 2: (8, 4, 1) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n1);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[7], n0);
+                /* Tri 2: (4, 1, 5) */
                 add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[4], n1);
                 add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[1], n1);
-                /* Tri 3: (8, 1, 5) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n2);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[1], n2);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[5], n1);
+                /* Tri 3: (5, 2, 6) */
                 add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[5], n2);
-                /* Tri 4: (8, 5, 2) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n3);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[5], n3);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[2], n3);
-                /* Tri 5: (8, 2, 6) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n4);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[2], n4);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[2], n2);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[6], n2);
+                /* Tri 4: (7, 6, 3) */
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[7], n3);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[6], n3);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[3], n3);
+                /* Tri 5: (4, 5, 6) */
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[4], n4);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[5], n4);
                 add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[6], n4);
-                /* Tri 6: (8, 6, 3) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n5);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[6], n5);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[3], n5);
-                /* Tri 7: (8, 3, 7) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n6);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[3], n6);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[7], n6);
-                /* Tri 8: (8, 7, 0) */
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[8], n7);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[7], n7);
-                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[0], n7);
+                /* Tri 6: (4, 6, 7) */
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[4], n4);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[6], n4);
+                add_static_vertex(s_verts, cached_nodes, &v_count, node, f->nod[7], n4);
                 break;
 
             default:
@@ -196,16 +194,16 @@ int cgx_vbo_update_dynamic(CgxMeshVBO *mesh, double *colNr, Nodes *node, double 
     int i;
     for (i = 0; i < mesh->vertex_count; i++) {
         int n_idx = mesh->node_indices[i];
-        
+
         /* Scalar Contour Value */
-        if (colNr) {
+        if (colNr && n_idx > 0) {
             d_verts[i].scalar = (float)colNr[n_idx];
         } else {
             d_verts[i].scalar = 0.0f;
         }
 
         /* Displacement Vector */
-        if (disp) {
+        if (disp && n_idx > 0) {
             d_verts[i].dx = (float)disp[n_idx * 3 + 0];
             d_verts[i].dy = (float)disp[n_idx * 3 + 1];
             d_verts[i].dz = (float)disp[n_idx * 3 + 2];
