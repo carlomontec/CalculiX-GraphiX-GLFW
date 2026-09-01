@@ -75,7 +75,9 @@ TEST_EXPECTATIONS: Dict[str, Dict] = {
     },
     "test_tet_target_size": {
         "files": ["all.msh"],
-        "msh_contains": ["*ELEMENT, TYPE=C3D10"],
+        "file_contains": {
+            "all.msh": ["*ELEMENT, TYPE=C3D4"],
+        }
     },
     "test_abaqus_export_all": {
         "files": ["all.msh", "fix_123.bou", "top.dlo", "tip.frc", "fix.nam", "tip.nam"],
