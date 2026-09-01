@@ -53,6 +53,7 @@ INSTALL_DIR="${CGX_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 SOURCE_DIR="${HOME}/.cgx"
 GLOBAL_BIN="/usr/local/bin/cgx_glfw"
 GLOBAL_ALIAS="/usr/local/bin/cgx"
+GLOBAL_DEV_ALIAS="/usr/local/bin/cgx_dev"
 
 OS_RAW="$(uname -s)"
 BIN_EXT=""
@@ -104,10 +105,11 @@ done
 
 TARGET_BIN="${INSTALL_DIR}/cgx_glfw${BIN_EXT}"
 TARGET_ALIAS="${INSTALL_DIR}/cgx${BIN_EXT}"
+TARGET_DEV_ALIAS="${INSTALL_DIR}/cgx_dev${BIN_EXT}"
 
 # Detect installed components
 FOUND_ITEMS=0
-echo -e "\n${BOLD}--> Detecting installed components..."
+echo -e "\n${BOLD}--> Detecting installed components...${NC}"
 
 if [ -f "${TARGET_BIN}" ] || [ -L "${TARGET_BIN}" ]; then
     echo -e "  [Found] Binary: ${BOLD}${TARGET_BIN}${NC}"
@@ -115,7 +117,12 @@ if [ -f "${TARGET_BIN}" ] || [ -L "${TARGET_BIN}" ]; then
 fi
 
 if [ -f "${TARGET_ALIAS}" ] || [ -L "${TARGET_ALIAS}" ]; then
-    echo -e "  [Found] User Alias: ${BOLD}${TARGET_ALIAS}${NC}"
+    echo -e "  [Found] User Alias (Stable): ${BOLD}${TARGET_ALIAS}${NC}"
+    FOUND_ITEMS=$((FOUND_ITEMS + 1))
+fi
+
+if [ -f "${TARGET_DEV_ALIAS}" ] || [ -L "${TARGET_DEV_ALIAS}" ]; then
+    echo -e "  [Found] User Alias (Dev): ${BOLD}${TARGET_DEV_ALIAS}${NC}"
     FOUND_ITEMS=$((FOUND_ITEMS + 1))
 fi
 
@@ -138,6 +145,7 @@ if [ "$FOUND_ITEMS" -eq 0 ]; then
             CUSTOM_PATH="${CUSTOM_PATH/#\~/$HOME}"
             TARGET_BIN="${CUSTOM_PATH}/cgx_glfw${BIN_EXT}"
             TARGET_ALIAS="${CUSTOM_PATH}/cgx${BIN_EXT}"
+            TARGET_DEV_ALIAS="${CUSTOM_PATH}/cgx_dev${BIN_EXT}"
             if [ -f "${TARGET_BIN}" ] || [ -L "${TARGET_BIN}" ]; then
                 echo -e "  [Found] Binary: ${BOLD}${TARGET_BIN}${NC}"
                 FOUND_ITEMS=1
@@ -163,7 +171,7 @@ if [ -z "$NON_INTERACTIVE" ]; then
     fi
 fi
 
-# 1. Remove user binary & user alias (no sudo needed)
+# 1. Remove user binary & user aliases (no sudo needed)
 if [ -f "${TARGET_BIN}" ] || [ -L "${TARGET_BIN}" ]; then
     rm -f "${TARGET_BIN}"
     echo -e "${GREEN}[OK] Removed binary: ${TARGET_BIN}${NC}"
@@ -174,9 +182,14 @@ if [ -f "${TARGET_ALIAS}" ] || [ -L "${TARGET_ALIAS}" ]; then
     echo -e "${GREEN}[OK] Removed user alias: ${TARGET_ALIAS}${NC}"
 fi
 
+if [ -f "${TARGET_DEV_ALIAS}" ] || [ -L "${TARGET_DEV_ALIAS}" ]; then
+    rm -f "${TARGET_DEV_ALIAS}"
+    echo -e "${GREEN}[OK] Removed dev alias: ${TARGET_DEV_ALIAS}${NC}"
+fi
+
 # 2. Clean /usr/local/bin symlink only if writable
 if [ -w "/usr/local/bin" ]; then
-    rm -f "${GLOBAL_BIN}" "${GLOBAL_ALIAS}" 2>/dev/null || true
+    rm -f "${GLOBAL_BIN}" "${GLOBAL_ALIAS}" "${GLOBAL_DEV_ALIAS}" 2>/dev/null || true
 fi
 
 # 3. Clean source cache directory
@@ -202,7 +215,7 @@ clean_shell_path() {
     local profile="$1"
     if [ -f "$profile" ] && grep -q "# CalculiX GraphiX PATH" "$profile"; then
         sed -i.cgxbak '/# CalculiX GraphiX PATH/d' "$profile" 2>/dev/null || true
-        sed -i.cgxbak '/export PATH=.*\.local\/bin:\$PATH.*/d' "$profile" 2>/dev/null || true
+        sed -i.cgxbak '/export PATH=.*\.local\/bin:$PATH.*/d' "$profile" 2>/dev/null || true
         rm -f "${profile}.cgxbak"
         echo -e "${GREEN}[OK] Cleaned PATH entry from ${profile}${NC}"
     fi

@@ -269,17 +269,27 @@ install_build_deps() {
     fi
 }
 
-# Function: Create User-level Symlink / Alias for cgx
+# Function: Create User-level Symlink / Alias (cgx for stable, cgx_dev for --head)
 create_user_alias() {
     local target_bin="$1"
-    local alias_bin="${INSTALL_DIR}/cgx${BIN_EXT}"
     
-    if [ "$IS_WINDOWS" -eq 1 ]; then
-        cp -f "${target_bin}" "${alias_bin}" 2>/dev/null || true
+    if [ "$USE_HEAD" = "1" ]; then
+        local alias_bin="${INSTALL_DIR}/cgx_dev${BIN_EXT}"
+        if [ "$IS_WINDOWS" -eq 1 ]; then
+            cp -f "${target_bin}" "${alias_bin}" 2>/dev/null || true
+        else
+            ln -sf "cgx_glfw${BIN_EXT}" "${alias_bin}" 2>/dev/null || ln -sf "${target_bin}" "${alias_bin}" 2>/dev/null || true
+        fi
+        echo -e "${GREEN}[OK] Development alias created: ${alias_bin} -> cgx_glfw${BIN_EXT}${NC}"
     else
-        ln -sf "cgx_glfw${BIN_EXT}" "${alias_bin}" 2>/dev/null || ln -sf "${target_bin}" "${alias_bin}" 2>/dev/null || true
+        local alias_bin="${INSTALL_DIR}/cgx${BIN_EXT}"
+        if [ "$IS_WINDOWS" -eq 1 ]; then
+            cp -f "${target_bin}" "${alias_bin}" 2>/dev/null || true
+        else
+            ln -sf "cgx_glfw${BIN_EXT}" "${alias_bin}" 2>/dev/null || ln -sf "${target_bin}" "${alias_bin}" 2>/dev/null || true
+        fi
+        echo -e "${GREEN}[OK] User alias created: ${alias_bin} -> cgx_glfw${BIN_EXT}${NC}"
     fi
-    echo -e "${GREEN}[OK] User alias created: ${alias_bin} -> cgx_glfw${BIN_EXT}${NC}"
 }
 
 # Function: Fast Install via Pre-built Binary
@@ -332,7 +342,7 @@ do_build_install() {
         if [ -z "$USE_HEAD" ] && [ -z "$NON_INTERACTIVE" ]; then
             echo -e "\nChoose version to build from source:"
             echo -e "  ${BOLD}1) Stable Release Tag${NC} (Recommended for production) ${YELLOW}[Default]${NC}"
-            echo -e "  ${BOLD}2) Latest Development Commit${NC} (--head / --nightly on 'main' branch)"
+            echo -e "  ${BOLD}2) Latest Development Commit${NC} (--head / --nightly -> alias 'cgx_dev')"
             echo ""
             prompt_read "Select [1/2] (Default: 1): " "1" VERSION_CHOICE
             if [ "$VERSION_CHOICE" = "2" ]; then
@@ -477,18 +487,34 @@ finalize_installation() {
     ensure_path_configured
 
     echo -e "\n${BOLD}${GREEN}=====================================================${NC}"
-    echo -e "${BOLD}${GREEN}   Installation Complete! (User-Level / No Sudo)  ${NC}"
+    if [ "$USE_HEAD" = "1" ]; then
+        echo -e "${BOLD}${GREEN}   Installation Complete! [Bleeding-Edge Development]${NC}"
+    else
+        echo -e "${BOLD}${GREEN}   Installation Complete! [Stable Release]          ${NC}"
+    fi
     echo -e "${BOLD}${GREEN}=====================================================${NC}"
-    echo -e "You can now run CGX from your terminal using either command:"
-    echo -e "    ${BOLD}cgx_glfw <model.frd>${NC}"
-    echo -e "    ${BOLD}cgx <model.frd>${NC}"
+
+    if [ "$USE_HEAD" = "1" ]; then
+        echo -e "You can now run this development build from your terminal:"
+        echo -e "    ${BOLD}cgx_dev <model.frd>${NC}"
+        echo -e "    (or: ${BOLD}cgx_glfw <model.frd>${NC})"
+    else
+        echo -e "You can now run CGX from your terminal using either command:"
+        echo -e "    ${BOLD}cgx <model.frd>${NC}"
+        echo -e "    ${BOLD}cgx_glfw <model.frd>${NC}"
+    fi
+
     echo -e "\n${BOLD}Features:${NC}"
     echo -e "  - ${GREEN}PNG Screenshots:${NC} 'hcpy' (zero external dependencies)"
     echo -e "  - ${GREEN}Animated GIFs:${NC}   'movie start my.gif' (zero external dependencies)"
     echo -e "  - ${GREEN}MP4 Video:${NC}       'movie start my.mp4' (requires ffmpeg)"
     echo -e "  See ${BOLD}exporting_videos.md${NC} for complete details."
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-        echo -e "\n${YELLOW}Note: To use 'cgx' or 'cgx_glfw' immediately in this current shell, run:${NC}"
+        if [ "$USE_HEAD" = "1" ]; then
+            echo -e "\n${YELLOW}Note: To use 'cgx_dev' immediately in this current shell, run:${NC}"
+        else
+            echo -e "\n${YELLOW}Note: To use 'cgx' immediately in this current shell, run:${NC}"
+        fi
         echo -e "    export PATH=\"${INSTALL_DIR}:\$PATH\""
     fi
     echo ""
@@ -535,7 +561,7 @@ while [[ $# -gt 0 ]]; do
             echo "Options:"
             echo "  --binary,  -b       Fast install: Download pre-built binary & install runtime libs"
             echo "  --build,   -s       Power install: Compile locally with native CPU optimizations (latest release tag)"
-            echo "  --nightly, --head   Build bleeding-edge from latest commit on 'main' branch"
+            echo "  --nightly, --head   Build bleeding-edge from latest commit on 'main' branch (alias 'cgx_dev')"
             echo "  --prefix,  --dir    Specify custom binary installation directory (Default: ~/.local/bin)"
             echo "  -y,        --yes    Non-interactive mode (use defaults without prompting)"
             echo "  --help,    -h       Show this help message"
