@@ -1,0 +1,19 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_frd_subset_export.fbl
+# Description: Validates subset extraction and re-export to a standalone FRD file with dataset
+# ==============================================================================
+
+# 1. Read static FEA result
+read ../../../../test/beam20p.frd
+
+# 2. Select Stress dataset
+ds 2 e 7
+
+# 3. Create a spatial subset of nodes around the middle of the beam
+enq all sub_nodes rec 0.5 0.5 4.0 2.5
+comp sub_nodes do
+
+# 4. Export subset with active dataset to standalone FRD format
+send sub_nodes frd ds2
+
+quit

@@ -25,7 +25,8 @@ pnt p5 20.0 5.0 0.0
 line larc p2 p5 pc 6
 
 # 5. Create 3D Body by surface sweep
-swep s1 s2 tra 0.0 0.0 10.0 5
+seta base s s1
+swep base top tra 0.0 0.0 10.0 5 a
 
 # 6. Check entity counts
 prnt se all

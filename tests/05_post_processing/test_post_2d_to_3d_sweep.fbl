@@ -1,0 +1,18 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_2d_to_3d_sweep.fbl
+# Description: Validates element sweeping of 2D/3D result fields into 3D volume
+# ==============================================================================
+
+# 1. Read static FEA result
+read ../../../../test/beam10p.frd
+
+# 2. Select Von Mises stress
+ds 1 e 7
+
+# 3. Sweep existing result elements along translational vector
+swep all s2 tra 2.0 0.0 0.0 3 a
+
+# 4. Print entity summary
+prnt se all
+
+quit

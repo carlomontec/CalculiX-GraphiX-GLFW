@@ -4,7 +4,7 @@ CalculiX GraphiX (CGX) - Automated Test Suite Runner
 =====================================================
 Discovers and executes CGX test scripts headlessly (-bg mode) in isolated
 temporary workspaces, verifying return codes, generated mesh topology,
-boundary conditions, loads, sets, and VTU outputs.
+boundary conditions, loads, sets, VTU outputs, and post-processing results.
 """
 
 import os
@@ -101,6 +101,24 @@ TEST_EXPECTATIONS: Dict[str, Dict] = {
             "all.vtu": ["<VTKFile", "<UnstructuredGrid>"],
             "all.pvd": ["<VTKFile type=\"Collection\"", "<Collection>"],
         }
+    },
+    "test_post_frd_subset_export": {
+        "files": ["sub_nodes.frd"],
+        "file_contains": {
+            "sub_nodes.frd": ["1PSTEP", "100CL"],
+        }
+    },
+    "test_post_raw_tabulation": {
+        "files": ["tip_nodes.nam"],
+        "file_contains": {
+            "tip_nodes.nam": ["*NSET,NSET=Ntip_nodes"],
+        }
+    },
+    "test_post_vtu_fields": {
+        "files": ["all.vtu"],
+        "file_contains": {
+            "all.vtu": ["<VTKFile", "<UnstructuredGrid>", "<PointData"],
+        }
     }
 }
 
@@ -126,7 +144,6 @@ def find_cgx_binary(explicit_path: Optional[str] = None) -> Optional[Path]:
     for cand in CANDIDATE_BINARIES:
         if cand.exists() and os.access(cand, os.X_OK):
             return cand
-    # Try system PATH
     which_path = shutil.which("cgx_glfw") or shutil.which("cgx")
     if which_path:
         return Path(which_path).resolve()
@@ -149,6 +166,12 @@ def discover_tests(tests_dir: Path, pattern: Optional[str] = None) -> List[Tuple
 def validate_test_artifacts(test_name: str, run_dir: Path) -> Tuple[bool, Optional[str]]:
     expectations = TEST_EXPECTATIONS.get(test_name)
     if not expectations:
+        # Generic check for dat export if test is test_post_dat_tabulation
+        if test_name == "test_post_dat_tabulation":
+            dat_files = list(run_dir.glob("*.dat"))
+            if not dat_files or all(f.stat().st_size == 0 for f in dat_files):
+                return False, "Expected non-empty *.dat tabulation file was not generated."
+            return True, None
         return True, None
 
     # Check expected files
@@ -236,14 +259,13 @@ def run_single_test(cgx_bin: Path, category: str, script_path: Path, verbose: bo
         result.error_message = f"Execution exception: {str(e)}"
     finally:
         if result.passed and not keep_artifacts and run_dir.exists():
-            # Clean up on success if not explicitly told to keep
             shutil.rmtree(run_dir, ignore_errors=True)
 
     return result
 
 def main():
     parser = argparse.ArgumentParser(description="CalculiX GraphiX (CGX) Test Suite Runner")
-    parser.add_argument("-k", "--filter", help="Run only tests matching pattern (e.g. 'tet', 'sweep', 'export')")
+    parser.add_argument("-k", "--filter", help="Run only tests matching pattern (e.g. 'tet', 'sweep', 'export', 'post')")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print verbose output for each test")
     parser.add_argument("--bin", dest="cgx_bin", help="Explicit path to cgx_glfw binary")
     parser.add_argument("--keep-artifacts", action="store_true", help="Preserve temporary test artifacts in build/test_run/")
