@@ -161,6 +161,8 @@ set(CGX_C_SOURCES
     ${CGX_SRC_DIR}/cgx_capture.c
     ${CGX_SRC_DIR}/cgx_glut_glfw.c
     ${CGX_SRC_DIR}/cgx_iosevka_font.c
+    ${CGX_SRC_DIR}/cgx_shaders.c
+    ${CGX_SRC_DIR}/cgx_vbo.c
 )
 
 set(CGX_CXX_SOURCES
@@ -302,9 +304,26 @@ install(TARGETS cgx_glfw RUNTIME DESTINATION bin)
 enable_testing()
 find_package(Python3 COMPONENTS Interpreter QUIET)
 if(Python3_FOUND)
+    # Master test suite target
     add_test(
-        NAME cgx_automated_suite
+        NAME "all_tests"
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_tests.py --bin $<TARGET_FILE:cgx_glfw>
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     )
+
+    # Register every individual test script for granular CTest reporting
+    file(GLOB_RECURSE TEST_FILES
+        RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/tests"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.fbl"
+        "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.fbd"
+    )
+    foreach(test_file ${TEST_FILES})
+        get_filename_component(test_name ${test_file} NAME_WLE)
+        get_filename_component(test_dir ${test_file} DIRECTORY)
+        add_test(
+            NAME "${test_dir}/${test_name}"
+            COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/run_tests.py --bin $<TARGET_FILE:cgx_glfw> -k "${test_name}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+    endforeach()
 endif()

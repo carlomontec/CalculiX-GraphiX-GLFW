@@ -16,13 +16,14 @@ line l3 p3 p4 4
 line l4 p4 p1 4
 
 gsur s_bot + BLEND + l1 + l2 + l3 + l4
-swep s_bot s_mid tra 0.0 0.0 10.0 4
+seta s_bot_set s s_bot
+swep s_bot_set s_mid tra 0.0 0.0 10.0 4 a
 
 # Define Master Contact Surface at interface (s_mid)
 seta master s s_mid
 
 # Block 2 (top)
-swep s_mid s_top tra 0.0 0.0 10.0 4
+swep s_mid s_top tra 0.0 0.0 10.0 4 a
 
 # Define Slave Contact Surface at interface (s_mid)
 seta slave s s_mid

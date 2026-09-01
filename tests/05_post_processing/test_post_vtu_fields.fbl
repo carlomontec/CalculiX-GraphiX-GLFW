@@ -1,0 +1,15 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_vtu_fields.fbl
+# Description: Validates multi-field ParaView VTU export with displacement and stress tensors
+# ==============================================================================
+
+# 1. Read static 20-node hex result file
+read ../../../../test/beam20p.frd
+
+# 2. Select Stress dataset
+ds 2 e 7
+
+# 3. Export full model with active result dataset to VTU
+send all vtu
+
+quit

@@ -1,0 +1,21 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_raw_tabulation.fbl
+# Description: Validates set names export (*.nam) and ANSYS format export (*.ans)
+# ==============================================================================
+
+# 1. Read static FEA result
+read ../../../../test/beam20p.frd
+
+# 2. Select Stress dataset
+ds 2 e 7
+
+# 3. Create a node set at the tip
+enq all tip_nodes rec 0.5 0.5 8.0 1.0
+
+# 4. Export node set in Abaqus names format (*.nam)
+send tip_nodes abq names
+
+# 5. Export mesh to ANSYS format
+send all ans
+
+quit

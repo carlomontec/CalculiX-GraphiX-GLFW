@@ -46,6 +46,11 @@ jobs:
           test -s all.pvd
           echo "[OK] Headless batch execution and VTU export validated successfully on macOS."
 
+      - name: Run Automated Test Suite (CTest)
+        run: |
+          ctest --test-dir build --output-on-failure
+
+
   build-test-linux-x86_64:
     name: Linux (x86_64 / glibc)
     runs-on: ubuntu-22.04
@@ -83,6 +88,10 @@ jobs:
           test -s all.pvd
           echo "[OK] Headless batch execution and VTU export validated successfully on Linux x86_64."
 
+      - name: Run Automated Test Suite (CTest)
+        run: |
+          ctest --test-dir build --output-on-failure
+
   build-test-linux-arm64:
     name: Linux (ARM64 aarch64 / Raspberry Pi)
     runs-on: ubuntu-24.04-arm
@@ -100,7 +109,8 @@ jobs:
             libgl1-mesa-dev \
             libglu1-mesa-dev \
             fonts-dejavu-core \
-            fonts-liberation
+            fonts-liberation \
+            python3
 
       - name: Configure CMake
         run: |
@@ -120,6 +130,10 @@ jobs:
           test -s all.pvd
           echo "[OK] Headless batch execution and VTU export validated successfully on Linux ARM64."
 
+      - name: Run Automated Test Suite (CTest)
+        run: |
+          ctest --test-dir build --output-on-failure
+
   build-test-windows-x64:
     name: Windows (x64 / MinGW-w64)
     runs-on: windows-latest
@@ -137,6 +151,7 @@ jobs:
             mingw-w64-x86_64-glfw
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-python
 
       - name: Configure and Build with CMake
         shell: msys2 {0}
@@ -151,3 +166,9 @@ jobs:
           test -s all.vtu
           test -s all.pvd
           echo "[OK] Headless batch execution and VTU export validated successfully on Windows."
+
+      - name: Run Automated Test Suite (CTest)
+        shell: msys2 {0}
+        run: |
+          ctest --test-dir build --output-on-failure
+

@@ -1,0 +1,25 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_path_graph.fbl
+# Description: Validates 1D spatial path creation and field interpolation along a line
+# ==============================================================================
+
+# 1. Read static FEA result
+read ../../../../test/beam20p.frd
+
+# 2. Select Von Mises stress
+ds 2 e 7
+
+# 3. Create a 1D inspection path through the interior of the beam
+pnt p_start 0.5 0.5 0.0
+pnt p_end   0.5 0.5 8.0
+line l_path p_start p_end 16
+
+seta path_set l l_path
+
+# 4. Extract graph along line
+graph path_set l +
+
+# 5. Output stack / status
+prnt se path_set
+
+quit
