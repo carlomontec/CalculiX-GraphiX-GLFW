@@ -14,20 +14,20 @@ pnt p6 30.0  0.0 30.0
 pnt p7 30.0 30.0 30.0
 pnt p8  0.0 30.0 30.0
 
-line l1 p1 p2 6
-line l2 p2 p3 6
-line l3 p3 p4 6
-line l4 p4 p1 6
+line l1 p1 p2 4
+line l2 p2 p3 4
+line l3 p3 p4 4
+line l4 p4 p1 4
 
-line l5 p5 p6 6
-line l6 p6 p7 6
-line l7 p7 p8 6
-line l8 p8 p5 6
+line l5 p5 p6 4
+line l6 p6 p7 4
+line l7 p7 p8 4
+line l8 p8 p5 4
 
-line l9  p1 p5 6
-line l10 p2 p6 6
-line l11 p3 p7 6
-line l12 p4 p8 6
+line l9  p1 p5 4
+line l10 p2 p6 4
+line l11 p3 p7 4
+line l12 p4 p8 4
 
 gsur s_bot + BLEND + l1 + l2 + l3 + l4
 gsur s_top + BLEND + l5 + l6 + l7 + l8
@@ -36,12 +36,12 @@ gsur s_back + BLEND + l3 + l12 - l7 - l11
 gsur s_fix + BLEND + l4 + l9 - l8 - l12
 gsur s_tip + BLEND + l2 + l11 - l6 - l10
 
-# 2. Mesh closed boundary skin with quadratic triangles (tr6)
-elty all tr6
+# 2. Mesh closed boundary skin with linear triangles (tr3)
+elty all tr3
 mesh all
 
-# 3. Invoke TetGen with explicit element target size 5.0
-mesh all tet 5.0
+# 3. Invoke TetGen with explicit volume element target size
+mesh all tet 100.0
 
 # 4. Export mesh to Abaqus format
 send all abq
