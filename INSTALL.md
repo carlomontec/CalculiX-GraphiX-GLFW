@@ -94,9 +94,10 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w
    cmake --build build -j
    ```
 
-   > **Note on Static Linking**:
+   > **Note on Static Linking & Platform Status**:
+   > * **macOS / Linux**: Fully supported and verified on small, medium, and large multi-dataset FEA models.
    > * **macOS**: `STATIC_GLFW=ON` is enabled by default, creating a standalone binary with zero Homebrew runtime dependency.
-   > * **Windows (MinGW)**: The build automatically passes `-static-libgcc -static-libstdc++ -static` for a standalone `.exe`.
+   > * **Windows (MinGW)**: Builds a standalone `.exe` statically linked with GLFW and GCC runtime. Standard models, meshing, and interactive commands are fully operational. Large multi-dataset modal models (e.g. 100k+ elements with 10+ modes) are currently under investigation for Windows-specific heap/stream handling.
 
 3. **Run**:
    ```bash
