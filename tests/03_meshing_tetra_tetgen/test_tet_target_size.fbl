@@ -36,13 +36,14 @@ gsur s_back + BLEND + l3 + l12 - l7 - l11
 gsur s_fix + BLEND + l4 + l9 - l8 - l12
 gsur s_tip + BLEND + l2 + l11 - l6 - l10
 
-gbod b1 NORM + s_bot - s_top + s_front + s_back + s_fix + s_tip
-
-# 2. Specify target maximum element size 5.0 with te10
-elty all te10 5.0
+# 2. Mesh closed boundary skin with quadratic triangles (tr6)
+elty all tr6
 mesh all
 
-# 3. Export mesh
+# 3. Invoke TetGen with explicit element target size 5.0
+mesh all tet 5.0
+
+# 4. Export mesh to Abaqus format
 send all abq
 
 prnt se all
