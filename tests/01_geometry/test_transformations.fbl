@@ -1,0 +1,38 @@
+# ==============================================================================
+# Test: 01_geometry / test_transformations.fbl
+# Description: Validates geometric transformations: translation, rotation, scaling, mirroring, merging
+# ==============================================================================
+
+# 1. Base Geometry
+pnt p1 0.0 0.0 0.0
+pnt p2 5.0 0.0 0.0
+pnt p3 5.0 5.0 0.0
+pnt p4 0.0 5.0 0.0
+
+line l1 p1 p2 4
+line l2 p2 p3 4
+line l3 p3 p4 4
+line l4 p4 p1 4
+
+gsur s1 + BLEND + l1 + l2 + l3 + l4
+seta geom s s1
+
+# 2. Copy and Translate
+copy geom geom_tra tra 10.0 0.0 0.0
+
+# 3. Copy and Rotate
+copy geom geom_rot rot z 90.0
+
+# 4. Copy and Scale
+copy geom geom_scal scal 2.0 2.0 1.0 p1
+
+# 5. Mirror across Plane
+copy geom geom_mir mir x
+
+# 6. Merge Coincident Points
+merg p all 0.001
+
+# Print entity summary
+prnt se all
+
+quit

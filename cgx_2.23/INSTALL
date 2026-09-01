@@ -41,8 +41,8 @@ w/o warnings.
     For full functionallity you need the following additional programs. Please
     make sure that this programs are installed in a system known location. Or
     extend the PATH variable (for example: export PATH=$PATH:$HOME/myfolder
-    in your .bashrc)
-    - convert, composite and mogrify (ImageMagick suite of tools)
+    - ffmpeg (optional, for recording MP4/OGV/WebM videos via 'movie' command;
+      screenshots (PNG) and animated GIFs work with zero external tools)
     - pstops (from psutils)
     - firefox or any other html-browser (modify cgx.h if firefox is not avail.)
     - gv (ghostview) (modify cgx.h if gv is not available )

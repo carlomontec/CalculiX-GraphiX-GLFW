@@ -19,14 +19,18 @@
 /*     along with this program; if not, write to the Free Software       */
 /*     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.         */
 /* --------------------------------------------------------------------  */
-/*  Addendum / Modernization:                                            */
+/*  Addendum / Translation to GLFW and extras:                           */
 /*  CalculiX GraphiX (GLFW Edition)                                      */
-/*  Academic exercise in agentic programming by Carlo Monjaraz-Tec (2026)*/
+/*  Didactic exercise in agentic programming by Carlo Monjaraz-Tec (2026)*/
 /* --------------------------------------------------------------------  */
 
 #include <cgx.h>
+#include "cgx_vbo.h"
+#include "cgx_capture.h"
 #include <time.h>
+#ifndef WIN32
 #include <sys/utsname.h>
+#endif
 
 #define     TEST            0
 
@@ -285,9 +289,9 @@ int   lcase_animList={-1};                       /* additional lcase for the val
 int   read_mode=0;                               /* if 1 read data immediatelly, else read on demand */
 int   step_mode=0;                               /* if 1 read step data and write the single parts from an assembly to the filesystem */
 int   centerNode=0;                    /* Nr of center Node, 0:no centernode */
-int   cmaps=8;                         /* nr of colormap names */
-char *cmap_names[] = {"classic", "jet", "turbo", "viridis", "inferno", "coolwarm", "cubehelix", "gray"};   /* Colormap names */
-char  cmap_name[MAX_LINE_LENGTH] = "cubehelix";       /* default Colormap */
+int   cmaps=9;                         /* nr of colormap names */
+char *cmap_names[] = {"classic", "jet", "turbo", "viridis", "inferno", "coolwarm", "cubehelix", "cubehelix (reversed)", "gray"};   /* Colormap names */
+char  cmap_name[MAX_LINE_LENGTH] = "cubehelix (reversed)";       /* default Colormap */
 char  inpformat=0;                     /* defines the start-up mode of cgx */
 char  allowSysFlag=ALLOW_SYS_FLAG;                  /* 1: allow the execution of system calls (sys command) */
 char  autoDivFlag=1;                   /* The div command will set it to 0 and no auto-div is executed */
@@ -643,8 +647,35 @@ void nodalDataset( int entity, int lc, Summen *anz, Scale *scale, Nodes *node_du
     {
       if(scale->format=='l')
       {
-        scale->smin=log10(vmin);
-        scale->smax=log10(vmax);
+        if(vmax <= 0.0)
+        {
+          printf("\n ERROR: Logarithmic scale not possible (dataset has no positive values: max = %e <= 0)\n", vmax);
+          scale->format = 'e';
+          scale->smin = vmin;
+          scale->smax = vmax;
+        }
+        else
+        {
+          double vpos_min = vmax;
+          int has_non_positive = 0;
+          for (i=0; i<anz->n; i++ )
+          {
+            if(node[node[i].nr].pflag==-1) continue;
+            double val = lcase[lc].dat[entity][node[i].nr];
+            if (val > 1e-30 && val < vpos_min) vpos_min = val;
+            if (val <= 0.0) has_non_positive = 1;
+          }
+          double floor_limit = vmax * 1e-4; /* 4-decade default range matching ParaView */
+          if (vpos_min < floor_limit) vpos_min = floor_limit;
+          scale->smin = log10(vpos_min);
+          scale->smax = log10(vmax);
+          if (scale->smin >= scale->smax) scale->smin = scale->smax - 1.0;
+
+          if (has_non_positive) {
+            printf("\n [Log Scale] Note: Dataset contains non-positive values (min = %e).\n", vmin);
+            printf("             Adjusted log minimum to 10^%.1f (%e). Values <= 0 mapped to lower bound.\n", scale->smin, pow(10.0, scale->smin));
+          }
+        }
       }
       else
       {
@@ -682,20 +713,27 @@ void nodalDataset( int entity, int lc, Summen *anz, Scale *scale, Nodes *node_du
      for (i=0; i<anz->n; i++ )
      {
       if(node[node[i].nr].pflag==-1) continue;
-      if ( log10(lcase[lc].dat[entity][node[i].nr]) <= min )
+      double val = lcase[lc].dat[entity][node[i].nr];
+      if (val <= 0.0)
       {
-        colNr[node[i].nr] = 0.;
-      }
-      else if ( log10(lcase[lc].dat[entity][node[i].nr]) >= max )
-      {
-        colNr[node[i].nr] = (double)steps/(double)TEX_PIXELS;
+        colNr[node[i].nr] = 0.0;
       }
       else
       {
-        if(lcase[lc].dat[entity][node[i].nr]>=0.) colNr[node[i].nr] = (log10(lcase[lc].dat[entity][node[i].nr])-min)/(max-min) *(double)steps/(double)TEX_PIXELS;
-	else colNr[node[i].nr] = 0.;
+        double log_val = log10(val);
+        if ( log_val <= min )
+        {
+          colNr[node[i].nr] = 0.;
+        }
+        else if ( log_val >= max )
+        {
+          colNr[node[i].nr] = (double)steps/(double)TEX_PIXELS;
+        }
+        else
+        {
+          colNr[node[i].nr] = (log_val - min) / (max - min) * (double)steps / (double)TEX_PIXELS;
+        }
       }
-      //printf("i:%d n:%d e:%d lc:%d smin:%f v:%f log10(v):%f c:%f\n", i,node[i].nr,entity,lc,scale->smin,lcase[lc].dat[entity][node[i].nr],log10(lcase[lc].dat[entity][node[i].nr]),colNr[node[i].nr]);
      }
     }
     else
@@ -798,113 +836,7 @@ void elementDataset( int entity, int lc, Summen *anz, Scale *scale, Datasets *lc
 
 
 
-/* from j. baylor for tga-screen-shot */
-int WriteTGA(char *filename, 
-             short int width, 
-             short int height, 
-             char *imageData) {
-
-   char cGarbage = 0;
-   char pixelDepth = 32;
-   char type = 2; // type = 2 for pixelDepth = 32 | 24, type = 3 for greyscale
-   char mode = 4; // mode = pixelDepth / 8
-   char aux;
-   short int iGarbage = 0;
-   FILE *file;
-   int i;
-
-   // open file and check for errors
-   file = fopen(filename, "wb");
-   if (file == NULL) return(-1);
-
-   // write the header
-   fwrite(&cGarbage, sizeof(char), 1, file);
-   fwrite(&cGarbage, sizeof(char), 1, file);
-   fwrite(&type, sizeof(char), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&cGarbage, sizeof(char), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&iGarbage, sizeof(short int), 1, file);
-   fwrite(&width, sizeof(short int), 1, file);
-   fwrite(&height, sizeof(short int), 1, file);
-   fwrite(&pixelDepth, sizeof(char), 1, file);
-   fwrite(&cGarbage, sizeof(char), 1, file);
-
-   // convert the image data from RGB(a) to BGR(A)
-   if (mode >= 3)
-   for (i=0; i < width * height * mode ; i+= mode) {
-      aux = imageData[i];
-      imageData[i] = imageData[i+2];
-      imageData[i+2] = aux;
-   }
-
-   // save the image data
-   fwrite(imageData, sizeof(char), width * height * mode, file);
-   fclose(file);
-
-   return(0);
-}
-
-
-
-/* This will save a screen shot to a file. */
-void SaveTGAScreenShot(char *filename, int w, int h)
-{
-   char *imageData;
-   imageData = (char *)malloc(sizeof(char) * w * h * 4);
-   glReadPixels(0, 0, w, h,GL_RGBA,GL_UNSIGNED_BYTE, (GLvoid *)imageData);
-   WriteTGA(filename,w,h,imageData);
-   // release the memory
-   free(imageData);
-}
-
-
-
-void getTGAScreenShot(int nr)
-{
-    char buffer[MAX_LINE_LENGTH];
-
-    if(!inpformat) return;
-
-    glutSetWindow(w0);
-    SaveTGAScreenShot("0__.tga", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-
-    glutSetWindow(w1);
-    SaveTGAScreenShot("1__.tga", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-
-    glutSetWindow(w2);
-    SaveTGAScreenShot("2__.tga", glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
-
-    glutSetWindow(activWindow);
-    while( access( "0__.tga", F_OK ) != 0 );
-    while( access( "1__.tga", F_OK ) != 0 );
-    while( access( "2__.tga", F_OK ) != 0 );
-    
-    // get the orientation of the tga files right
-    sprintf( buffer, "mogrify -auto-orient 0__.tga");
-    system (buffer);
-    sprintf( buffer, "mogrify -auto-orient 1__.tga");
-    system (buffer);
-    sprintf( buffer, "mogrify -auto-orient 2__.tga");
-    system (buffer);
-    //sprintf( buffer, "composite -compose atop -gravity SouthWest -geometry +1+1 2__.tga 1__.tga 3__.tga");
-    sprintf( buffer, "composite -gravity SouthWest -geometry +1+1 2__.tga 1__.tga 3__.tga");
-    system (buffer);
-    while( access( "3__.tga", F_OK ) != 0 );
-    //sprintf( buffer, "composite -compose atop -gravity NorthWest -geometry +%d+%d 3__.tga 0__.tga hcpy_%d.tga",
-    sprintf( buffer, "composite -alpha off -gravity NorthWest -geometry +%d+%d 3__.tga 0__.tga hcpy_%d.tga",
-		(GLint)width_menu*19/20, (GLint)height_menu/10, nr);
-    system (buffer);
-    //printf("%s",buffer);
-#ifdef WIN32
-    sprintf( buffer, "del /f \"*__.tga\" %s", " > NUL");
-#else
-    sprintf( buffer, "rm -f *__.tga %s",DEV_NULL);
-#endif
-    system (buffer);
-}
-/* end tga-screen-shot */
+/* Modern native screenshot implementation is provided by cgx_capture.c */
 
 
 
@@ -946,148 +878,61 @@ void stringValue(double *time, char *tmp)
 
 void createHardcopy( int selection, char *filePtr )
 {
-  char buffer[MAX_LINE_LENGTH];
   char fileName[MAX_LINE_LENGTH];
 
   if(!inpformat) return;
-  /*
-  glutSetWindow( w0);
-  glutSwapBuffers();
-  glutSetWindow( w1);
-  glutSwapBuffers();
-  glutSetWindow( w2);
-  glutSwapBuffers();
-  */
-  if(selection==0)
+
+  if(selection == 0)
   {
-    /* generate movie from single gif files */
-    sprintf( buffer, "make 1. %lf",(double)gifNr);
-    pre_movie(buffer);
-    sprintf( buffer, "clean");
-    pre_movie(buffer);
-    gifNr=0;
+    /* finish active movie */
+    cgx_movie_finish();
+    if(strlen(movieCommandFile))
+    {
+      pre_read(movieCommandFile);
+      movieCommandFile[0] = 0;
+    }
+  }
+  else if(selection == 3)
+  {
+    /* movie frame capture */
+    cgx_movie_add_frame();
+    if(!cgx_movie_is_recording())
+    {
+      animList = 0;
+      movieFrames = 0;
+      movieFlag = 0;
+      if(strlen(movieCommandFile))
+      {
+        pre_read(movieCommandFile);
+        movieCommandFile[0] = 0;
+      }
+    }
   }
   else
   {
-    /* Hardcopy         */
-    if(selection==1)
+    /* Hardcopy PNG */
+    pngNr++;
+    if(filePtr != NULL && strlen(filePtr) > 0)
     {
-      psNr++;
-      if(filePtr!=NULL) sprintf(fileName,"%s.ps",filePtr); else sprintf(fileName,"hcpy_%d.ps",psNr);
-      printf("create %s\n ",fileName);
-      getTGAScreenShot(psNr);
-      /* on some systems PS has to be changed to PS2 */
-      //sprintf( buffer, "convert -density %dx%d -page +49+196 -gamma %lf hcpy_%d.tga PS:hcpy_%d.ps   ", (int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)),(int)((double)(PS_DENSITY*width_w0)/(double)(INI_SCREEN+INI_MENU_WIDTH)) , GAMMA, psNr, psNr);
-      sprintf( buffer, "convert hcpy_%d.tga -page A4 %s", psNr, fileName);
-      system (buffer);
-      printf("%s\n", buffer);
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_%d.tga\" %s",psNr," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_%d.tga %s",psNr,DEV_NULL);
-#endif
-      system (buffer);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", psNr);
-      write2stack(2, parameter);
-      printf ("ready\n");
+      size_t len = strlen(filePtr);
+      if(len > 4 && strcasecmp(filePtr + len - 4, ".png") == 0)
+        sprintf(fileName, "%s", filePtr);
+      else
+        sprintf(fileName, "%s.png", filePtr);
     }
-    if(selection==2)
+    else
     {
-      tgaNr++;
-      getTGAScreenShot(tgaNr);
-      if(filePtr!=NULL)
-      {
-        sprintf(fileName,"%s.tga",filePtr);
-#ifdef WIN32
-        sprintf( buffer, "move /y \"hcpy_%d.tga\" \"%s\"", tgaNr, fileName);
-#else
-        sprintf( buffer, "mv -f hcpy_%d.tga %s", tgaNr, fileName);
-#endif
-        system (buffer);
-      }
-      else sprintf(fileName,"hcpy_%d.tga",tgaNr);
-      printf("create %s\n ",fileName);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", tgaNr);
-      write2stack(2, parameter);
-      printf ("ready\n");
+      sprintf(fileName, "hcpy_%d.png", pngNr);
     }
-    if(selection==3)
+
+    if(cgx_save_png(fileName) == 0)
     {
-      /* movie gif files */
-      getTGAScreenShot(0);
-      while( access( "hcpy_0.tga", F_OK ) != 0 );
-      gifNr++;
-      sprintf( buffer, "convert hcpy_0.tga _%d.gif",gifNr);
-      printf("%s\n",buffer);
-      system (buffer);
-      if((movieFrames)&&(gifNr>=movieFrames))
-      {
-        animList=0;
-        movieFrames=0;
-        movieFlag=0;
-#ifdef WIN32
-        sprintf( buffer, "del /f  \"hcpy_0.tga\" %s", " 2> NUL");
-#else
-        sprintf( buffer, "rm -f  hcpy_0.tga %s", DEV_NULL2);
-#endif
-        system (buffer);
-        createHardcopy(0, NULL);
-        /* read a cgx-command file which will be executed after the movie is created */
-        if(strlen(movieCommandFile))
-        {
-          pre_read(movieCommandFile); 
-        }
-      }
-    }
-    if(selection==4)
-    {
-      gifNr++; 
-      if(filePtr!=NULL) sprintf(fileName,"%s.gif",filePtr); else sprintf(fileName,"hcpy_%d.gif",gifNr);
-      printf("create %s\n ",fileName);
-      getTGAScreenShot(gifNr);
-      sprintf( buffer, "convert hcpy_%d.tga %s", gifNr, fileName);
-      system (buffer);
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_%d.tga\" %s",gifNr," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_%d.tga %s",gifNr,DEV_NULL);
-#endif
-      system (buffer);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", gifNr);
+      sprintf(parameter[0], "%s", fileName);
+      sprintf(parameter[1], "%d", pngNr);
       write2stack(2, parameter);
-      printf ("ready\n");
-    }
-    if(selection==5)
-    {
-      pngNr++;
-      if(filePtr!=NULL) sprintf(fileName,"%s.png",filePtr); else sprintf(fileName,"hcpy_%d.png",pngNr);
-      printf("create %s\n ",fileName);
-      getTGAScreenShot(pngNr);
-      sprintf( buffer, "convert hcpy_%d.tga %s", pngNr, fileName);
-      system (buffer);
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_%d.tga\" %s",pngNr," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_%d.tga %s",pngNr,DEV_NULL);
-#endif
-      system (buffer);
-      sprintf( parameter[0], "%s", fileName);
-      sprintf( parameter[1], "%d", pngNr);
-      write2stack(2, parameter);
-      printf ("ready\n");
     }
   }
-  /*
-  glutSetWindow( w0);
-  glutSwapBuffers();
-  glutSetWindow( w1);
-  glutSwapBuffers();
-  glutSetWindow( w2);
-  glutSwapBuffers();
-  */
+
   glutSetWindow( activWindow);
 }
 
@@ -1434,15 +1279,7 @@ void MouseState( int button, int state, int x, int y )
     {
       movieFrames=0;
       movieFlag=0;
-      printf("movie stopped, please wait for ready (might take a while)\n");
-#ifdef WIN32
-      sprintf( buffer, "del /f \"hcpy_0.tga\" %s"," > NUL");
-#else
-      sprintf( buffer, "rm -f hcpy_0.tga %s",DEV_NULL);
-#endif
-      system (buffer);
       createHardcopy(0, NULL);
-      printf("movie.gif ready\n");
     }
     else
     {
@@ -1486,7 +1323,7 @@ void frame(void)
   if(anzGeo && anzGeo->p > 0 && point) scalPoints ( anzGeo->p, point, scale );
   if(anz && anz->n > 0 && node) scalNodes ( anz->n, node, scale );
   if(anzGeo && anzGeo->s > 0 && surf) scalSurfs( anzGeo->s, surf, scale);
-  dtx=0.; dty=0.; dtz=0.; ds=0.5;
+  dtx=0.; dty=0.; dtz=0.; ds=1.18;
   for (i=0; i<4; i++) vmem[i]=0; /* reset all kompensations (center()) */
   /* recalculate the line-shapes */
   if(anzGeo && anzGeo->l > 0 && line) for (i=0; i<anzGeo->l; i++) repLine(i);
@@ -1629,6 +1466,24 @@ void orientModel( int selection )
     rot_z(-1);
     rot_c(90);
     break;
+  case 7:
+    /* Isometric: +Z up, viewing from above down onto the top face */
+    rot_z(1);
+    rot_c(-45.0);
+    rot_u(-35.26438968);
+    break;
+  case 8:
+    /* Dimetric */
+    rot_z(1);
+    rot_c(-26.565);
+    rot_u(-19.471);
+    break;
+  case 9:
+    /* Trimetric */
+    rot_z(1);
+    rot_c(-30.0);
+    rot_u(-20.0);
+    break;
   }
 }
 
@@ -1638,29 +1493,62 @@ void markHardcopy( int selection )
 {
   if(!inpformat) return;
 
-  if(selection==3)
+  int n_frames = (sequenceFlag && dsSequence.nds > 1) ? dsSequence.nds : (anim_steps > 1 ? anim_steps : 30);
+  double delay = 0.04;
+  if (cgx_movie_has_custom_delay())
   {
-    movieFlag=1;
-    printf(" start recording movie\n");
-    printf("   stop recording with right mouse key while in menu area of the window\n");
-#ifdef WIN32
-    sprintf( buffer, "del /f \"_*.gif\" %s"," > NUL");
-#else
-    sprintf( buffer, "rm -f _*.gif %s",DEV_NULL);
-#endif
-    system (buffer);
-#ifdef WIN32
-    sprintf( buffer, "del /f \"movie.gif\" %s"," > NUL");
-#else
-    sprintf( buffer, "rm -f movie.gif %s",DEV_NULL);
-#endif
-    system (buffer);
-    stopFlag=0;
+    delay = cgx_movie_get_delay();
+  }
+  else if (time_per_period > 0 && n_frames > 0)
+  {
+    delay = (double)time_per_period / (1000.0 * (double)n_frames);
+    if (delay < 0.005) delay = 0.005;
+  }
+
+  if(selection == 7) /* 1 Cycle MP4 */
+  {
+    animList = 0;
+    movieFrames = n_frames;
+    movieFlag = 1;
+    stopFlag = 0;
+    printf("[CGX] Recording 1 full cycle (%d frames @ %.1f fps, period %.2fs) to 'movie_cycle.mp4'...\n",
+           movieFrames, 1.0/delay, delay * movieFrames);
+    cgx_movie_start("movie_cycle.mp4", movieFrames, delay);
+  }
+  else if(selection == 8) /* 1 Cycle GIF */
+  {
+    animList = 0;
+    movieFrames = n_frames;
+    movieFlag = 1;
+    stopFlag = 0;
+    printf("[CGX] Recording 1 full cycle (%d frames @ %.1f fps, period %.2fs) to 'movie_cycle.gif'...\n",
+           movieFrames, 1.0/delay, delay * movieFrames);
+    cgx_movie_start("movie_cycle.gif", movieFrames, delay);
+  }
+  else if(selection == 3) /* Continuous GIF Movie */
+  {
+    movieFrames = 0;
+    movieFlag = 1;
+    stopFlag = 0;
+    cgx_movie_start("movie.gif", 0, delay);
+  }
+  else if(selection == 6) /* Continuous MP4 Movie */
+  {
+    movieFrames = 0;
+    movieFlag = 1;
+    stopFlag = 0;
+    cgx_movie_start("movie.mp4", 0, delay);
+  }
+  else if(selection == 0) /* Stop Recording */
+  {
+    movieFlag = 0;
+    stopFlag = 1;
+    movieFrames = 0;
+    cgx_movie_finish();
   }
   else
   {
-    hcpyFlag=selection;
-    printf("Please wait\n");
+    hcpyFlag = 5; /* PNG */
     glutPostRedisplay();
   }
 }
@@ -2908,7 +2796,10 @@ void pre_rot( char *record)
 
   length = sword( record, type );
   angle = atof( &record[length+1]);
-  if (type[0]=='u') rot_u(angle);
+  if (compare(type, "iso", 3)==3 || compare(type, "isometric", 9)==9) orientModel(7);
+  else if (compare(type, "dim", 3)==3 || compare(type, "dimetric", 8)==8) orientModel(8);
+  else if (compare(type, "trim", 4)==4 || compare(type, "trimetric", 9)==9) orientModel(9);
+  else if (type[0]=='u') rot_u(angle);
   else if (type[0]=='r') rot_r(angle);
   else if (type[0]=='c') rot_c(angle);
   else if (type[0]=='d') rot_u(-angle);
@@ -4243,7 +4134,7 @@ void selectView( int selection )
       glPolygonMode(GL_FRONT_AND_BACK, GL_LINE );
     break;
   case 5:
-    glPointSize (1);
+    cgx_glPointSize(2.0f);
     glGetIntegerv( GL_POLYGON_MODE, ipuf );
     if ( ipuf[1] != GL_POINT )
       glPolygonMode( GL_FRONT_AND_BACK, GL_POINT );
@@ -4393,6 +4284,7 @@ void selectView( int selection )
     break;
   case 14:
     illumResultFlag=!illumResultFlag;
+    updateDispLists();
     redraw();
     break;
   case 15:
@@ -4459,6 +4351,33 @@ void selectView( int selection )
     else printf("\n Orthographic (Iso) projection enabled.\n\n");
     redraw();
     break;
+  case 20: /* Toggle Logarithmic Color Scale */
+    if (scale->format == 'l')
+    {
+      scale->format = 'e';
+      scale->smin = 0.0;
+      scale->smax = 0.0;
+      printf("\n Color Scale: LINEAR\n\n");
+    }
+    else
+    {
+      if (anz->l && cur_lc >= 0 && lcase[cur_lc].max[cur_entity] <= 0.0)
+      {
+        printf("\n ERROR: Logarithmic scale not possible (dataset has no positive values: max = %e <= 0)\n\n", lcase[cur_lc].max[cur_entity]);
+        break;
+      }
+      scale->format = 'l';
+      scale->smin = 0.0;
+      scale->smax = 0.0;
+      printf("\n Color Scale: LOGARITHMIC (Log10)\n\n");
+    }
+    if (anz->l && cur_lc >= 0)
+    {
+      nodalDataset(cur_entity, cur_lc, anz, scale, node, lcase, colNr, 1);
+      updateDispLists();
+    }
+    redraw();
+    break;
   }
   glutSetWindow( w0);
   glutPostRedisplay();
@@ -4503,6 +4422,12 @@ void selectGUI(int value)
       break;
     case 3: /* Toggle Command Line Bar */
       menu(5);
+      break;
+    case 4: /* [Experimental] Modern GPU Pipeline */
+      modernGpuFlag = !modernGpuFlag;
+      printf("\n [Experimental] Modern GPU Rendering Pipeline: %s (Work in progress)\n\n",
+             modernGpuFlag ? "ON (VBO / GLSL Shaders)" : "OFF (Legacy Display Lists)");
+      glutPostRedisplay();
       break;
   }
 }
@@ -4612,13 +4537,13 @@ void pre_view(char *string)
     else glutDestroyWindow(w3);
   }
   glutSetWindow( w1);
-  if (compare(type, "fill", 2)==2)
+  if (compare(type, "fill", 4)==4)
   {
     glPointSize (1);
     glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
     redraw();
   }
-  else if (compare(type, "line", 2)==2)
+  else if (compare(type, "line", 4)==4)
   {
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE );
     redraw();
@@ -4626,8 +4551,8 @@ void pre_view(char *string)
   else if (compare(type, "point", 2)==2)
   {
     i=atoi(param);
-    if(i<1) glPointSize(1);
-    else glPointSize(i);
+    if(i<1) cgx_glPointSize(2.0f);
+    else cgx_glPointSize((float)i);
     glPolygonMode( GL_FRONT_AND_BACK, GL_POINT );
     redraw();
   }
@@ -4772,6 +4697,50 @@ void pre_view(char *string)
   {
     illumResultFlag=1;
     if(length==2) { if (compare(param, "off", 2)==2) illumResultFlag=0; }
+    updateDispLists();
+    redraw();
+  }
+  else if (compare(type, "log", 3)==3)
+  {
+    if(length==2 && compare(param, "off", 2)==2)
+    {
+      scale->format = 'e';
+      scale->smin = 0.0;
+      scale->smax = 0.0;
+      printf("\n Color Scale: LINEAR\n\n");
+    }
+    else
+    {
+      if (anz->l && cur_lc >= 0 && lcase[cur_lc].max[cur_entity] <= 0.0)
+      {
+        printf("\n ERROR: Logarithmic scale not possible (dataset has no positive values: max = %e <= 0)\n\n", lcase[cur_lc].max[cur_entity]);
+      }
+      else
+      {
+        scale->format = 'l';
+        scale->smin = 0.0;
+        scale->smax = 0.0;
+        printf("\n Color Scale: LOGARITHMIC (Log10)\n\n");
+      }
+    }
+    if (anz->l && cur_lc >= 0)
+    {
+      nodalDataset(cur_entity, cur_lc, anz, scale, node, lcase, colNr, 1);
+      updateDispLists();
+    }
+    redraw();
+  }
+  else if (compare(type, "lin", 3)==3)
+  {
+    scale->format = 'e';
+    scale->smin = 0.0;
+    scale->smax = 0.0;
+    printf("\n Color Scale: LINEAR\n\n");
+    if (anz->l && cur_lc >= 0)
+    {
+      nodalDataset(cur_entity, cur_lc, anz, scale, node, lcase, colNr, 1);
+      updateDispLists();
+    }
     redraw();
   }
   else if (compare(type, "ill", 2)==2)
@@ -4779,6 +4748,13 @@ void pre_view(char *string)
     glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
     if(length==2) { if (compare(param, "off", 2)==2) glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_oneside); }
     redraw();
+  }
+  else
+  {
+    printf(" [ERROR] Unknown view option '%s'. (Valid: sh, log, lin, elem, edge, surf, volu, bg, ru, ill, front, back)\n", type);
+    char buf[128];
+    snprintf(buf, sizeof(buf), "Unknown 'view %s' (valid: sh, log, lin, elem...)", type);
+    cgx_set_gui_status(buf);
   }
   glutPostRedisplay();
   glutSetWindow( w2 );
@@ -5801,6 +5777,60 @@ void Keyboard( unsigned char gkey, int x, int y )
   }
 }
 
+static int levenshtein_dist(const char *s1, const char *s2)
+{
+  int l1 = (int)strlen(s1);
+  int l2 = (int)strlen(s2);
+  if (l1 > 32 || l2 > 32) return 99;
+  int d[33][33];
+  for (int i = 0; i <= l1; i++) d[i][0] = i;
+  for (int j = 0; j <= l2; j++) d[0][j] = j;
+  for (int i = 1; i <= l1; i++)
+  {
+    for (int j = 1; j <= l2; j++)
+    {
+      int cost = (tolower(s1[i - 1]) == tolower(s2[j - 1])) ? 0 : 1;
+      int del = d[i - 1][j] + 1;
+      int ins = d[i][j - 1] + 1;
+      int sub = d[i - 1][j - 1] + cost;
+      int min = (del < ins) ? del : ins;
+      d[i][j] = (min < sub) ? min : sub;
+    }
+  }
+  return d[l1][l2];
+}
+
+const char *cgx_get_command_suggestion(const char *cmd)
+{
+  if (!cmd || strlen(cmd) < 1) return NULL;
+  static const char *known_cmds[] = {
+    "help", "frame", "plot", "plus", "view", "zoom", "orient", "quit", "exit",
+    "ds", "scal", "seta", "setr", "seto", "del", "rep", "graph", "prnt", "wsize",
+    "qadd", "qdel", "qenq", "qlin", "qpnt", "qsur", "qbod", "qmsh", "qcut",
+    "qcnt", "qflp", "qmov", "qseq", "qshp", "qspl", "qtxt", "qali", "qbia",
+    "area", "volu", "length", "node", "elem", "line", "surf", "body", "proj",
+    "move", "rot", "tra", "flip", "comp", "msh", "read", "send", "step", "col",
+    "anim", "val", "max", "min", "mesh", "font", "sh", "ruler", "bg", "capt",
+    "movie", "movi", "hcpy"
+  };
+  int count = (int)(sizeof(known_cmds) / sizeof(known_cmds[0]));
+  int best_dist = 99;
+  const char *best_match = NULL;
+  for (int i = 0; i < count; i++)
+  {
+    int dist = levenshtein_dist(cmd, known_cmds[i]);
+    if (dist < best_dist)
+    {
+      best_dist = dist;
+      best_match = known_cmds[i];
+    }
+  }
+  int len = (int)strlen(cmd);
+  int max_allowed = (len <= 3) ? 1 : 2;
+  if (best_dist <= max_allowed) return best_match;
+  return NULL;
+}
+
 /* Directly execute a command string from the GLFW command bar or terminal */
 void cgx_execute_command_string(const char *cmd_str)
 {
@@ -5866,8 +5896,9 @@ void cgx_execute_command_string(const char *cmd_str)
   else if (compare(prognam, "QTXT", 4) == 4) qtxt();
   else
   {
-    commandoInterpreter(prognam, &k_ptr, pos, 0, 0, 0, &gtolFlag);
+    int res = commandoInterpreter(prognam, &k_ptr, pos, 0, 0, 0, &gtolFlag);
     if (compare(prognam, "ELEM", 4) == 4) new_elems = 1;
+    (void)res;
   }
 
   if (new_elems)
@@ -5897,7 +5928,8 @@ void initModel(char *string)
   modelEdgeFlag=buf[0];
   elemEdgeFlag=buf[1];
   surfFlag=buf[2];
-  illumResultFlag=buf[3];
+  if (buf[3] != 0) illumResultFlag=buf[3];
+  else illumResultFlag=ILLUMINATE_RESULTS;
   foregrndcol=!backgrndcol;
   for (i=0; i<4; i++) for (j=0; j<4; j++) Rmem[i][j]=R[i][j];
 
@@ -5955,8 +5987,8 @@ void moveModel()
   {
     double aspect = (aspectRatio_w1 > 0.001) ? aspectRatio_w1 : 1.0;
     double fov = 40.0;
-    double cam_dist = ds * 2.0;
-    if (cam_dist < 0.0001) cam_dist = 0.0001;
+    double half_fov_rad = (fov * 0.5) * (M_PI / 180.0);
+    double cam_dist = (ds > 0.0001) ? (ds / tan(half_fov_rad)) : 2.5;
     gluPerspective(fov, aspect, 0.001, 1000.0);
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
@@ -6045,13 +6077,10 @@ void DrawGraficLoad( void )
 
   glLoadIdentity();
   moveModel();
-  if (modelEdgeFlag)     glCallList( list_model_edges );
-  if (elemEdgeFlag)
-  {
-    if (surfFlag) glCallList( list_surf_edges );
-    else          glCallList( list_elem_edges );
-  }
-  /* enable all colors  */
+
+  /* 1. Render filled solid result colormaps first with polygon offset */
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
   glColor3d( 1,1,1);
   // glEnable(GL_TEXTURE_1D);
   if (lcase[cur_lc].irtype == 3)
@@ -6060,8 +6089,24 @@ void DrawGraficLoad( void )
   }
   else
   {
-    if (surfFlag)   glCallList( list_surf_load );
-    else            glCallList( list_elem_load );
+    if (modernGpuFlag && cgx_vbo_is_ready())
+    {
+      cgx_vbo_render_active(1, (float)(scale ? scale->smin : 0.0), (float)(scale ? scale->smax : 1.0));
+    }
+    else
+    {
+      if (surfFlag)   glCallList( list_surf_load );
+      else            glCallList( list_elem_load );
+    }
+  }
+  glDisable(GL_POLYGON_OFFSET_FILL);
+
+  /* 2. Render crisp edges and lines on top */
+  if (modelEdgeFlag)     glCallList( list_model_edges );
+  if (elemEdgeFlag)
+  {
+    if (surfFlag) glCallList( list_surf_edges );
+    else          glCallList( list_elem_edges );
   }
 
   if (rulerFlag)
@@ -6124,14 +6169,28 @@ void DrawGraficLight( void )
 
   glLoadIdentity();
   moveModel();
+
+  /* 1. Render filled solid model first with polygon offset */
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
+  if (modernGpuFlag && cgx_vbo_is_ready())
+  {
+    cgx_vbo_render_active(0, 0.0f, 1.0f);
+  }
+  else
+  {
+    if (surfFlag)    glCallList( list_surf_light );
+    else             glCallList( list_elem_light );
+  }
+  glDisable(GL_POLYGON_OFFSET_FILL);
+
+  /* 2. Render crisp edges and lines on top */
   if (modelEdgeFlag) glCallList( list_model_edges );
   if (elemEdgeFlag)
   {
      if (surfFlag) glCallList( list_surf_edges );
      else          glCallList( list_elem_edges );
   }
-  if (surfFlag)    glCallList( list_surf_light );
-  else             glCallList( list_elem_light );
 
   if (rulerFlag)
   {
@@ -6202,6 +6261,14 @@ void DrawGraficAnimate( void )
 
   glLoadIdentity();
   moveModel();
+
+  /* 1. Render animated solid body first with polygon offset */
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
+  glCallList( list_animate[animList] );
+  glDisable(GL_POLYGON_OFFSET_FILL);
+
+  /* 2. Render animated edges on top */
   if (modelEdgeFlag_Static)     glCallList( list_model_edges );
   if (modelEdgeFlag)     glCallList( list_animate_model_edges[animList] );
   if (elemEdgeFlag_Static)
@@ -6214,7 +6281,6 @@ void DrawGraficAnimate( void )
     if (surfFlag) glCallList( list_animate_surf_edges[animList] );
     else          glCallList( list_animate_elem_edges[animList] );
   }
-  glCallList( list_animate[animList] );
   
   glLoadIdentity();
   sprintf (buffer,"%4d%%Amplitude     ", anim_alfa[animList]);
@@ -6310,6 +6376,26 @@ void DrawGraficSequence( void )
 
   glLoadIdentity();
   moveModel();
+
+  /* 1. Render solid sequence body first with polygon offset */
+  if (illumFlag); 
+  else
+  {
+    /* enable all colors */
+    glColor3d( 1,1,1);
+    glEnable(GL_TEXTURE_1D);
+  }
+  glEnable(GL_POLYGON_OFFSET_FILL);
+  glPolygonOffset(1.0f, 1.0f);
+  glCallList( list_animate[animList] );
+  glDisable(GL_POLYGON_OFFSET_FILL);
+  if (illumFlag); 
+  else
+  {
+    glDisable(GL_TEXTURE_1D);
+  }
+
+  /* 2. Render edges on top */
   if(!sequenceFlag)
   {
     if (modelEdgeFlag)     glCallList( list_model_edges );
@@ -6333,20 +6419,6 @@ void DrawGraficSequence( void )
       if (surfFlag) glCallList( list_animate_surf_edges[animList] );
       else          glCallList( list_animate_elem_edges[animList] );
     }
-  }
-
-  if (illumFlag); 
-  else
-  {
-    /* enable all colors */
-    glColor3d( 1,1,1);
-    glEnable(GL_TEXTURE_1D);
-  }
-  glCallList( list_animate[animList] );
-  if (illumFlag); 
-  else
-  {
-    glDisable(GL_TEXTURE_1D);
   }
 
   /* immediate draw the vectors. no display-list used because vector-length should be updated immediately */
@@ -6513,12 +6585,15 @@ void drawSets(int mode)
     /* don't draw the transparent faces */
     if(pset[j].type[0]=='f')
     {
-      if(mode) drawFaceNodes_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, 2, 0 );
-      if(elemEdgeFlag) drawFaces_edge( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, basCol[0], pset[j].type[1] );
       if((pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
       {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
         drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, pset[j].type[1], pset[j].width, mode );
+        glDisable(GL_POLYGON_OFFSET_FILL);
       }
+      if(elemEdgeFlag) drawFaces_edge( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, basCol[0], pset[j].type[1] );
+      if(mode) drawFaceNodes_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, face, 2, 0 );
     }
     else if (pset[j].type[0]=='n')
     {
@@ -6534,12 +6609,15 @@ void drawSets(int mode)
     /* don't draw the transparent elements */
     else if (pset[j].type[0]=='e')
     {
-      if(mode) drawElemNodes_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, 2, 0 );
-      if(elemEdgeFlag) drawElem_edge( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, basCol[0], pset[j].type[1] );
       if((pset[j].type[1]!='b')&&(pset[j].type[2]!='b'))
       {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
         drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, pset[j].type[1], pset[j].width, mode );
+        glDisable(GL_POLYGON_OFFSET_FILL);
       }
+      if(elemEdgeFlag) drawElem_edge( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, basCol[0], pset[j].type[1] );
+      if(mode) drawElemNodes_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, e_enqire, 2, 0 );
     }
     else if (pset[j].type[0]=='p')
     {
@@ -6554,7 +6632,10 @@ void drawSets(int mode)
       if(pset[j].type[1]=='h') drawShapes_plot( set[pset[j].nr].anz_sh, set[pset[j].nr].shp, shape, point, pset[j].col, pset[j].type[1]);
       else
       {
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(1.0f, 1.0f);
         drawSurfs_plot( set[pset[j].nr].anz_s, set[pset[j].nr].surf, surf, lcmb, line, point, pset[j].col, pset[j].type[1] );
+        glDisable(GL_POLYGON_OFFSET_FILL);
       }
     }
     else if (pset[j].type[0]=='b')
@@ -6582,11 +6663,14 @@ void drawSets(int mode)
       glDepthMask(GL_FALSE);
       glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
       glCullFace ( GL_FRONT );
+      glEnable(GL_POLYGON_OFFSET_FILL);
+      glPolygonOffset(1.0f, 1.0f);
       if(pset[j].type[0]=='f') drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width, mode );
       else  drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width, mode );
       glCullFace ( GL_BACK );
       if(pset[j].type[0]=='f') drawFaces_plot( set[pset[j].nr].anz_f, set[pset[j].nr].face, node, colNr, face, pset[j].col, typ, pset[j].width, mode );
       else  drawElements_plot( set[pset[j].nr].anz_e, set[pset[j].nr].elem, node, colNr, e_enqire, pset[j].col, typ, pset[j].width, mode );
+      glDisable(GL_POLYGON_OFFSET_FILL);
       glDepthMask(GL_TRUE);
       glDisable (GL_BLEND);
       glDepthFunc(GL_LEQUAL);
@@ -6873,39 +6957,47 @@ void idleFunction(void)
   }
   else
   {
-    descalAll(); // in .cgx entities might habe been generated and scal is set
-    if(inpformat=='a') iniMeshData( datin, "ansl" );
-    if(inpformat=='c') iniMeshData( datin, "ccx" );
-    if(inpformat=='d') iniMeshData( datin, "duns2d" );
-    if(inpformat=='D') iniMeshData( datin, "duns2dl" );
-    if(inpformat=='e') iniMeshData( datin, "duns3d" );
-    if(inpformat=='E') iniMeshData( datin, "duns3dl" );
-    if(inpformat=='y') iniMeshData( datin, "dynl" );
-    if(inpformat=='f') iniMeshData( datin, "foam" );
-    if(inpformat=='i') iniMeshData( datin, "isaac2d" );
-    if(inpformat=='j') iniMeshData( datin, "isaac3d" );
-    if(inpformat=='k') iniMeshData( datin, "vtk" );
-    if(inpformat=='m') iniMeshData( datin, "nas" );
-    if(inpformat=='n') iniMeshData( datin, "ng" );
-    if(inpformat=='s') iniMeshData( datin, "stl" );
-    if(inpformat=='t') iniMeshData( datin, "tg" );
-    if(inpformat=='v') iniMeshData( datin, "frd" );
-
-    /* calc additional entities only if the block was not jumped during read */
-    for (i=0; i<anz->olc; i++)  if (lcase[i].loaded)
-      calcDatasets( i, anz, node, lcase );
-
-    frame();
-    ConfigureAndShowWindow_Light();
-
-    gtol_buf=gtol;
-    if(ccxfile[0]>0)
+    if (datin[0] != '\0')
     {
-      sprintf(buffer, "%s inp nom", ccxfile );
-      pre_read(buffer);
+      descalAll(); // in .cgx entities might habe been generated and scal is set
+      if(inpformat=='a') iniMeshData( datin, "ansl" );
+      if(inpformat=='c') iniMeshData( datin, "ccx" );
+      if(inpformat=='d') iniMeshData( datin, "duns2d" );
+      if(inpformat=='D') iniMeshData( datin, "duns2dl" );
+      if(inpformat=='e') iniMeshData( datin, "duns3d" );
+      if(inpformat=='E') iniMeshData( datin, "duns3dl" );
+      if(inpformat=='y') iniMeshData( datin, "dynl" );
+      if(inpformat=='f') iniMeshData( datin, "foam" );
+      if(inpformat=='i') iniMeshData( datin, "isaac2d" );
+      if(inpformat=='j') iniMeshData( datin, "isaac3d" );
+      if(inpformat=='k') iniMeshData( datin, "vtk" );
+      if(inpformat=='m') iniMeshData( datin, "nas" );
+      if(inpformat=='n') iniMeshData( datin, "ng" );
+      if(inpformat=='s') iniMeshData( datin, "stl" );
+      if(inpformat=='t') iniMeshData( datin, "tg" );
+      if(inpformat=='v') iniMeshData( datin, "frd" );
+
+      /* calc additional entities only if the block was not jumped during read */
+      for (i=0; i<anz->olc; i++)  if (lcase[i].loaded)
+        calcDatasets( i, anz, node, lcase );
+
+      frame();
+      ConfigureAndShowWindow_Light();
+
+      gtol_buf=gtol;
+      if(ccxfile[0]>0)
+      {
+        sprintf(buffer, "%s inp nom", ccxfile );
+        pre_read(buffer);
+      }
+      if(gtol_buf==gtol)
+      { gtol=calcGTOL(setall);  printf ("gtol calculated:%e\n", gtol); }
     }
-    if(gtol_buf==gtol)
-    { gtol=calcGTOL(setall);  printf ("gtol calculated:%e\n", gtol); }
+    else
+    {
+      ConfigureAndShowWindow_Light();
+      printf(" CalculiX GraphiX ready. Use 'read <file>' or command bar to open models.\n");
+    }
   }
 
   /* create the mainmenu */
@@ -6953,8 +7045,14 @@ void iniDrawMenu()
     i=strlen(picture_caption)-maxchars;
     if (i>0) strcpy(buffer, &picture_caption[i]);
     else strcpy(buffer, picture_caption);
-    x=  -(double)(strlen( buffer )*pixPerCharx[legend_font]) / (double)(width_w0);
-    y= 1-(height_menu/10+height_w1+4+pixPerChary[legend_font])*2./height_w0;
+    double fb_scale = (double)cgx_get_fb_scale();
+    if (fb_scale < 0.5) fb_scale = 1.0;
+    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer) / fb_scale;
+    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * (double)pixPerCharx[legend_font];
+    double center_w1 = (double)width_menu * 19.0 / 20.0 + (double)width_w1 * 0.5;
+    double start_x = center_w1 - str_width_points * 0.5;
+    x = -1.0 + (2.0 * start_x) / (double)width_w0;
+    y = 1.0 - (height_menu / 10.0 + height_w1 + 4.0 + pixPerChary[legend_font]) * 2.0 / (double)height_w0;
     text( x, y, 0., buffer, glut_font[legend_font] );
   }
   if (textFlag)
@@ -6962,8 +7060,14 @@ void iniDrawMenu()
     i=strlen(picture_text)-maxchars;
     if (i>0) strcpy(buffer, &picture_text[i]);
     else strcpy(buffer, picture_text);
-    x=  -(double)(strlen( buffer )*pixPerCharx[legend_font]) / (double)(width_w0);
-    y= 1-(height_menu/10+height_w1+6+pixPerChary[legend_font]*2)*2./height_w0;
+    double fb_scale = (double)cgx_get_fb_scale();
+    if (fb_scale < 0.5) fb_scale = 1.0;
+    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer) / fb_scale;
+    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * (double)pixPerCharx[legend_font];
+    double center_w1 = (double)width_menu * 19.0 / 20.0 + (double)width_w1 * 0.5;
+    double start_x = center_w1 - str_width_points * 0.5;
+    x = -1.0 + (2.0 * start_x) / (double)width_w0;
+    y = 1.0 - (height_menu / 10.0 + height_w1 + 6.0 + pixPerChary[legend_font] * 2.0) * 2.0 / (double)height_w0;
     text( x, y, 0., buffer, glut_font[legend_font] );
   }
 }
@@ -7220,11 +7324,16 @@ void setWindowPos(char *string)
 
 void reshape( int width, int height )
 {
+  if (width < 10) width = 10;
+  if (height < 10) height = 10;
   width_w0=width; 
   height_w0=height; 
   width_w1=width - width_menu; 
   height_w1=height - height_menu; 
+  if (width_w1 < 10) width_w1 = 10;
+  if (height_w1 < 10) height_w1 = 10;
   aspectRatio_w1=(double)width_w1/(double)height_w1;
+  if (aspectRatio_w1 < 0.001) aspectRatio_w1 = 1.0;
 
   /* MAIN WINDOW */
   glutSetWindow( w0 );
@@ -7475,11 +7584,11 @@ int main( int argc, char **argv )
   printf("                     CalculiX GraphiX (CGX) - GLFW Edition                      \n");
   printf("================================================================================\n");
   printf("  Original Authors : Copyright (C) 1996-2024 Klaus Wittig and contributors\n");
-  printf("  Modernization    : Carlo Monjaraz-Tec (2026)\n");
-  printf("  Frameworks       : Pure GLFW3, Modern OpenGL & stb_truetype (Zero GLUT / Zero X11)\n");
+  printf("  GLFW Translation : Carlo Monjaraz-Tec (2026)\n");
+  printf("  Frameworks       : GLFW3 and OpenGL\n");
   printf("  OS Platform      : %s %s (%s)\n\n", cursys->sysname, cursys->release, cursys->machine);
-  printf("  An academic exercise for learning agentic programming based on the great\n");
-  printf("  work of CalculiX GraphiX original authors and contributors.\n\n");
+  printf("  A didactic exercise for learning agentic programming based on the great\n");
+  printf("  work of CalculiX original authors and contributors.\n\n");
   printf("  Disclaimer:\n");
   printf("  Provided AS IS for academic exploration with NO WARRANTY of any kind.\n");
   printf("================================================================================\n\n");
@@ -7537,8 +7646,17 @@ int main( int argc, char **argv )
 
   if (argc < 2)
   {
-    generalinfo();
-    exit (0);
+    /* Standalone desktop launch: initialize clean interactive workspace */
+    setall=pre_seta("all", "i", 0);
+    pre_seta(specialset->nsave, "i", 0);
+    inpformat='v';
+    datin[0] = '\0';
+    if ( (lcase = (Datasets *)malloc( (anz->l+1) * sizeof(Datasets))) == NULL )
+      printf("\n\n ERROR: malloc failed lcase\n\n") ;
+    if ( (node = (Nodes *)malloc( (anz->n+1) * sizeof(Nodes))) == NULL )
+      printf("\n\n ERROR: malloc failed node\n\n") ;
+    if ( (e_enqire = (Elements *)malloc( (anz->e+1) * sizeof(Elements))) == NULL )
+      printf("\n\n ERROR: malloc failed elem\n\n") ;
   }
   else
   {
@@ -7813,6 +7931,7 @@ int main( int argc, char **argv )
   glutAddMenuEntry("Toggle Dark Mode", 1);
   glutAddMenuEntry("Toggle Perspective 3D", 2);
   glutAddMenuEntry("Toggle Command Line Bar", 3);
+  glutAddMenuEntry("[Experimental] Modern GPU Pipeline", 4);
   glutAddSubMenu  ("Text Size", subsubmenu_fontsize );
   
   submenu_view = glutCreateMenu( selectView );
@@ -7833,6 +7952,7 @@ int main( int argc, char **argv )
   glutAddMenuEntry("Toggle Shaded Results", 14);
   glutAddMenuEntry("Toggle Transparency", 16);
   glutAddMenuEntry("Toggle Ruler", 17);
+  glutAddMenuEntry("Toggle Logarithmic Scale", 20);
   glutAddSubMenu  ("Colormap", subsubmenu_colormap );
 
   submenu_animate = glutCreateMenu( changeAnimation );
@@ -7852,13 +7972,17 @@ int main( int argc, char **argv )
   glutAddMenuEntry( "-y View     ", 4);
   glutAddMenuEntry( "+z View     ", 5);
   glutAddMenuEntry( "-z View     ", 6);
+  glutAddMenuEntry( "Isometric  ", 7);
+  glutAddMenuEntry( "Dimetric   ", 8);
+  glutAddMenuEntry( "Trimetric  ", 9);
 
   submenu_hardcopy = glutCreateMenu( markHardcopy );
-  glutAddMenuEntry( "Tga-Hardcopy", 2);
-  glutAddMenuEntry( "Ps-Hardcopy ", 1);
-  glutAddMenuEntry( "Gif-Hardcopy", 4);
-  glutAddMenuEntry( "Png-Hardcopy", 5);
-  glutAddMenuEntry( "Start Recording Gif-Movie", 3);
+  glutAddMenuEntry( "Save PNG Screenshot", 5);
+  glutAddMenuEntry( "Record 1 Cycle (MP4)", 7);
+  glutAddMenuEntry( "Record 1 Cycle (GIF)", 8);
+  glutAddMenuEntry( "Record Continuous MP4 Video", 6);
+  glutAddMenuEntry( "Record Continuous GIF Movie", 3);
+  glutAddMenuEntry( "Stop Recording", 0);
 
   submenu_cut   = glutCreateMenu( selectCutNode   );
   glutAddMenuEntry( "switch plot", 9);
@@ -7950,7 +8074,18 @@ int main( int argc, char **argv )
 #endif
 
   glutMainLoop ();
+#ifdef WIN32
+  /* The stdin listener thread (cgx_glut_glfw.c) blocks indefinitely in
+     fgets(stdin) so users can type CGX commands into the terminal
+     alongside the GUI. Under Windows - especially MSYS2/mintty's pty
+     layer - a background thread parked in a blocking console read can
+     keep the terminal session attached even after the graceful CRT
+     exit path finishes. TerminateProcess bypasses that and kills
+     everything outright, immediately. */
+  TerminateProcess(GetCurrentProcess(), 0);
+#else
   return(1);
+#endif
 }
 
 

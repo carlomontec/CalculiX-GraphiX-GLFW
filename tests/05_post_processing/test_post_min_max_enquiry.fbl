@@ -1,0 +1,29 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_min_max_enquiry.fbl
+# Description: Validates hotspot finding via max/min enquiry on stress and displacement fields
+# ==============================================================================
+
+# 1. Read static FEA result
+read ../../../../test/beam20p.frd
+
+# 2. Select Von Mises stress (Dataset 2, entity 7)
+ds 2 e 7
+
+# 3. Find Node with Maximum Stress
+enq all max_stress_node max
+
+# 4. Find Node with Minimum Stress
+enq all min_stress_node min
+
+# 5. Select Displacement magnitude (Dataset 1, entity 4)
+ds 1 e 4
+
+# 6. Find Node with Maximum Deflection
+enq all max_disp_node max
+
+# 7. Print enquiries
+prnt se max_stress_node
+prnt se min_stress_node
+prnt se max_disp_node
+
+quit

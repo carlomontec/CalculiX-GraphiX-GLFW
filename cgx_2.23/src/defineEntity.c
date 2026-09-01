@@ -30,7 +30,9 @@ extern int OLD_BIAS_DEF;
 int        old_bias_def;
 
 #include <cgx.h>
+#ifndef WIN32
 #include <sys/utsname.h>
+#endif
 
 extern struct utsname  cursys[1];
 

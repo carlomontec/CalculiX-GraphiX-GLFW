@@ -1,0 +1,24 @@
+id ICON "cgx.ico"
+1 VERSIONINFO
+FILEVERSION     2,23,0,0
+PRODUCTVERSION  2,23,0,0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904E4"
+    BEGIN
+      VALUE "CompanyName", "CalculiX & GLFW Edition Contributors"
+      VALUE "FileDescription", "CalculiX GraphiX (CGX) - GLFW Edition"
+      VALUE "FileVersion", "2.23"
+      VALUE "InternalName", "cgx_glfw"
+      VALUE "LegalCopyright", "Copyright (C) 1996-2026 Klaus Wittig, Carlo Monjaraz-Tec and contributors"
+      VALUE "OriginalFilename", "cgx_glfw.exe"
+      VALUE "ProductName", "CalculiX GraphiX"
+      VALUE "ProductVersion", "2.23"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1252
+  END
+END

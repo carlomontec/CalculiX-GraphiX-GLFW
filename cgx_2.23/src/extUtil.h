@@ -1,9 +1,56 @@
+#ifndef EXTUTIL_H
+#define EXTUTIL_H
 
 #ifdef WIN32
+  #ifndef WIN32_LEAN_AND_MEAN
+  #define WIN32_LEAN_AND_MEAN
+  /* Without this, <windows.h> pulls in <dlgs.h>/<commdlg.h>, which #define
+     short dialog-control-ID macros (rad1, rad2, chx1, cmb1, edt1, stc1, ...)
+     that collide with CGX's terse local variable names across the codebase. */
+  #endif
   #include <windows.h>
+  #include <string.h>
   #undef near
   #define DEV_NULL  " "
   #define DEV_NULL2 " "
+
+  /* MinGW-w64 has no <sys/utsname.h> (it's POSIX-only). CGX only reads
+     sysname/release/machine for the startup banner, so a minimal shim
+     is enough - no need to pull in real Win32 version APIs. */
+  struct utsname {
+    char sysname[65];
+    char nodename[65];
+    char release[65];
+    char version[65];
+    char machine[65];
+  };
+  static inline int uname(struct utsname *buf) {
+    strncpy(buf->sysname, "Windows", sizeof(buf->sysname));
+    strncpy(buf->nodename, "unknown", sizeof(buf->nodename));
+    strncpy(buf->release, "unknown", sizeof(buf->release));
+    strncpy(buf->version, "unknown", sizeof(buf->version));
+#if defined(_WIN64)
+    strncpy(buf->machine, "x86_64", sizeof(buf->machine));
+#else
+    strncpy(buf->machine, "x86", sizeof(buf->machine));
+#endif
+    return 0;
+  }
+
+  /* Windows' bundled <GL/gl.h> is frozen at OpenGL 1.1 (matches the
+     opengl32.dll ABI from the mid-90s). CGX uses a few OpenGL 1.2
+     constants for texture edge clamping and specular lighting that
+     Linux/macOS system headers provide but MinGW's gl.h doesn't.
+     Values are the standard ones from the OpenGL registry. */
+  #ifndef GL_CLAMP_TO_EDGE
+  #define GL_CLAMP_TO_EDGE 0x812F
+  #endif
+  #ifndef GL_LIGHT_MODEL_COLOR_CONTROL
+  #define GL_LIGHT_MODEL_COLOR_CONTROL 0x81F8
+  #endif
+  #ifndef GL_SEPARATE_SPECULAR_COLOR
+  #define GL_SEPARATE_SPECULAR_COLOR 0x81FA
+  #endif
 #else
   #define DEV_NULL   " >/dev/null"
   #define DEV_NULL2 " 2>/dev/null"
@@ -791,3 +838,5 @@ int splitElementsToTets(int anz_e, Nodes *node, Elements  *e_enqire, Tetraeder *
 
 int delaun_( int *numpts, int *maxtri, double *smalld, double *x, double *y, int *list, int *pointr, int *v1, int *v2, int *v3, int *numtri);
 void cartcyl( double *csab, int node, double *node_pos, Datasets *lcase, int lc, char type );
+
+#endif /* EXTUTIL_H */

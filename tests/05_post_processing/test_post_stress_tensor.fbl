@@ -1,0 +1,27 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_stress_tensor.fbl
+# Description: Validates stress tensor navigation (SXX, SYY, SZZ, SXY, SYZ, SZX),
+#              principal stresses, and Von Mises equivalent stress
+# ==============================================================================
+
+# 1. Read static FEA result with 20-node hex elements
+read ../../../../test/beam20p.frd
+
+# 2. Select Stress dataset (Dataset 2)
+ds 2 e 1  # SXX
+ds 2 e 2  # SYY
+ds 2 e 3  # SZZ
+ds 2 e 4  # SXY
+ds 2 e 5  # SYZ
+ds 2 e 6  # SZX
+
+# 3. Select Derived Stress Components (Von Mises equivalent stress, Max Principal)
+ds 2 e 7  # Von Mises equivalent stress
+ds 2 e 8  # Principal stress 1 (Max Principal)
+ds 2 e 9  # Principal stress 2 (Mid Principal)
+ds 2 e 10 # Principal stress 3 (Min Principal)
+
+# 4. Print summary of active dataset
+prnt se all
+
+quit

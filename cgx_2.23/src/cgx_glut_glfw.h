@@ -20,6 +20,9 @@
   #if defined(_WIN32) || defined(WIN32)
     #include <windows.h>
   #endif
+  #ifndef GL_GLEXT_PROTOTYPES
+    #define GL_GLEXT_PROTOTYPES 1
+  #endif
   #include <GL/gl.h>
   #include <GL/glu.h>
 #endif
@@ -54,6 +57,11 @@ extern "C" {
 /* Mouse States */
 #define GLUT_DOWN           0
 #define GLUT_UP             1
+
+/* Modifier Masks */
+#define GLUT_ACTIVE_SHIFT   1
+#define GLUT_ACTIVE_CTRL    2
+#define GLUT_ACTIVE_ALT     4
 
 /* Window Visibility */
 #define GLUT_NOT_VISIBLE    0
@@ -191,6 +199,13 @@ int  glutLayerGet(GLenum type);
 GLFWwindow *cgx_glfw_get_window(void);
 void cgx_glfw_toggle_command_bar(void);
 int  cgx_glfw_is_command_bar_visible(void);
+
+/* DPI and Line/Point Width Utilities */
+float cgx_get_fb_scale(void);
+void  cgx_glLineWidth(float width);
+void  cgx_glPointSize(float size);
+void  cgx_enable_smooth_lines(int enable);
+void  cgx_set_gui_status(const char *msg);
 
 #ifdef __cplusplus
 }

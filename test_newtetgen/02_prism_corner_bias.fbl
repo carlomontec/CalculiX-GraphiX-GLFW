@@ -1,0 +1,49 @@
+pnt p0 0 0 0
+pnt px 10 0 0
+pnt py 0 10 0
+pnt pxy 10 10 0
+pnt pz 0 0 10
+pnt pxz 10 0 10
+pnt pyz 0 10 10
+pnt pxyz 10 10 10
+
+line l1 p0 px 30
+line l2 p0 py 30
+line l3 p0 pz 30
+
+line l4 px pxy 8
+line l5 py pxy 8
+
+line l6 px pxz 8
+line l7 pz pxz 8
+
+line l8 py pyz 8
+line l9 pz pyz 8
+
+line l10 pxz pxyz 8
+line l11 pyz pxyz 8
+line l12 pxy pxyz 8
+
+bia l1 10.0
+bia l2 10.0
+bia l3 10.0
+
+gsur s1 + BLEND + l1 + l4 - l5 - l2
+gsur s2 + BLEND + l7 + l10 - l11 - l9
+gsur s3 + BLEND + l1 + l6 - l7 - l3
+gsur s4 + BLEND + l5 + l12 - l11 - l8
+gsur s5 + BLEND + l2 + l8 - l9 - l3
+gsur s6 + BLEND + l4 + l12 - l10 - l6
+
+gbod b1 NORM + s1 - s2 + s3 - s4 - s5 + s6
+
+elty all tr3u
+mesh all
+
+mesh all tet
+
+plot e all
+view elem
+view sh
+rot z 45
+rot x 35

@@ -12,25 +12,37 @@ CC = gcc
 CXX = g++
 
 OPT ?= -O2
-INCLUDES = -I./ -I../../libSNL/src
+INCLUDES = -I./ -I../../libSNL/src -Itetgen
 CFLAGS = $(OPT) -std=gnu17 -Wall -Wno-narrowing -DUSE_GLFW $(INCLUDES)
-CXXFLAGS = $(OPT) -std=c++11 -Wall -Wno-narrowing -Wno-register -DUSE_GLFW $(INCLUDES)
+CXXFLAGS = $(OPT) -std=c++11 -Wall -Wno-narrowing -Wno-register -DTETLIBRARY -DUSE_GLFW $(INCLUDES)
 
 ifeq ($(UNAME_S),Darwin)
   # macOS native configuration (Zero X11 / Zero XQuartz / Zero GLUT)
   GLFW_CFLAGS := $(shell pkg-config --cflags glfw3 2>/dev/null || echo "-I/opt/homebrew/include -I/usr/local/include")
-  GLFW_LIBS := $(shell pkg-config --libs glfw3 2>/dev/null || echo "-L/opt/homebrew/lib -L/usr/local/lib -lglfw")
+  ifeq ($(STATIC_GLFW),1)
+    GLFW_STATIC_LIB := $(shell pkg-config --variable=libdir glfw3 2>/dev/null)/libglfw3.a
+    ifeq ($(wildcard $(GLFW_STATIC_LIB)),)
+      GLFW_STATIC_LIB := $(shell brew --prefix glfw 2>/dev/null)/lib/libglfw3.a
+    endif
+    ifeq ($(wildcard $(GLFW_STATIC_LIB)),)
+      GLFW_STATIC_LIB := /opt/homebrew/lib/libglfw3.a
+    endif
+    GLFW_LIBS := $(GLFW_STATIC_LIB)
+  else
+    GLFW_LIBS := $(shell pkg-config --libs glfw3 2>/dev/null || echo "-L/opt/homebrew/lib -L/usr/local/lib -lglfw")
+  endif
   INCLUDES += $(GLFW_CFLAGS)
   CFLAGS += $(GLFW_CFLAGS)
   CXXFLAGS += $(GLFW_CFLAGS)
   LFLAGS = $(GLFW_LIBS) \
-           -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo \
+           -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -framework QuartzCore \
            -lm -lpthread
 else ifneq ($(findstring MINGW,$(UNAME_S))$(findstring MSYS,$(UNAME_S))$(findstring CYGWIN,$(UNAME_S))$(findstring Windows,$(OS)),)
   # Windows MinGW-w64 / MSYS2 configuration
   CFLAGS += -DWIN32 $(shell pkg-config --cflags glfw3 2>/dev/null)
   CXXFLAGS += -DWIN32 $(shell pkg-config --cflags glfw3 2>/dev/null)
-  LFLAGS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw3") -lopengl32 -lglu32 -lgdi32 -luser32 -lkernel32 -lm -lpthread
+  LFLAGS = $(shell pkg-config --libs glfw3 2>/dev/null || echo "-lglfw3") -lopengl32 -lglu32 -lgdi32 -luser32 -lkernel32 -lm \
+          -static-libgcc -static-libstdc++ -static -lpthread
   OUT = ../../../bin/cgx_glfw.exe
 else
   # Linux configuration (Native Wayland & X11 via GLFW)
@@ -55,25 +67,30 @@ ULIB = \
  userFunction.c
 
 GLFW_LIB = \
+ cgx_capture.c \
  cgx_glut_glfw.c \
- cgx_iosevka_font.c
+ cgx_iosevka_font.c \
+ cgx_shaders.c \
+ cgx_vbo.c
 
 CPP_SRC = \
  uselibSNL.cpp \
  generateTet.cpp \
+ tetgen/tetgen.cxx \
+ tetgen/predicates.cxx \
  $(wildcard ../../libSNL/src/*.cpp)
 
 OUT ?= ../../bin/cgx_glfw
 
 SRCS = $(SLIB) $(ULIB) $(GLFW_LIB)
 OBJS = $(SRCS:.c=.o)
-CPP_OBJS = $(CPP_SRC:.cpp=.o)
+CPP_OBJS = $(patsubst %.cpp,%.o,$(patsubst %.cxx,%.o,$(CPP_SRC)))
 
 all: $(OUT)
 
 $(OUT): $(OBJS) $(CPP_OBJS)
-	@mkdir -p ../../bin
-	$(CXX) $(CFLAGS) $(OBJS) $(CPP_OBJS) -o $(OUT) $(LFLAGS)
+	@mkdir -p $(dir $(OUT))
+	$(CXX) $(CXXFLAGS) $(OBJS) $(CPP_OBJS) -o $(OUT) $(LFLAGS)
 	@mkdir -p ../../../bin && cp -f $(OUT) ../../../bin/cgx_glfw 2>/dev/null || true
 	@echo ">>> SUCCESS: Built $(OUT) <<<"
 
@@ -83,5 +100,11 @@ $(OUT): $(OBJS) $(CPP_OBJS)
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+%.o: %.cxx
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+test: $(OUT)
+	python3 ../../tests/run_tests.py
+
 clean:
-	rm -f $(OBJS) $(CPP_OBJS) $(OUT)
+	rm -f $(OBJS) $(CPP_OBJS) $(OUT) tetgen/*.o

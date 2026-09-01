@@ -9,5 +9,9 @@ cgx
 *.sta
 spooles.out
 all.vtu
+*.pvd
+build/
 cgx_glfw-*
+dist/
+temp/
 
