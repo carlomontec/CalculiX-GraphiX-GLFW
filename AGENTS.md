@@ -134,7 +134,7 @@ This document records the architectural standards, technical decisions, cross-pl
 
 ## 10. 🧪 Automated Test Suite & CI Validation
 * **Local Test Suite**:
-  * Run all 23 integration tests before reporting completion:
+  * Run all 24 integration tests before reporting completion:
     ```bash
     python3 tests/run_tests.py
     ```

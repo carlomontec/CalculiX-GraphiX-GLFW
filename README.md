@@ -34,6 +34,8 @@ There are two objectives of this project. First, is to explore agent-assisted re
 * **Native VTU/PVD Exporter**: Direct export of FEA results to ParaView-compatible `.vtu` and `.pvd` formats (`send all vtu all`).
 * **Integrated TetGen Mesher**: Native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1).
 
+![High-DPI 2D Plot](img/cgx_plot_cantilever.png)
+
 > 📖 **Deep Dive**: For full details on all GUI enhancements, see [**GUI Extra Features**](GUI_EXTRA_FEATURES.md). For 2D plotting and companion scripts, see [**Modern 2D Plotting**](MODERN_2D_PLOTTING.md). For technical rendering architecture, see [**Modern 3D Pipeline Architecture**](MODERN_3D_PIPELINE.md).
 
 ---

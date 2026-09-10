@@ -57,6 +57,13 @@ The plotting engine distinguishes between two operating contexts: **Light Mode (
 * **Light Mode (Academic Publication)**: Defaults to high-quality serif typography matching standard LaTeX articles and academic journals (native `STIX Two Text` on macOS, `DejaVu Serif` or `Liberation Serif` on Linux, `Cambria` on Windows).
 * **Dark Mode (Screen & Slides)**: Matches CGX's dark slate palette (`#0D121A`) using clean sans-serif typography (`Inter`, `Helvetica`, `Arial`).
 
+### Visual Comparison: Dark vs. Light Mode
+
+| Dark Mode (Screen & Presentation) | Light Mode (Academic Publication) |
+| :---: | :---: |
+| ![Dark Mode Plot](img/cgx_plot_cantilever.png) | ![Light Mode Plot](img/cgx_plot_light.png) |
+| *Nonlinear cantilever tip displacement (Inter sans-serif, #0D121A dark theme)* | *1D spatial stress path (STIX Two Text serif, publication paper)* |
+
 ### Geometry & Margin Protection
 
 To guarantee that high-DPI titles, sub-titles, and negative-offset axis labels are never cropped at the canvas boundary, all Gnuplot scripts enforce explicit screen margin boundaries:

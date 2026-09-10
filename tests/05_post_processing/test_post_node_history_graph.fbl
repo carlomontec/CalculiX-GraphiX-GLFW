@@ -1,0 +1,19 @@
+# ==============================================================================
+# Test: 05_post_processing / test_post_node_history_graph.fbl
+# Description: Validates multi-step node history 2D graph generation across time steps
+#              (Gnuplot script, high-DPI output, data table, and Python companion script)
+# ==============================================================================
+
+# 1. Read 10-increment nonlinear cantilever result
+read ../../../../test/nlbeam/cantilever_nl.frd
+
+# 2. Select end nodeset
+seta tip_nodes n 5 6 7 8 22 25 28 31 100
+
+# 3. Generate 2D graph of vertical displacement (D2) over time
+graph tip_nodes t DISP D2
+
+# 4. Status print and quit
+prnt se tip_nodes
+
+quit
