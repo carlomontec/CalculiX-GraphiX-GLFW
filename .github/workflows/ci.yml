@@ -17,7 +17,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
-          brew install glfw pkg-config cmake
+          brew install glfw pkg-config cmake gnuplot
 
       - name: Configure CMake (Standalone Static GLFW)
         run: |
@@ -68,7 +68,8 @@ jobs:
             libgl1-mesa-dev \
             libglu1-mesa-dev \
             fonts-dejavu-core \
-            fonts-liberation
+            fonts-liberation \
+            gnuplot
 
       - name: Configure CMake
         run: |
@@ -110,7 +111,8 @@ jobs:
             libglu1-mesa-dev \
             fonts-dejavu-core \
             fonts-liberation \
-            python3
+            python3 \
+            gnuplot
 
       - name: Configure CMake
         run: |
@@ -152,6 +154,7 @@ jobs:
             mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-python
+            mingw-w64-x86_64-gnuplot
 
       - name: Configure and Build with CMake
         shell: msys2 {0}
