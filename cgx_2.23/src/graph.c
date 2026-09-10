@@ -95,6 +95,244 @@ extern SpecialSet specialset[1];
 
 extern int graph_Nr;
 extern int graph_on; 
+extern int backgrndcol;
+
+static const char *get_viewformat_ext(void)
+{
+  if (viewformat[0] == 's' && viewformat[1] == 'v') return "svg";
+  if (viewformat[0] == 'p' && viewformat[1] == 'd') return "pdf";
+  if (viewformat[0] == 'p' && viewformat[1] == 's') return "ps";
+  return "png";
+}
+
+static void write_gnuplot_styling(FILE *handle_gnu, const char *out_filename, const char *title, const char *xlabel, const char *ylabel)
+{
+  if (viewformat[0] == 's' && viewformat[1] == 'v')
+  {
+    fprintf(handle_gnu, "set term svg enhanced font \"STIX Two Text,DejaVu Serif,Liberation Serif,Cambria,serif,18\" size 1600,1000\n");
+  }
+  else if (viewformat[0] == 'p' && viewformat[1] == 'd')
+  {
+    fprintf(handle_gnu, "set term pdfcairo enhanced font \"STIX Two Text,DejaVu Serif,Liberation Serif,Cambria,serif,14\" size 10,6.5\n");
+  }
+  else if (viewformat[0] == 'p' && viewformat[1] == 's')
+  {
+    fprintf(handle_gnu, "set term postscript landscape color enhanced font \"STIX-Regular,DejaVuSerif,Times-Roman,16\"\n");
+  }
+  else
+  {
+    /* Default: High-DPI Anti-Aliased PNG (pngcairo) */
+    if (backgrndcol == 0)
+      fprintf(handle_gnu, "set term pngcairo enhanced font \"Inter,Helvetica,Arial,DejaVu Sans,sans-serif,18\" size 1600,1000\n");
+    else
+      fprintf(handle_gnu, "set term pngcairo enhanced font \"STIX Two Text,DejaVu Serif,Liberation Serif,Cambria,serif,18\" size 1600,1000\n");
+  }
+
+  fprintf(handle_gnu, "set output \"%s\"\n", out_filename);
+
+  if (backgrndcol == 0 && !(viewformat[0] == 'p' && viewformat[1] == 'd'))
+  {
+    /* Modern CGX Dark Theme (#0D121A) — Large Presentation Typography */
+    fprintf(handle_gnu, "set object 1 rectangle from screen 0,0 to screen 1,1 fillcolor rgb \"#0D121A\" behind\n");
+    fprintf(handle_gnu, "set border 31 lw 2.0 lc rgb \"#4A5568\"\n");
+    fprintf(handle_gnu, "set tics textcolor rgb \"#CBD5E0\" font \",16\"\n");
+    if (!title || strcmp(title, "Material Properties") != 0)
+    {
+      fprintf(handle_gnu, "set lmargin at screen 0.12\n");
+      fprintf(handle_gnu, "set rmargin at screen 0.84\n");
+      fprintf(handle_gnu, "set bmargin at screen 0.12\n");
+      fprintf(handle_gnu, "set tmargin at screen 0.91\n");
+    }
+    if (xlabel && xlabel[0]) fprintf(handle_gnu, "set xlabel \"%s\" textcolor rgb \"#F1F5F9\" font \",20\" offset 0,-0.8 noenhanced\n", xlabel);
+    if (ylabel && ylabel[0]) fprintf(handle_gnu, "set ylabel \"%s\" textcolor rgb \"#F1F5F9\" font \",20\" offset -1.5,0 noenhanced\n", ylabel);
+    if (title && title[0])   fprintf(handle_gnu, "set title \"%s\" textcolor rgb \"#F1F5F9\" font \",24\" offset 0,0.5 noenhanced\n", title);
+    fprintf(handle_gnu, "set grid xtics ytics lt 1 dt 2 lc rgb \"#2D3748\" lw 1.8\n");
+    fprintf(handle_gnu, "set key outside right top box lc rgb \"#4A5568\" opaque fillcolor rgb \"#161E2E\" spacing 1.4 font \",16\" textcolor rgb \"#E2E8F0\" noenhanced\n");
+
+    /* Vibrant, high-contrast dark-mode palette */
+    fprintf(handle_gnu, "set linetype 1 lc rgb \"#63B3ED\" lw 3.0 pt 7 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 2 lc rgb \"#FC8181\" lw 3.0 pt 5 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 3 lc rgb \"#68D391\" lw 3.0 pt 9 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 4 lc rgb \"#F6AD55\" lw 3.0 pt 11 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 5 lc rgb \"#B794F4\" lw 3.0 pt 13 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 6 lc rgb \"#4FD1C5\" lw 3.0 pt 4 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 7 lc rgb \"#F6E05E\" lw 3.0 pt 6 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 8 lc rgb \"#F687B3\" lw 3.0 pt 8 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype cycle 8\n");
+  }
+  else
+  {
+    /* Publication Light Theme (Pure White with STIX Two styling) — Large Presentation Typography */
+    fprintf(handle_gnu, "set object 1 rectangle from screen 0,0 to screen 1,1 fillcolor rgb \"#FFFFFF\" behind\n");
+    fprintf(handle_gnu, "set border 31 lw 2.0 lc rgb \"#2D3748\"\n");
+    fprintf(handle_gnu, "set tics textcolor rgb \"#2D3748\" font \",16\"\n");
+    if (!title || strcmp(title, "Material Properties") != 0)
+    {
+      fprintf(handle_gnu, "set lmargin at screen 0.12\n");
+      fprintf(handle_gnu, "set rmargin at screen 0.84\n");
+      fprintf(handle_gnu, "set bmargin at screen 0.12\n");
+      fprintf(handle_gnu, "set tmargin at screen 0.91\n");
+    }
+    if (xlabel && xlabel[0]) fprintf(handle_gnu, "set xlabel \"%s\" textcolor rgb \"#1A202C\" font \",20\" offset 0,-0.8 noenhanced\n", xlabel);
+    if (ylabel && ylabel[0]) fprintf(handle_gnu, "set ylabel \"%s\" textcolor rgb \"#1A202C\" font \",20\" offset -1.5,0 noenhanced\n", ylabel);
+    if (title && title[0])   fprintf(handle_gnu, "set title \"%s\" textcolor rgb \"#1A202C\" font \",24\" offset 0,0.5 noenhanced\n", title);
+    fprintf(handle_gnu, "set grid xtics ytics lt 1 dt 2 lc rgb \"#CBD5E1\" lw 1.8\n");
+    fprintf(handle_gnu, "set key outside right top box lc rgb \"#CBD5E0\" opaque spacing 1.4 font \",16\" textcolor rgb \"#1A202C\" noenhanced\n");
+
+    /* Publication-grade high-contrast colorblind-safe palette */
+    fprintf(handle_gnu, "set linetype 1 lc rgb \"#3182CE\" lw 3.0 pt 7 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 2 lc rgb \"#E53E3E\" lw 3.0 pt 5 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 3 lc rgb \"#38A169\" lw 3.0 pt 9 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 4 lc rgb \"#DD6B20\" lw 3.0 pt 11 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 5 lc rgb \"#805AD5\" lw 3.0 pt 13 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 6 lc rgb \"#00B5D8\" lw 3.0 pt 4 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 7 lc rgb \"#D69E2E\" lw 3.0 pt 6 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype 8 lc rgb \"#ED64A6\" lw 3.0 pt 8 ps 1.8\n");
+    fprintf(handle_gnu, "set linetype cycle 8\n");
+  }
+}
+
+static void execute_and_view_plot(const char *gnu_script, const char *out_image)
+{
+  char cmd[MAX_LINE_LENGTH * 2];
+  int ret;
+
+  printf("write %s \n", out_image);
+  snprintf(cmd, sizeof(cmd), "gnuplot %s", gnu_script);
+  ret = system(cmd);
+  if (ret != 0)
+  {
+    printf("\n WARNING: 'gnuplot' execution failed or gnuplot was not found in PATH.\n");
+    printf(" To view 2D plots, please ensure gnuplot is installed:\n");
+    printf("   • macOS: brew install gnuplot\n");
+    printf("   • Linux: sudo apt install gnuplot  (or pacman -S gnuplot)\n");
+    printf("   • Windows: pacman -S mingw-w64-x86_64-gnuplot\n\n");
+    return;
+  }
+
+  if (inpformat && graph_on)
+  {
+    FILE *test_f = fopen(out_image, "rb");
+    if (test_f)
+    {
+      fclose(test_f);
+#ifdef WIN32
+      snprintf(cmd, sizeof(cmd), "cmd.exe /c start \"\" \"%s\"", out_image);
+#else
+      snprintf(cmd, sizeof(cmd), "%s \"%s\" &", psviewer, out_image);
+#endif
+      system(cmd);
+    }
+  }
+}
+
+static void write_python_companion_single(const char *py_file, const char *data_file, const char *title, const char *xlabel, const char *ylabel, const char *series_name, int x_col_1based, int y_col_1based)
+{
+  FILE *f = fopen(py_file, "w");
+  if (!f) return;
+  fprintf(f, "#!/usr/bin/env python3\n");
+  fprintf(f, "# ==============================================================================\n");
+  fprintf(f, "# CalculiX GraphiX (CGX GLFW) - Auto-Generated Matplotlib Companion Plot\n");
+  fprintf(f, "# ==============================================================================\n");
+  fprintf(f, "import sys\n");
+  fprintf(f, "import numpy as np\n");
+  fprintf(f, "import matplotlib.pyplot as plt\n\n");
+  fprintf(f, "try:\n");
+  fprintf(f, "    data = np.loadtxt('%s')\n", data_file);
+  fprintf(f, "except Exception as e:\n");
+  fprintf(f, "    print(f'Error reading %s: {e}', file=sys.stderr)\n", data_file);
+  fprintf(f, "    sys.exit(1)\n\n");
+  fprintf(f, "if data.ndim == 1:\n");
+  fprintf(f, "    data = data.reshape(1, -1)\n\n");
+  fprintf(f, "x = data[:, %d]\n", x_col_1based - 1);
+  fprintf(f, "y = data[:, %d]\n\n", y_col_1based - 1);
+  fprintf(f, "plt.figure(figsize=(10, 6), dpi=150)\n");
+  fprintf(f, "plt.plot(x, y, 'o-', color='#1F77B4', lw=2.8, markersize=7, label='%s')\n", series_name);
+  fprintf(f, "plt.title('%s', fontsize=20, fontweight='bold', pad=14)\n", title);
+  fprintf(f, "plt.xlabel('%s', fontsize=16, labelpad=8)\n", xlabel);
+  fprintf(f, "plt.ylabel('%s', fontsize=16, labelpad=8)\n", ylabel);
+  fprintf(f, "plt.tick_params(axis='both', which='major', labelsize=14)\n");
+  fprintf(f, "plt.grid(True, linestyle='--', alpha=0.6)\n");
+  fprintf(f, "plt.legend(frameon=True, loc='best', fontsize=14)\n");
+  fprintf(f, "plt.tight_layout(pad=1.8)\n");
+  fprintf(f, "plt.savefig('%s.png', dpi=300)\n", data_file);
+  fprintf(f, "plt.show()\n");
+  fclose(f);
+}
+
+static void write_python_companion_multi(const char *py_file, const char *data_file, const char *title, const char *xlabel, const char *ylabel, int num_series, int start_col_1based, const char *prefix)
+{
+  FILE *f = fopen(py_file, "w");
+  int i;
+  if (!f) return;
+  fprintf(f, "#!/usr/bin/env python3\n");
+  fprintf(f, "# ==============================================================================\n");
+  fprintf(f, "# CalculiX GraphiX (CGX GLFW) - Auto-Generated Matplotlib Companion Plot\n");
+  fprintf(f, "# ==============================================================================\n");
+  fprintf(f, "import sys\n");
+  fprintf(f, "import numpy as np\n");
+  fprintf(f, "import matplotlib.pyplot as plt\n\n");
+  fprintf(f, "try:\n");
+  fprintf(f, "    data = np.loadtxt('%s')\n", data_file);
+  fprintf(f, "except Exception as e:\n");
+  fprintf(f, "    print(f'Error reading %s: {e}', file=sys.stderr)\n", data_file);
+  fprintf(f, "    sys.exit(1)\n\n");
+  fprintf(f, "if data.ndim == 1:\n");
+  fprintf(f, "    data = data.reshape(1, -1)\n\n");
+  fprintf(f, "plt.figure(figsize=(10, 6), dpi=150)\n");
+  fprintf(f, "x = data[:, 0]\n");
+  for (i = 0; i < num_series; i++)
+  {
+    fprintf(f, "plt.plot(x, data[:, %d], 'o-', lw=2.8, markersize=7, label='%s%d')\n", start_col_1based - 1 + i, prefix, i + 1);
+  }
+  fprintf(f, "plt.title('%s', fontsize=20, fontweight='bold', pad=14)\n", title);
+  fprintf(f, "plt.xlabel('%s', fontsize=16, labelpad=8)\n", xlabel);
+  fprintf(f, "plt.ylabel('%s', fontsize=16, labelpad=8)\n", ylabel);
+  fprintf(f, "plt.tick_params(axis='both', which='major', labelsize=14)\n");
+  fprintf(f, "plt.grid(True, linestyle='--', alpha=0.6)\n");
+  fprintf(f, "plt.legend(frameon=True, loc='best', fontsize=14)\n");
+  fprintf(f, "plt.tight_layout(pad=1.8)\n");
+  fprintf(f, "plt.savefig('%s.png', dpi=300)\n", data_file);
+  fprintf(f, "plt.show()\n");
+  fclose(f);
+}
+
+static void write_python_companion_nodes(const char *py_file, const char *data_file, const char *title, const char *xlabel, const char *ylabel, int x_col_1based, int anz_n, const int *node_ids)
+{
+  FILE *f = fopen(py_file, "w");
+  int i;
+  if (!f) return;
+  fprintf(f, "#!/usr/bin/env python3\n");
+  fprintf(f, "# ==============================================================================\n");
+  fprintf(f, "# CalculiX GraphiX (CGX GLFW) - Auto-Generated Matplotlib Companion Plot\n");
+  fprintf(f, "# ==============================================================================\n");
+  fprintf(f, "import sys\n");
+  fprintf(f, "import numpy as np\n");
+  fprintf(f, "import matplotlib.pyplot as plt\n\n");
+  fprintf(f, "try:\n");
+  fprintf(f, "    data = np.loadtxt('%s')\n", data_file);
+  fprintf(f, "except Exception as e:\n");
+  fprintf(f, "    print(f'Error reading %s: {e}', file=sys.stderr)\n", data_file);
+  fprintf(f, "    sys.exit(1)\n\n");
+  fprintf(f, "if data.ndim == 1:\n");
+  fprintf(f, "    data = data.reshape(1, -1)\n\n");
+  fprintf(f, "plt.figure(figsize=(10, 6), dpi=150)\n");
+  fprintf(f, "x = data[:, %d]\n", x_col_1based - 1);
+  for (i = 0; i < anz_n; i++)
+  {
+    fprintf(f, "plt.plot(x, data[:, %d], 'o-', lw=2.8, markersize=7, label='Node %d')\n", i + 4, node_ids[i]);
+  }
+  fprintf(f, "plt.title('%s', fontsize=20, fontweight='bold', pad=14)\n", title);
+  fprintf(f, "plt.xlabel('%s', fontsize=16, labelpad=8)\n", xlabel);
+  fprintf(f, "plt.ylabel('%s', fontsize=16, labelpad=8)\n", ylabel);
+  fprintf(f, "plt.tick_params(axis='both', which='major', labelsize=14)\n");
+  fprintf(f, "plt.grid(True, linestyle='--', alpha=0.6)\n");
+  fprintf(f, "plt.legend(frameon=True, loc='best', fontsize=14)\n");
+  fprintf(f, "plt.tight_layout(pad=1.8)\n");
+  fprintf(f, "plt.savefig('%s.png', dpi=300)\n", data_file);
+  fprintf(f, "plt.show()\n");
+  fclose(f);
+}
 
 
 void length2D(int setNr, int dsNr, int entity )
@@ -102,8 +340,13 @@ void length2D(int setNr, int dsNr, int entity )
   FILE *handle_out, *handle_gnu;
   int    n;
   double dx,dy,dz, sum_l=0.;
-
   char  buffer[MAX_LINE_LENGTH];
+  char  img_name[MAX_LINE_LENGTH];
+  char  title_buf[MAX_LINE_LENGTH];
+  char  py_name[MAX_LINE_LENGTH];
+  char  out_name[MAX_LINE_LENGTH];
+  const char *ext;
+
   graph_Nr++;
 
   /* create special purpose plotfile, one line per node */
@@ -126,62 +369,27 @@ void length2D(int setNr, int dsNr, int entity )
   fclose(handle_out);
 
   /* gnuplot-command-file  */
+  ext = get_viewformat_ext();
+  snprintf(img_name, sizeof(img_name), "graph_%d.%s", graph_Nr, ext);
+  snprintf(out_name, sizeof(out_name), "graph_%d.out", graph_Nr);
+  snprintf(title_buf, sizeof(title_buf), "Values at Nodes (%s)", (datin[0] != '\0') ? datin : set[setNr].name);
 
   sprintf(buffer, "graph_%d.gnu", graph_Nr);
   handle_gnu = fopen (buffer, "w+b" );
   if (handle_gnu==NULL) { printf ("\nThe output file \"%s\" could not be opened.\n\n",buffer); return;}
-  if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-  {
-    fprintf(handle_gnu, "set term png\n");
-    sprintf(buffer, "graph_%d.png", graph_Nr);
-    fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    fprintf(handle_gnu, "set grid\n");
-    fprintf(handle_gnu, "set title \"Values at Nodes\"\n");
-  }
-  else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-  {
-    fprintf(handle_gnu, "set term postscript landscape monochrom noenhanced \n");
-    fprintf(handle_gnu, "#set term x11 \n");
-    sprintf(buffer, "graph_%d.ps", graph_Nr);
-    fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    fprintf(handle_gnu, "set grid\n");
-    fprintf(handle_gnu, "set title \"Values at Nodes (%s)\"\n", datin);
-  }
-  else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
-  
-  fprintf(handle_gnu, "set ylabel \" %s \"\n", lcase[dsNr].compName[entity]);
-  sprintf(buffer, "graph_%d.out", graph_Nr);
-  fprintf(handle_gnu, "set xlabel \" Length \"\n");
-  fprintf(handle_gnu, "plot ");
-  fprintf(handle_gnu, "\"%s\" using 2:3 title 'Setname %s' with linespoints\n", buffer, set[setNr].name );
 
+  write_gnuplot_styling(handle_gnu, img_name, title_buf, "Length", lcase[dsNr].compName[entity]);
+
+  fprintf(handle_gnu, "plot \"%s\" using 2:3 title 'Set %s' with linespoints\n", out_name, set[setNr].name );
   fclose(handle_gnu);
 
-  if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-  {
-    sprintf(buffer, "graph_%d.png", graph_Nr);
-    printf ("write %s \n", buffer);
-    sprintf(buffer, "gnuplot graph_%d.gnu", graph_Nr );
-    system (buffer);
-#ifdef WIN32
-    //if((inpformat)&&(graph_on)) sprintf(buffer, "%s graph_%d.png &", psviewer, graph_Nr );
-    if((inpformat)&&(graph_on)) sprintf(buffer, "graph_%d.png &", graph_Nr );
-    system (buffer);
-#else
-    if((inpformat)&&(graph_on)) sprintf(buffer, "%s graph_%d.png &", psviewer, graph_Nr );
-    system (buffer);
-#endif
-  }
-  else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-  {
-    sprintf(buffer, "graph_%d.ps", graph_Nr);
-    printf ("write %s \n", buffer);
-    sprintf(buffer, "gnuplot graph_%d.gnu", graph_Nr );
-    system (buffer);
-    if((inpformat)&&(graph_on)) sprintf(buffer, "%s graph_%d.ps &", psviewer, graph_Nr );
-    system (buffer);
-  }
-  else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
+  /* python companion script */
+  snprintf(py_name, sizeof(py_name), "graph_%d.py", graph_Nr);
+  write_python_companion_single(py_name, out_name, title_buf, "Length", lcase[dsNr].compName[entity], set[setNr].name, 2, 3);
+
+  /* execute and view plot */
+  sprintf(buffer, "graph_%d.gnu", graph_Nr);
+  execute_and_view_plot(buffer, img_name);
   printf ("ready \n");
 }
 
@@ -261,70 +469,39 @@ void param2D(char *par1, int *dsNr, char *par2 )
 
 
   /* gnuplot-command-file  */
+  const char *ext = get_viewformat_ext();
+  char img_name[MAX_LINE_LENGTH];
+  char title_buf[MAX_LINE_LENGTH];
+  char py_name[MAX_LINE_LENGTH];
+  char out_name[MAX_LINE_LENGTH];
+
+  snprintf(img_name, sizeof(img_name), "graph_%d.%s", graph_Nr, ext);
+  snprintf(out_name, sizeof(out_name), "graph_%d.out", graph_Nr);
+  snprintf(title_buf, sizeof(title_buf), "File: %s", (datin[0] != '\0') ? datin : "Parameter Plot");
 
   sprintf(buffer, "graph_%d.gnu", graph_Nr);
   handle_gnu = fopen (buffer, "w+b" );
   if (handle_gnu==NULL) { printf ("\nThe output file \"%s\" could not be opened.\n\n",
      buffer); return;}
-  if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-  {
-    fprintf(handle_gnu, "set term png\n");
-    sprintf(buffer, "graph_%d.png", graph_Nr);
-    fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    fprintf(handle_gnu, "set grid\n");
-//  fprintf(handle_gnu, "set title \"File:%s\"\n", datin);
-  }
-  else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-  {
-    fprintf(handle_gnu, "set term postscript landscape monochrom noenhanced \n");
-    fprintf(handle_gnu, "#set term x11 \n");
-    sprintf(buffer, "graph_%d.ps", graph_Nr);
-    fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    fprintf(handle_gnu, "set grid\n");
-    fprintf(handle_gnu, "set title \"File:%s\"\n", datin);
-  }
-  else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
 
-  fprintf(handle_gnu, "set xlabel \" %s \"\n", par1);
-  fprintf(handle_gnu, "set ylabel \" %s \"\n", par2);
-
-  sprintf(buffer, "graph_%d.out", graph_Nr);
+  write_gnuplot_styling(handle_gnu, img_name, title_buf, par1, par2);
 
   fprintf(handle_gnu, "plot ");
   for (i=0; i<anz_val-1; i++)
   {
-    fprintf(handle_gnu, "\"%s\" using 1:%d title 'val%d' with linespoints pt %d, ", buffer, i+2, i+1, i+1);
+    fprintf(handle_gnu, "\"%s\" using 1:%d title 'val%d' with linespoints, ", out_name, i+2, i+1);
   }
-  fprintf(handle_gnu, "\"%s\" using 1:%d title 'val%d' with linespoints pt %d\n", buffer, i+2, i+1, i+1);
+  fprintf(handle_gnu, "\"%s\" using 1:%d title 'val%d' with linespoints\n", out_name, i+2, i+1);
   fprintf(handle_gnu, "\n");
   fclose(handle_gnu);
 
-  if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-  {
-    sprintf(buffer, "graph_%d.png", graph_Nr);
-    printf ("write %s \n", buffer);
-    sprintf(buffer, "gnuplot graph_%d.gnu", graph_Nr );
-    system (buffer);
-#ifdef WIN32
-    //if((inpformat)&&(graph_on))   sprintf(buffer, "%s graph_%d.png &", psviewer, graph_Nr );
-    if((inpformat)&&(graph_on))  sprintf(buffer, "graph_%d.png &", graph_Nr );
-    system (buffer);
-#else
-    if((inpformat)&&(graph_on))   sprintf(buffer, "%s graph_%d.png &", psviewer, graph_Nr );
-    system (buffer);
-#endif
-  }
-  else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-  {
-    sprintf(buffer, "graph_%d.ps", graph_Nr);
-    printf ("write %s \n", buffer);
-    sprintf(buffer, "gnuplot graph_%d.gnu", graph_Nr );
-    system (buffer);
-    if((inpformat)&&(graph_on))  sprintf(buffer, "%s graph_%d.ps &", psviewer, graph_Nr );
-    system (buffer);
-  }
-  else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
+  /* python companion script */
+  snprintf(py_name, sizeof(py_name), "graph_%d.py", graph_Nr);
+  write_python_companion_multi(py_name, out_name, title_buf, par1, par2, anz_val, 2, "val");
 
+  /* execute and view plot */
+  sprintf(buffer, "graph_%d.gnu", graph_Nr);
+  execute_and_view_plot(buffer, img_name);
   printf ("ready \n");
 }
 
@@ -612,121 +789,73 @@ void plot2D(char *type, int setNr, int *dsNr, int entity )
   fclose(handle_out);
 
   /* gnuplot-command-file  */
+  const char *ext = get_viewformat_ext();
+  char img_name[MAX_LINE_LENGTH];
+  char title_buf[MAX_LINE_LENGTH];
+  char py_name[MAX_LINE_LENGTH];
+  char out_name[MAX_LINE_LENGTH];
+  const char *xlabel_str = "Time";
+  int x_col_1based = 3;
+
+  snprintf(img_name, sizeof(img_name), "graph_%d.%s", graph_Nr, ext);
+  snprintf(out_name, sizeof(out_name), "graph_%d.out", graph_Nr);
+  snprintf(title_buf, sizeof(title_buf), "Values at Nodes (%s)", (datin[0] != '\0') ? datin : set[setNr].name);
+
+  if((type[0]=='S')||(type[0]=='s'))
+  {
+    xlabel_str = "Step";
+    x_col_1based = 1;
+  }
+  else if((type[0]=='N')||(type[0]=='n'))
+  {
+    xlabel_str = "Dataset";
+    x_col_1based = 2;
+  }
+  else if((type[0]=='T')||(type[0]=='t'))
+  {
+    xlabel_str = "Time";
+    x_col_1based = 3;
+  }
+  else if((type[0]=='F')||(type[0]=='f')||(type[0]=='j'))
+  {
+    xlabel_str = "Frequency";
+    x_col_1based = 3;
+  }
+  else if((type[0]=='D')||(type[0]=='d'))
+  {
+    xlabel_str = "Description";
+    x_col_1based = 4;
+  }
+  else
+  {
+    xlabel_str = type;
+    x_col_1based = 3;
+  }
 
   sprintf(buffer, "graph_%d.gnu", graph_Nr);
   handle_gnu = fopen (buffer, "w+b" );
   if (handle_gnu==NULL) { printf ("\nThe output file \"%s\" could not be opened.\n\n",
      buffer); return;}
-  if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-  {
-    fprintf(handle_gnu, "set term png\n");
-    sprintf(buffer, "graph_%d.png", graph_Nr);
-    fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    fprintf(handle_gnu, "set title \"Values at Nodes\"\n");
-  }
-  else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-  {
-    fprintf(handle_gnu, "set term postscript landscape monochrom noenhanced \n");
-    fprintf(handle_gnu, "#set term x11 \n");
-    sprintf(buffer, "graph_%d.ps", graph_Nr);
-    fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    fprintf(handle_gnu, "set title \"Values at Nodes (%s)\"\n", datin);
-  }
-  else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
 
-  fprintf(handle_gnu, "set grid\n");
-  fprintf(handle_gnu, "set ylabel \" %s \"\n", lcase[dsNr[1]].compName[entity]);
+  write_gnuplot_styling(handle_gnu, img_name, title_buf, xlabel_str, lcase[dsNr[1]].compName[entity]);
 
-  sprintf(buffer, "graph_%d.out", graph_Nr);
-  if((type[0]=='S')||(type[0]=='s'))
+  fprintf(handle_gnu, "plot ");
+  for (n=0; n<set[setNr].anz_n-1; n++)
   {
-    fprintf(handle_gnu, "set xlabel \" Step \"\n");
-    fprintf(handle_gnu, "plot ");
-    for (n=0; n<set[setNr].anz_n-1; n++)
-    {
-      fprintf(handle_gnu, "\"%s\" using 1:%d title 'Node=%d' with linespoints pt %d, ",
-	      buffer, n+5, set[setNr].node[n], n+1);
-    }
-    fprintf(handle_gnu, "\"%s\" using 1:%d title 'Node=%d' with linespoints pt %d\n",
-            buffer, n+5, set[setNr].node[n], n+1);
+    fprintf(handle_gnu, "\"%s\" using %d:%d title 'Node=%d' with linespoints, ",
+      out_name, x_col_1based, n+5, set[setNr].node[n]);
   }
-  else if((type[0]=='N')||(type[0]=='n'))
-  {
-    fprintf(handle_gnu, "set xlabel \" Dataset \"\n");
-    fprintf(handle_gnu, "plot ");
-    for (n=0; n<set[setNr].anz_n-1; n++)
-    {
-      fprintf(handle_gnu, "\"%s\" using 2:%d title 'Node=%d' with linespoints pt %d, ",
-            buffer, n+5, set[setNr].node[n], n+1);
-    }
-    fprintf(handle_gnu, "\"%s\" using 2:%d title 'Node=%d' with linespoints pt %d\n",
-            buffer, n+5, set[setNr].node[n], n+1);
-  }
-  else if((type[0]=='T')||(type[0]=='t')||(type[0]=='F')||(type[0]=='j'))
-  {
-    if((type[0]=='T')||(type[0]=='t')) fprintf(handle_gnu, "set xlabel \" Time \"\n");
-    else fprintf(handle_gnu, "set xlabel \" Frequency \"\n");
-    fprintf(handle_gnu, "plot ");
-    for (n=0; n<set[setNr].anz_n-1; n++)
-    {
-      fprintf(handle_gnu, "\"%s\" using 3:%d title 'Node=%d' with linespoints pt %d, ",
-            buffer, n+5, set[setNr].node[n], n+1);
-    }
-    fprintf(handle_gnu, "\"%s\" using 3:%d title 'Node=%d' with linespoints pt %d\n ",
-            buffer, n+5, set[setNr].node[n], n+1);
-  }
-  else if((type[0]=='D')||(type[0]=='d'))
-  {
-    fprintf(handle_gnu, "set xlabel \" Description \"\n");
-    fprintf(handle_gnu, "plot ");
-    for (n=0; n<set[setNr].anz_n-1; n++)
-    {
-      fprintf(handle_gnu, "\"%s\" using 4:%d title 'Node=%d' with linespoints pt %d, ",
-            buffer, n+5, set[setNr].node[n], n+1);
-    }
-    fprintf(handle_gnu, "\"%s\" using 4:%d title 'Node=%d' with linespoints pt %d\n ",
-            buffer, n+5, set[setNr].node[n], n+1);
-  }
-  else
-  {
-    fprintf(handle_gnu, "set xlabel \" %s \"\n", type);
-    fprintf(handle_gnu, "plot ");
-    for (n=0; n<set[setNr].anz_n-1; n++)
-    {
-      fprintf(handle_gnu, "\"%s\" using 3:%d title 'Node=%d' with linespoints pt %d, ",
-            buffer, n+5, set[setNr].node[n], n+1);
-    }
-    fprintf(handle_gnu, "\"%s\" using 3:%d title 'Node=%d' with linespoints pt %d\n ",
-            buffer, n+5, set[setNr].node[n], n+1);
-  }
-
+  fprintf(handle_gnu, "\"%s\" using %d:%d title 'Node=%d' with linespoints\n",
+    out_name, x_col_1based, n+5, set[setNr].node[n]);
   fclose(handle_gnu);
 
-  if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-  {
-    sprintf(buffer, "graph_%d.png", graph_Nr);
-    printf ("write %s \n", buffer);
-    sprintf(buffer, "gnuplot graph_%d.gnu", graph_Nr );
-    system (buffer);
-#ifdef WIN32
-    //if((inpformat)&&(graph_on))  sprintf(buffer, "%s graph_%d.png &", psviewer, graph_Nr );
-    if((inpformat)&&(graph_on))  sprintf(buffer, "graph_%d.png &", graph_Nr );
-    system (buffer);
-#else
-    if((inpformat)&&(graph_on))   sprintf(buffer, "%s graph_%d.png &", psviewer, graph_Nr );
-    system (buffer);
-#endif
-  }
-  else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-  {
-    sprintf(buffer, "graph_%d.ps", graph_Nr);
-    printf ("write %s \n", buffer);
-    sprintf(buffer, "gnuplot graph_%d.gnu", graph_Nr );
-    system (buffer);
-    if((inpformat)&&(graph_on))  sprintf(buffer, "%s graph_%d.ps &", psviewer, graph_Nr );
-    system (buffer);
-  }
-  else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
+  /* python companion script */
+  snprintf(py_name, sizeof(py_name), "graph_%d.py", graph_Nr);
+  write_python_companion_nodes(py_name, out_name, title_buf, xlabel_str, lcase[dsNr[1]].compName[entity], x_col_1based, set[setNr].anz_n, set[setNr].node);
+
+  /* execute and view plot */
+  sprintf(buffer, "graph_%d.gnu", graph_Nr);
+  execute_and_view_plot(buffer, img_name);
 
   for (i=0; i<set[setNr].anz_n; i++)  free(dat[i]);
   free(dat);
@@ -744,12 +873,11 @@ int graph( char *record)
   char name[MAX_LINE_LENGTH], type[MAX_LINE_LENGTH];
   char dataset[MAX_LINE_LENGTH], entity[MAX_LINE_LENGTH];
   char  buffer[MAX_LINE_LENGTH], **dat;
-  char addDispFlagLocal=0, zapFlag=0, viewformatBuf[3];
+  char addDispFlagLocal=0, zapFlag=0;
 
   int   copyset, copyseq, shellset, maxn=0, minn=0, jj;
   double gtolbuf, nref[3], vnrefn[3], dist, maxdist, mindist, buf;
   double vn1[3],vn2[3]; 
-  char  origpsviewer[MAX_LINE_LENGTH]=PSVIEWER;
   
   FILE *handle_out, *handle_gnu;
 
@@ -1106,9 +1234,9 @@ int graph( char *record)
   }
   else if (compare(type, "amp", 1)==1)
   {
-    // amp greates several pictures. Only ps can be used
-    strcpy(viewformatBuf,viewformat);
-    strcpy(viewformat,"ps");
+    const char *ext = get_viewformat_ext();
+    char img_name[MAX_LINE_LENGTH];
+    snprintf(img_name, sizeof(img_name), "amplitude.%s", ext);
 
     if(compareStrings(name, "all")>0) length=0;
     else length= strsplt( name, '*', &dat);
@@ -1146,70 +1274,27 @@ int graph( char *record)
     sprintf(buffer, "amplitude.gnu");
     handle_gnu = fopen (buffer, "w+b" );
     if (handle_gnu==NULL) { printf ("\nThe output file \"%s\" could not be opened.\n\n",buffer); return(-1);}
-    if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-    {
-      fprintf(handle_gnu, "set term png\n");
-      sprintf(buffer, "amplitude.png");
-      fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    }
-    else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-    {
-      fprintf(handle_gnu, "set term postscript landscape monochrom noenhanced \n");
-      fprintf(handle_gnu, "#set term x11 \n");
-      sprintf(buffer, "amplitude.ps");
-      fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    }
-    else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
 
-    fprintf(handle_gnu, "set grid\n");
-    fprintf(handle_gnu, "set title \"Amplitude\"\n");
-    fprintf(handle_gnu, "set ylabel \" y \"\n");
-    fprintf(handle_gnu, "set xlabel \" x \"\n");
+    write_gnuplot_styling(handle_gnu, img_name, "Amplitude", "x", "y");
+
     for (nr=0; nr<anz_lc; nr++)
     {
       sprintf(buffer, "%s.out", amplitude[dsNr[nr]].name);
-      if(nr) fprintf(handle_gnu, ", \"%s\" using 2:3 title '%s' with linespoints pt %d\\\n", buffer, amplitude[dsNr[nr]].name, nr+1);
-      else fprintf(handle_gnu, "plot \"%s\" using 2:3 title '%s' with linespoints pt %d\\\n", buffer, amplitude[dsNr[nr]].name, nr+1);
+      if(nr) fprintf(handle_gnu, ", \"%s\" using 2:3 title '%s' with linespoints\\\n", buffer, amplitude[dsNr[nr]].name);
+      else fprintf(handle_gnu, "plot \"%s\" using 2:3 title '%s' with linespoints\\\n", buffer, amplitude[dsNr[nr]].name);
     }
     if(nr) fprintf(handle_gnu, "\n");
     fclose(handle_gnu);
 
-    if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-    {
-      sprintf(buffer, "amplitude.png");
-      printf ("write %s \n", buffer);
-      sprintf(buffer, "gnuplot amplitude.gnu" );
-      system (buffer);
-#ifdef WIN32
-      //if((inpformat)&&(graph_on))   sprintf(buffer, "%s amplitude.png &", psviewer );
-      if((inpformat)&&(graph_on))  sprintf(buffer, "amplitude.png &");
-      system (buffer);
-#else
-      if((inpformat)&&(graph_on))   sprintf(buffer, "%s amplitude.png &", psviewer );
-      system (buffer);
-#endif
-    }
-    else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-    {  
-      sprintf(buffer, "amplitude.ps");
-      printf ("write %s \n", buffer);
-      sprintf(buffer, "gnuplot amplitude.gnu" );
-      system (buffer);
-      if((inpformat)&&(graph_on))  sprintf(buffer, "%s amplitude.ps &", origpsviewer );
-      system (buffer);
-    }
-    else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
-
+    execute_and_view_plot("amplitude.gnu", img_name);
     free(dsNr);
-    
-    strcpy(viewformat,viewformatBuf);
   } 
 
   else if (compare(type, "mat", 1)==1)
   {
-    // mat greates several pictures. Only ps can be used
-    strcpy(viewformatBuf,viewformat);
-    strcpy(viewformat,"ps");
+    const char *ext = get_viewformat_ext();
+    char img_name[MAX_LINE_LENGTH];
+    snprintf(img_name, sizeof(img_name), "material.%s", ext);
     
     if(compareStrings(name, "all")>0) length=0;
     else length= strsplt( name, '*', &dat);
@@ -1300,23 +1385,9 @@ int graph( char *record)
     sprintf(buffer, "material.gnu");
     handle_gnu = fopen (buffer, "w+b" );
     if (handle_gnu==NULL) { printf ("\nThe output file \"%s\" could not be opened.\n\n",buffer); return(-1);}
-    if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-    {
-      fprintf(handle_gnu, "set term png\n");
-      sprintf(buffer, "material.png");
-      fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    }
-    else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-    {
-      fprintf(handle_gnu, "set term postscript landscape monochrom noenhanced \n");
-      fprintf(handle_gnu, "#set term x11 \n");
-      sprintf(buffer, "material.ps");
-      fprintf(handle_gnu, "set out \"%s\"\n", buffer);
-    }
-    else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
 
-    fprintf(handle_gnu, "set grid\n");
-    fprintf(handle_gnu, "set title \"Material\"\n");
+    write_gnuplot_styling(handle_gnu, img_name, "Material Properties", "", "");
+    fprintf(handle_gnu, "set multiplot layout 3,2 title \"Material Properties\" font \",13\"\n");
 
     fprintf(handle_gnu, "set ylabel \" Elastic Modulus \"\n");
     fprintf(handle_gnu, "set xlabel \" Temperature \"\n");
@@ -1402,37 +1473,11 @@ int graph( char *record)
         if(sum) fprintf(handle_gnu, "\n");
       }
     }
+    fprintf(handle_gnu, "unset multiplot\n");
     fclose(handle_gnu);
 
-    if((viewformat[0]=='p')&&(viewformat[1]=='n'))
-    {
-      sprintf(buffer, "material.png");
-      printf ("write %s \n", buffer);
-      sprintf(buffer, "gnuplot material.gnu" );
-      system (buffer);
-#ifdef WIN32
-      //if((inpformat)&&(graph_on))   sprintf(buffer, "%s material.png &", psviewer );
-      if((inpformat)&&(graph_on))  sprintf(buffer, "material.png &");
-      system (buffer);
-#else
-      if((inpformat)&&(graph_on))   sprintf(buffer, "%s material.png &", psviewer );
-      system (buffer);
-#endif
-    }
-    else if((viewformat[0]=='p')&&(viewformat[1]=='s'))
-    {  
-      sprintf(buffer, "material.ps");
-      printf ("write %s \n", buffer);
-      sprintf(buffer, "gnuplot material.gnu" );
-      system (buffer);
-      if((inpformat)&&(graph_on))  sprintf(buffer, "%s material.ps &", origpsviewer );
-      system (buffer);
-    }
-    else printf(" ERROR: Format not known:%s please set either ps or png with 'asgn viewformat'\n",viewformat);
-
+    execute_and_view_plot("material.gnu", img_name);
     free(dsNr);
-    
-    strcpy(viewformat,viewformatBuf);
   } 
   else
   {

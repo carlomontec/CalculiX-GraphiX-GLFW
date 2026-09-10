@@ -4519,6 +4519,38 @@ void pre_view(char *string)
       }
     }
   }
+  else if (compare(type, "bg", 2)==2)
+  {
+    if(length==2)
+    {
+      if (compare(param, "k", 1)==1) { foregrndcol=1; backgrndcol=0; }
+      else if (compare(param, "w", 1)==1) { foregrndcol=0; backgrndcol=1; }
+    }
+    else
+    {
+      backgrndcol = !backgrndcol;
+      foregrndcol = !foregrndcol;
+    }
+    if(!backgrndcol)
+    {
+      backgrndcol_rgb[0]=0.05; backgrndcol_rgb[1]=0.07; backgrndcol_rgb[2]=0.10; backgrndcol_rgb[3]=1.0;
+      foregrndcol_rgb[0]=0.92; foregrndcol_rgb[1]=0.95; foregrndcol_rgb[2]=0.98; foregrndcol_rgb[3]=1.0;
+      printf("\n Dark Mode enabled.\n\n");
+    }
+    else
+    {
+      backgrndcol_rgb[0]=1.0; backgrndcol_rgb[1]=1.0; backgrndcol_rgb[2]=1.0; backgrndcol_rgb[3]=1.0;
+      foregrndcol_rgb[0]=0.0; foregrndcol_rgb[1]=0.0; foregrndcol_rgb[2]=0.0; foregrndcol_rgb[3]=1.0;
+      printf("\n Light Mode enabled.\n\n");
+    }
+    for (i=0; i<anzGeo->psets; i++ )
+    {
+      if(pset[i].col==0) pset[i].col=1;
+      else if(pset[i].col==1) pset[i].col=0;
+    }
+    if(inpformat) updateDispLists();
+    return;
+  }
   if(!inpformat) return;
 
   if (compare(type, "cl", 2)==2)
@@ -4567,37 +4599,6 @@ void pre_view(char *string)
     perspectiveFlag = 0;
     printf("\n Orthographic (Iso) projection enabled.\n\n");
     redraw();
-  }
-  else if (compare(type, "bg", 2)==2)
-  {
-    if(length==2)
-    {
-      if (compare(param, "k", 1)==1) { foregrndcol=1; backgrndcol=0; }
-      else if (compare(param, "w", 1)==1) { foregrndcol=0; backgrndcol=1; }
-    }
-    else
-    {
-      backgrndcol = !backgrndcol;
-      foregrndcol = !foregrndcol;
-    }
-    if(!backgrndcol)
-    {
-      backgrndcol_rgb[0]=0.05; backgrndcol_rgb[1]=0.07; backgrndcol_rgb[2]=0.10; backgrndcol_rgb[3]=1.0;
-      foregrndcol_rgb[0]=0.92; foregrndcol_rgb[1]=0.95; foregrndcol_rgb[2]=0.98; foregrndcol_rgb[3]=1.0;
-      printf("\n Dark Mode enabled.\n\n");
-    }
-    else
-    {
-      backgrndcol_rgb[0]=1.0; backgrndcol_rgb[1]=1.0; backgrndcol_rgb[2]=1.0; backgrndcol_rgb[3]=1.0;
-      foregrndcol_rgb[0]=0.0; foregrndcol_rgb[1]=0.0; foregrndcol_rgb[2]=0.0; foregrndcol_rgb[3]=1.0;
-      printf("\n Light Mode enabled.\n\n");
-    }
-    for (i=0; i<anzGeo->psets; i++ )
-    {
-      if(pset[i].col==0) pset[i].col=1;
-      else if(pset[i].col==1) pset[i].col=0;
-    }
-    updateDispLists();
   }
   else if (compare(type, "edge", 2)==2)
   {
@@ -7606,7 +7607,7 @@ int main( int argc, char **argv )
   	sprintf(psviewer,"%s",getenv("CGXTERMVIEWER"));
   }
   if (getenv("CGXVIEWFORMAT")!=NULL) {
-  	sprintf(psviewer,"%s",getenv("CGXVIEWFORMAT"));
+  	sprintf(viewformat,"%s",getenv("CGXVIEWFORMAT"));
   }
   if (getenv("CGXINITFILE")!=NULL) {
   	sprintf(initfile,"%s",getenv("CGXINITFILE"));
@@ -7616,13 +7617,11 @@ int main( int argc, char **argv )
   	sprintf(homepath,"%s%s",getenv("HOMEDRIVE"),getenv("HOMEPATH"));
     printf(" The win HOME was detected:%s\n",homepath);
   }
-  strcpy(viewformat,"png");
 #else
   if (getenv("HOME")!=NULL) {
   	sprintf(homepath,"%s",getenv("HOME"));
     printf(" The HOME was detected:%s\n",homepath);
   }
-  strcpy(viewformat,"ps");
 #endif
   /* seach for ALLOW_SYS to enable the 'sys' command */
   sprintf(buffer,"%s/%s", homepath, initfile);
