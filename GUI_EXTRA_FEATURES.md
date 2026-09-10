@@ -114,3 +114,23 @@ Visualize physical quantities spanning multiple orders of magnitude (e.g. plasti
   - `classic`
   - `gray`
   - Switch anytime via **`Viewing >`** $\rightarrow$ **`Colormap >`** or the command bar (`cmap <name>`).
+
+---
+
+## 9. 📈 Modern 2D Plotting Pipeline & Scientific Typography
+
+CalculiX GraphiX (GLFW Edition) updates the 2D plotting subsystem (`graph.c`), replacing legacy monochrome PostScript defaults and the deprecated `gv` viewer with a high-resolution, multi-format plotting workflow:
+
+* **High-DPI Gnuplot Engine**: Generates $1600 \times 1000$ images via `pngcairo`, with full support for vector formats (`svg` and `pdf`).
+* **Dual Presentation Typography**:
+  - **Light Mode (Publication)**: Professional serif typography (`STIX Two Text`, `DejaVu Serif`, `Liberation Serif`, `Cambria`).
+  - **Dark Mode (Screen)**: Modern sans-serif typography (`Inter`, `Helvetica`, `Arial`) matching the `#0D121A` viewport aesthetic.
+  - Generous 2x font scale ($24\text{pt}$ titles, $20\text{pt}$ axes, $16\text{pt}$ legends/ticks) and explicit screen margin protection against label cropping.
+  - Subtle dashed engineering reference grid (`lt 1 dt 2 lw 1.8`).
+* **Standalone Python Companion Scripts (`graph_<Nr>.py`)**:
+  - Automatically produced alongside every graph using Matplotlib and NumPy.
+  - Matches the exact colors, typography, line weights, and layout of the Gnuplot rendering for further customization in Jupyter or scientific pipelines.
+* **Native Cross-Platform Image Viewers**: Automatically launches `open` (macOS), `xdg-open` (Linux), or `cmd.exe /c start` (Windows).
+* **Automated Installer Integration**: `install.sh` automatically checks for and installs `gnuplot` across macOS and Linux.
+
+> 📖 **Architecture Deep Dive**: For full command options, margin formulas, and export customization, see [**MODERN_2D_PLOTTING.md**](MODERN_2D_PLOTTING.md).

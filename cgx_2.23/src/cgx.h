@@ -111,23 +111,21 @@
 #define     INITFILE        {".cgx"}
 
 /* html browser, change if necessary */
-/* postscript viewer, change if necessary */
-#ifdef MTU
-  #define     BROWSER         {"firefox"}
-  #define     PSVIEWER         {"gv"}
-  #define     VIEWFORMAT         {"ps"}
-  #define     ALLOW_SYS_FLAG   1
+/* image / document viewer (for 2D graphs) */
+#ifdef __APPLE__
+  #define     BROWSER          {"open"}
+  #define     PSVIEWER         {"open"}
+  #define     VIEWFORMAT       {"png"}
+#elif defined(WIN32)
+  #define     BROWSER          {"cmd.exe /c start \"\""}
+  #define     PSVIEWER         {"cmd.exe /c start \"\""}
+  #define     VIEWFORMAT       {"png"}
 #else
-  #define     BROWSER         {"firefox"}
-  #ifdef WIN32
-    #define     PSVIEWER         {"mspaint.exe"}
-    #define     VIEWFORMAT       {"png"}
-  #else
-    #define     PSVIEWER         {"gv"}
-    #define     VIEWFORMAT       {"ps"}
-  #endif
-  #define     ALLOW_SYS_FLAG   0
+  #define     BROWSER          {"xdg-open"}
+  #define     PSVIEWER         {"xdg-open"}
+  #define     VIEWFORMAT       {"png"}
 #endif
+#define     ALLOW_SYS_FLAG     0
 
 /* more parameters, better do not change them! */
 #define     MIN_ELEM_EDGE_DISTANCE 6e-5  /* elem edges vanish during zooming if smaller */

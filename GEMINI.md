@@ -91,3 +91,84 @@ This document records the architectural standards, technical decisions, cross-pl
   * No misaligned blinking box cursor (text is displayed cleanly).
   * `Up` arrow key browses previous command history.
   * Sizing and padding adapt dynamically to the active UI text scale.
+
+---
+
+## 7. 💻 Multi-Machine & Remote Development Workflow (`zurcachy`)
+* **Remote Host**:
+  * AMD Linux machine accessible via `ssh zurdo@zurcachy` (CachyOS x86_64, GCC, CMake, Ninja, pacman).
+  * Remote repository path: `/home/zurdo/MyCode/CalculiX/CGX`.
+* **Workspace & Branch Isolation**:
+  * If the local Mac repository is busy compiling, running long tasks, or working on another active branch (e.g. `feat/testing-suite`), keep the local Mac working tree untouched.
+  * Conduct remote verification, branch builds, and testing directly on `zurcachy` via SSH.
+
+---
+
+## 8. 📦 Installer Architecture & User-Level Standards (`install.sh` / `uninstall.sh`)
+* **Local Repository Guard**:
+  * Running `install.sh` inside an existing cloned repository must **never** run `git checkout` or alter the active branch.
+  * Git branch/tag switching is strictly reserved for the 1-liner cache directory (`~/.cgx/CalculiX-GraphiX-GLFW`).
+* **Zero Sudo / User Space**:
+  * All binaries, aliases, and symlinks must install strictly in user space (`~/.local/bin` default, or custom `--prefix`).
+  * Never prompt the user for a `sudo` or root password.
+* **Dual Alias Scheme**:
+  * **Stable Release Install**: Creates user alias `~/.local/bin/cgx -> cgx_glfw`.
+  * **Development Build (`--head` / `--nightly`)**: Creates user alias `~/.local/bin/cgx_dev -> cgx_glfw`.
+* **Clean Uninstaller**:
+  * `uninstall.sh` removes `cgx_glfw`, `cgx`, and `cgx_dev`, cleans `~/.cgx`, and removes PATH entries from `.bashrc`/`.zshrc` entirely in user space.
+
+---
+
+## 9. 🛡️ Finite Element Engine & Memory Safety Rules
+* **QUAD8 Face Tessellation**:
+  * 8-node quadratic quad faces only contain node indices `nod[0..7]`.
+  * **Never access `nod[8]`** (causes `0xC0000005` memory access violations / segmentation faults).
+  * Tessellate using a 6-triangle decomposition with valid nodes `nod[0..7]` and explicit bounds checking (`node_idx > 0 && node`).
+* **64-bit Integer File Offsets in `readfrd.c`**:
+  * Always use 64-bit integer types (`long long` / `off_t`) for file byte seek offsets to prevent 32-bit integer overflow when loading large FEA datasets (>2 GB).
+* **Windows Platform Compatibility**:
+  * Avoid POSIX named semaphores (`sem_open`) on Windows MinGW.
+  * Link GLFW and GCC runtime statically (`-static-libgcc -static-libstdc++ -static`) for standalone Windows executables.
+
+---
+
+## 10. 🧪 Automated Test Suite & CI Validation
+* **Local Test Suite**:
+  * Run all 23 integration tests before reporting completion:
+    ```bash
+    python3 tests/run_tests.py
+    ```
+  * Or via CTest:
+    ```bash
+    ctest --test-dir build --output-on-failure
+    ```
+* **GitHub Actions CI Matrix (`.github/workflows/ci.yml`)**:
+  * Covers macOS arm64, Linux x86_64, Linux ARM64, and Windows MinGW-w64.
+  * Triggers on `push` to `main`, pull requests, and can be manually triggered on any branch:
+    ```bash
+    gh workflow run ci.yml --ref <branch>
+    ```
+
+---
+
+## 11. 📈 Modern 2D Plotting Pipeline (`graph.c`, Gnuplot & Python)
+* **Default Format & Resolution**:
+  * High-DPI PNG (`VIEWFORMAT = "png"`) rendered via `pngcairo` at 1600×1000 with subpixel antialiasing.
+  * Vector formats (`svg` and `pdf`) fully supported via `asgn viewformat svg` or `asgn viewformat pdf`.
+  * Legacy PostScript monochrome defaults (`gv`) are retired.
+* **Cascading Scientific Typography (Zero OS Font Mutation)**:
+  * Do not copy font files to system font folders or invoke `fc-cache`.
+  * In Light Mode (Publication): Uses `"STIX Two Text,DejaVu Serif,Liberation Serif,Cambria,serif,11"`.
+    - macOS: Renders natively in Apple's built-in `STIX Two Text`.
+    - Linux: Gracefully falls back to system `DejaVu Serif` or `Liberation Serif`.
+    - Windows: Gracefully falls back to `Cambria`.
+  * In Dark Mode (Screen): Uses `"Inter,Helvetica,Arial,DejaVu Sans,sans-serif,11"` matching the `#0D121A` dark slate theme.
+* **Native Cross-Platform Image Viewers**:
+  * macOS: `open`
+  * Linux: `xdg-open`
+  * Windows: `cmd.exe /c start ""`
+* **Auto-Generated Python Companion Script**:
+  * Whenever 2D graphs are produced, a standalone `graph_<Nr>.py` script is generated alongside `graph_<Nr>.out` and `graph_<Nr>.gnu` for fast Matplotlib/Jupyter tweaking.
+* **Installer Automation**:
+  * `install.sh` checks and installs `gnuplot` via Homebrew (`brew install gnuplot` on macOS), native Linux package managers, or MSYS2 on Windows.
+

@@ -167,7 +167,18 @@ install_runtime_deps() {
         else
             echo -e "${BLUE}Tip: Install ffmpeg via 'brew install ffmpeg' to enable MP4 video recording.${NC}"
         fi
+        if command -v gnuplot &>/dev/null; then
+            echo -e "${GREEN}[OK] gnuplot is available for 2D engineering plots.${NC}"
+        else
+            echo "Installing gnuplot via Homebrew for 2D plots..."
+            brew install gnuplot
+        fi
     elif [ "${OS}" = "Linux" ]; then
+        if command -v gnuplot &>/dev/null; then
+            echo -e "${GREEN}[OK] gnuplot is available for 2D engineering plots.${NC}"
+        else
+            echo -e "${BLUE}Tip: Install gnuplot ('sudo apt install gnuplot' or 'sudo pacman -S gnuplot') for 2D plots.${NC}"
+        fi
         if ldconfig -p 2>/dev/null | grep -q "libglfw\.so" || [ -f /lib64/libglfw.so.3 ] || [ -f /usr/lib/libglfw.so.3 ] || [ -f /usr/lib/x86_64-linux-gnu/libglfw.so.3 ] || [ -f /home/linuxbrew/.linuxbrew/lib/libglfw.so ]; then
             echo -e "${GREEN}[OK] GLFW runtime library is already installed.${NC}"
             if command -v ffmpeg &>/dev/null; then
@@ -180,11 +191,11 @@ install_runtime_deps() {
 
         echo "Installing missing runtime libraries (requires sudo)..."
         if command -v apt-get &>/dev/null; then
-            sudo apt-get update -y && sudo apt-get install -y libglfw3 libglu1-mesa ffmpeg
+            sudo apt-get update -y && sudo apt-get install -y libglfw3 libglu1-mesa ffmpeg gnuplot
         elif command -v dnf &>/dev/null; then
-            sudo dnf install -y glfw mesa-libGLU ffmpeg
+            sudo dnf install -y glfw mesa-libGLU ffmpeg gnuplot
         elif command -v pacman &>/dev/null; then
-            sudo pacman -S --needed --noconfirm glfw-x11 mesa glu ffmpeg
+            sudo pacman -S --needed --noconfirm glfw-x11 mesa glu ffmpeg gnuplot
         else
             echo -e "${YELLOW}Please ensure libglfw3 and OpenGL/Mesa runtime libraries are installed.${NC}"
         fi
@@ -194,6 +205,11 @@ install_runtime_deps() {
             echo -e "${GREEN}[OK] ffmpeg video tools available for MP4 recording.${NC}"
         else
             echo -e "${BLUE}Tip: Install ffmpeg for Windows (winget install Gyan.FFmpeg) to enable MP4 video recording.${NC}"
+        fi
+        if command -v gnuplot &>/dev/null; then
+            echo -e "${GREEN}[OK] gnuplot is available for 2D engineering plots.${NC}"
+        else
+            echo -e "${BLUE}Tip: Install gnuplot for Windows (pacman -S mingw-w64-x86_64-gnuplot or winget install Gnuplot.Gnuplot) for 2D plots.${NC}"
         fi
     fi
 }

@@ -6,6 +6,7 @@
 [![Platform: macOS | Linux | Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen.svg)](INSTALL.md)
 [![Dependencies: 100% GLUT-Free](https://img.shields.io/badge/Dependencies-100%25%20GLUT--Free%20%26%20X11--Free-success.svg)](#highlights--new-features)
 [![Graphics: GLFW3 + Modern OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20stb__truetype-orange.svg)](#highlights--new-features)
+[![2D Plotting: High--DPI Gnuplot + Python](https://img.shields.io/badge/2D%20Plotting-Gnuplot%20%2B%20Python%20Cairo-informational.svg)](MODERN_2D_PLOTTING.md)
 [![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](GUI_EXTRA_FEATURES.md#6-native-paraview-vtupvd-exporter)
 
 ![CalculiX GraphiX GLFW Edition](img/cgx_glfw.png)
@@ -29,10 +30,11 @@ There are two objectives of this project. First, is to explore agent-assisted re
 * **ParaView-Style Logarithmic Color Scale**: Automatic positive floor clamping and $10^x$ power labels for multi-decade result fields.
 * **Interactive Command Bar with Fuzzy Suggestions**: In-window command line bar with history navigation (<kbd>↑</kbd>/<kbd>↓</kbd>) and intelligent Levenshtein typo suggestions (e.g. `fram` $\rightarrow$ `frame`).
 * **Keyboard Navigation Modifiers**: <kbd>Shift</kbd>/<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + Left Drag to Pan, and <kbd>Alt</kbd>/<kbd>Option</kbd> + Left Drag to Zoom.
+* **Updated 2D Plotting Pipeline**: Modernized post-processing graph pipeline producing high-resolution digital plots (`pngcairo`/`svg`/`pdf`) with default high-DPI PNG output and auto-generated Python (Matplotlib) companion scripts (`graph_<Nr>.py`), replacing legacy PostScript defaults.
 * **Native VTU/PVD Exporter**: Direct export of FEA results to ParaView-compatible `.vtu` and `.pvd` formats (`send all vtu all`).
 * **Integrated TetGen Mesher**: Native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1).
 
-> 📖 **Deep Dive**: For full details on all GUI enhancements, see [**GUI Extra Features**](GUI_EXTRA_FEATURES.md). For technical rendering architecture, see [**Modern 3D Pipeline Architecture**](MODERN_3D_PIPELINE.md).
+> 📖 **Deep Dive**: For full details on all GUI enhancements, see [**GUI Extra Features**](GUI_EXTRA_FEATURES.md). For 2D plotting and companion scripts, see [**Modern 2D Plotting**](MODERN_2D_PLOTTING.md). For technical rendering architecture, see [**Modern 3D Pipeline Architecture**](MODERN_3D_PIPELINE.md).
 
 ---
 
@@ -81,6 +83,8 @@ cgx_glfw <model.frd>
 | `plot e all` | Plot element wireframe mesh |
 | `cmap <palette>` | Change colormap (`coolwarm`, `turbo`, `viridis`, `inferno`, `jet`, `classic`) |
 | `anim real` | Start real-time modal or transient animation |
+| `graph <set> l +` | Plot path values along node sequence (high-DPI 2D graph) |
+| `graph <set> f <comp>` | Plot response vs frequency/time across steps for node set |
 | `send all vtu all` | Export entire model and all time-steps to ParaView `.vtu` & `.pvd` |
 
 ---
