@@ -15,22 +15,26 @@
 
 ## About This Project
 
-This project is a **didactic exercise for learning AI agentic development**, based on the great work of the original authors and contributors of **CalculiX GraphiX (CGX)**, originally led by **Klaus Wittig** (https://www.calculix.de/ See section _CalculiX GraphiX_).
+This project is a **didactic exercise for learning AI agentic development**, based on the work of the original authors and contributors of **CalculiX GraphiX (CGX)**, led by **Klaus Wittig** (https://www.calculix.de/ See section _CalculiX GraphiX_).
 
-There are two objectives of this project. First, is to explore agent-assisted refactoring by modernising CGX's windowing and rendering layer (via GLFW3) while keeping all core finite element mechanics and solver workflows completely intact. Second, is to make CGX compatible from single source for Linux, macOS and Windows. A new meshing implementation via TetGen is desired. These code additions are generated with Google Antigravity using Google Gemini 3.7 Flash, Gemini Pro 3.1 and Claude Opus 4.6.
+There are two objectives of this project.
+* to make CGX compatible from single source for Linux, macOS and Windows for the community. A new meshing implementation via TetGen is also provided. 
+* to explore agent-assisted refactoring by modernising CGX's windowing and rendering layer (via GLFW3) while keeping all core finite element mechanics and solver workflows completely intact.
+
+These code additions are generated with Google Antigravity using Google Gemini 3.7 Flash, Gemini Pro 3.1 and Claude Opus 4.6.
 
 ---
 
 ## Highlights & New Features
 
-* **Modern GPU Pipeline (1-Draw-Call VBO + GLSL Shaders)**: High-performance rendering pipeline with packed Vertex Buffer Objects, custom GLSL shaders, Blinn-Phong metallic lighting, and quadratic element face accuracy.
-* **New 3D Backend via GLFW**: Windowing and input events are routed through a modern, native [**GLFW3**](https://www.glfw.org/) layer across macOS (Apple Silicon), Linux (Wayland/X11), and Windows from a unified codebase.
-* **Signature Dark Mode & Perspective 3D by Default**: Signature dark slate aesthetic (`#0D121A`) with realistic 3D perspective projection.
+* **Modern GPU Pipeline (GLSL Shaders)**: Rendering pipeline with packed Vertex Buffer Objects, custom GLSL shaders and metallic lighting.
+* **New 3D Backend via GLFW**: Windowing and input events are routed through a  native [**GLFW3**](https://www.glfw.org/) layer across macOS (Apple Silicon), Linux (Wayland/X11), and Windows.
+* **Dark Mode & Perspective 3D**:  Dark slate aesthetic with 3D perspective projection.
 * **Cubehelix (Reversed) Scientific Colormap**: Default perceptually monotonic colormap (Green, 2011) that is 100% black & white print safe and colorblind friendly.
-* **ParaView-Style Logarithmic Color Scale**: Automatic positive floor clamping and $10^x$ power labels for multi-decade result fields.
 * **Interactive Command Bar with Fuzzy Suggestions**: In-window command line bar with history navigation (<kbd>↑</kbd>/<kbd>↓</kbd>) and intelligent Levenshtein typo suggestions (e.g. `fram` $\rightarrow$ `frame`).
 * **Keyboard Navigation Modifiers**: <kbd>Shift</kbd>/<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + Left Drag to Pan, and <kbd>Alt</kbd>/<kbd>Option</kbd> + Left Drag to Zoom.
-* **Updated 2D Plotting Pipeline**: Modernized post-processing graph pipeline producing high-resolution digital plots (`pngcairo`/`svg`/`pdf`) with default high-DPI PNG output and auto-generated Python (Matplotlib) companion scripts (`graph_<Nr>.py`), replacing legacy PostScript defaults.
+* **Updated 2D Plotting Pipeline**: Modernized post-processing graph pipeline producing high-resolution digital plots and Matplotlib plot template files.
+* **Native screenshots and movie creation** Screenshot an movie export are now done without external ImageMagick library. MP4 videos can be generated if FFMPEG is available.
 * **Native VTU/PVD Exporter**: Direct export of FEA results to ParaView-compatible `.vtu` and `.pvd` formats (`send all vtu all`).
 * **Integrated TetGen Mesher**: Native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1).
 
@@ -93,11 +97,11 @@ cgx_glfw <model.frd>
 
 ## License & Attribution
 
-This project is free and open-source software distributed under the **GNU General Public License Version 2 (GPL-2.0 or later)**, strictly adhering to the original CalculiX licensing.
+This project is free and open-source software distributed under the **GNU General Public License Version 2 (GPL-2.0 or later)**, strictly adhering to the original CalculiX licensing. This project is mantained by Dr. Carlo Monjaraz-Tec.
 
 ### Original Authors & Copyright:
-* **CalculiX GraphiX (CGX)** is created and copyrighted by **Klaus Wittig** (`klaus.h.wittig@t-online.de`).
-* **CalculiX CrunchiX (CCX)** is created and copyrighted by **Dr. Guido Dhondt** (`dhondt@t-online.de`).
+* **CalculiX GraphiX (CGX)** is created and copyrighted by **Klaus Wittig**.
+* **CalculiX CrunchiX (CCX)** is created and copyrighted by **Dr. Guido Dhondt**.
 * Official CalculiX website: [http://www.calculix.de](http://www.calculix.de) / [https://www.dhondt.de](https://www.dhondt.de)
 
 ### Third-Party Libraries & Credits:
