@@ -4,9 +4,7 @@
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](COPYING)
 [![Platform: macOS | Linux | Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen.svg)](INSTALL.md)
-[![Dependencies: 100% GLUT-Free](https://img.shields.io/badge/Dependencies-100%25%20GLUT--Free%20%26%20X11--Free-success.svg)](#highlights--new-features)
 [![Graphics: GLFW3 + Modern OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20stb__truetype-orange.svg)](#highlights--new-features)
-[![2D Plotting: High--DPI Gnuplot + Python](https://img.shields.io/badge/2D%20Plotting-Gnuplot%20%2B%20Python%20Cairo-informational.svg)](MODERN_2D_PLOTTING.md)
 [![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](GUI_EXTRA_FEATURES.md#6-native-paraview-vtupvd-exporter)
 
 ![CalculiX GraphiX GLFW Edition](img/cgx_glfw.png)
