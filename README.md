@@ -13,7 +13,7 @@
 
 ## About This Project
 
-This project is a **didactic exercise for learning AI agentic development**, based on the work of the original authors and contributors of **CalculiX GraphiX (CGX)**, led by **Klaus Wittig** (https://www.calculix.de/ See section _CalculiX GraphiX_).
+This project is an exploration to learn AI agentic development, based on the work of the original authors and contributors of **CalculiX GraphiX (CGX)**, led by **Klaus Wittig** (https://www.calculix.de/ See section _CalculiX GraphiX_).
 
 There are two objectives of this project.
 * to make CGX compatible from single source for Linux, macOS and Windows for the community. A new meshing implementation via TetGen is also provided. 
