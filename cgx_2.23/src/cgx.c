@@ -7408,6 +7408,137 @@ void addCommandToInitFile(char *string)
 
 
 
+/*---------------------------------------------------------------------*/
+/* Display comprehensive CLI help and interactive command reference   */
+/*---------------------------------------------------------------------*/
+void print_help( const char *progname )
+{
+  printf("USAGE:\n");
+  printf("  cgx [OPTIONS] <input-file> [solver-input-file.inp]\n");
+  printf("  cgx [OPTIONS]                       (launches interactive empty workspace)\n\n");
+
+  printf("DESCRIPTION:\n");
+  printf("  CalculiX GraphiX (CGX) is an interactive 3D pre- and post-processor for\n");
+  printf("  finite element analysis (FEA) and computational fluid dynamics (CFD).\n");
+  printf("  It generates geometry and meshes, assigns materials and boundary conditions,\n");
+  printf("  and visualizes solver results from CalculiX CCX, Abaqus, OpenFOAM, Nastran,\n");
+  printf("  and ParaView.\n\n");
+
+  printf("STARTUP OPTIONS & FILE MODES:\n");
+  printf("  cgx <file>.frd [<file>.inp]         Post-processing mode (default). Reads\n");
+  printf("                                      CalculiX/CCX FEA results (.frd). The optional\n");
+  printf("                                      .inp file supplies element sets, node sets,\n");
+  printf("                                      and load/boundary conditions.\n");
+  printf("  -b <file>[.fbd]                     Build / Pre-processing mode. Reads or creates\n");
+  printf("                                      a geometry script (.fbd). If the file does\n");
+  printf("                                      not exist, a new model with this name starts.\n");
+  printf("  -bg <file>.fbd                      Background / Headless batch mode. Executes all\n");
+  printf("                                      commands in the .fbd file without opening a GUI.\n");
+  printf("  -a <file>[.fbd]                     Automatic build mode. Automatically merges\n");
+  printf("                                      CAD lines, calculates surfaces, assigns mesh\n");
+  printf("                                      divisions, and displays shaded 3D geometry.\n");
+  printf("  -c <file>.inp                       Solver check mode. Reads CalculiX/Abaqus solver\n");
+  printf("                                      input file to inspect mesh and sets (+bou, +dep).\n");
+  printf("  -step <file>.stp                    Read CAD geometry in ASCII STEP format.\n");
+  printf("  -stepsplit <file>.stp               Read STEP and split parts into separate directories.\n");
+  printf("  -stl <file>.stl                     Read 3D triangulated surface mesh in STL format.\n");
+  printf("  -ng <file>.vol                      Read Netgen native volume mesh (.vol) with patches.\n");
+  printf("  -tg <file>                          Read TetGen tetrahedral mesh.\n");
+  printf("  -foam <case-dir>                    Read OpenFOAM CFD case directory structure.\n");
+  printf("  -vtk <file>.vtk                     Read VTK unstructured grid (w/o results).\n");
+  printf("  -duns2d, -duns3d                    Read Duns CFD 2D / 3D result files.\n");
+  printf("  -isaac2d, -isaac3d                  Read Isaac CFD 2D / 3D result files.\n");
+  printf("  -f06 <file>.f06                     Read Nastran f06 result file (CHEXA stress/disp).\n");
+  printf("  -read                               Force reading the entire result file at startup.\n");
+  printf("  -oldbias                            Use legacy line element bias definition.\n");
+  printf("  -h, --help                          Display this help message and exit.\n");
+  printf("  -v, --v, --version                  Display version information and exit.\n\n");
+
+  printf("BASIC INTERACTIVE COMMANDS (In-Window Command Bar or Shell):\n");
+  printf("  frame [<set>]                       Fit view to all elements or specified set.\n");
+  printf("  zoom <scale>                        Set zoom factor (e.g. 'zoom 1.5' or 'zoom 0.8').\n");
+  printf("  rot [x|y|z] <deg>                   Rotate view around specified Cartesian axis.\n");
+  printf("  prnt se                             List all defined sets and entity counts.\n");
+  printf("  prnt se +*                          List automatically generated boundary/load sets.\n\n");
+
+  printf("VIEWPORT & DISPLAY CONTROLS ('view'):\n");
+  printf("  view cl                             Toggle bottom interactive command line bar.\n");
+  printf("  view dark | light                   Switch between dark slate (#0D121A) and light mode.\n");
+  printf("  view persp | ortho                  Toggle 3D perspective vs. orthographic projection.\n");
+  printf("  view fill                           Render element faces as solid filled surfaces.\n");
+  printf("  view line                           Render elements as wireframe (anti-aliased lines).\n");
+  printf("  view point                          Render element vertices as points.\n");
+  printf("  view edge [off]                     Toggle external model boundary outline edges.\n");
+  printf("  view elem [off]                     Toggle element interior mesh edges.\n");
+  printf("  view sh [off]                       Toggle metallic Blinn-Phong surface shading.\n");
+  printf("  view rul [off]                      Toggle stationary 2D bottom-right HUD ruler.\n");
+  printf("  cmap <palette>                      Switch colormap (cubehelix, viridis, turbo,\n");
+  printf("                                      coolwarm, jet, grey, classic).\n\n");
+
+  printf("PLOTTING & SELECTION ('plot', 'plus', 'minus'):\n");
+  printf("  plot <entity> <set|all>             Clear viewport and display selected entity type:\n");
+  printf("                                        p: points       l: lines\n");
+  printf("                                        s: surfaces     b: bodies\n");
+  printf("                                        n: nodes        e: elements    f: faces\n");
+  printf("                                      Examples: 'plot e all', 'plot l all', 'plot f +bou'\n");
+  printf("  plus <entity> <set|all>             Add entities to current display without clearing.\n");
+  printf("  minus <entity> <set>                Remove entities from current display.\n\n");
+
+  printf("FEA RESULTS & ANIMATION ('ds', 'scal', 'anim'):\n");
+  printf("  ds <nr> [entity_nr]                 Select active result dataset and component:\n");
+  printf("                                      e.g. 'ds 1 e 1' (Loadcase 1, Entity 1 / Disp X)\n");
+  printf("                                      e.g. 'ds 2 e 7' (Loadcase 2, Entity 7 / Mises Stress)\n");
+  printf("  scal [d|v] <factor>                 Scale displacement deformation or vector arrows:\n");
+  printf("                                      e.g. 'scal d 50' (50x exaggerated deformation)\n");
+  printf("  anim start                          Start modal or transient deformation animation.\n");
+  printf("  anim tune <factor>                  Tune animation playback speed.\n");
+  printf("  qenq                                Interactive node result enquiry (pick with mouse).\n");
+  printf("  qcut                                Interactive 3D cutting plane tool.\n\n");
+
+  printf("EXPORTING TO PARAVIEW VTU & SOLVERS ('send'):\n");
+  printf("  send <set> vtu                      Export mesh and ALL static and transient result fields\n");
+  printf("                                      to ParaView UnstructuredGrid (.vtu) format with Base64\n");
+  printf("                                      binary compression and automatic master collection (.pvd)!\n");
+  printf("  send <set> vtu ascii                Export in human-readable ASCII XML format.\n");
+  printf("  send <set> vtu <start> <end>        Export specific dataset range to VTU (e.g. 'send all vtu 2 4').\n");
+  printf("  send all abq                        Export mesh for CalculiX CCX / Abaqus (.inp format):\n");
+  printf("                                      Generates 'all.msh' containing *NODE and *ELEMENT cards.\n");
+  printf("  send <set> abq names                Export set definitions as *NSET and *ELSET.\n");
+  printf("  send <set> abq spc 123              Export single point constraints (fixed DOFs 1, 2, 3).\n");
+  printf("  send <set> abq pres <val>           Export surface pressure load cards (*DLOAD).\n");
+  printf("  send all nas                        Export mesh in Nastran Bulk Data format (.bdf / .nas).\n");
+  printf("  send all ans                        Export mesh in Ansys format.\n");
+  printf("  send all stl                        Export triangulated surface geometry to STL format.\n");
+  printf("  send all frd [bin]                  Export mesh and results back to CalculiX .frd format.\n\n");
+
+  printf("SCREENSHOTS, HARDCOPIES & 2D PLOTS ('hcpy', 'graph'):\n");
+  printf("  hcpy                                Capture viewport screenshot (default format: PNG).\n");
+  printf("  hcpy png                            Save high-resolution PNG image ('hcpy_1.png', etc.).\n");
+  printf("  hcpy svg | pdf                      Save vector graphic hardcopy.\n");
+  printf("  asgn viewformat png                 Set default hardcopy format (png, svg, pdf).\n");
+  printf("  graph <set> length                  Plot result values along node sequence vs. distance.\n");
+  printf("  graph <set> time                    Plot time-history curve across dataset sequence.\n");
+  printf("                                      Renders high-DPI antialiased PNG via Gnuplot (pngcairo)\n");
+  printf("                                      and generates companion Python script ('graph_<nr>.py')\n");
+  printf("                                      for Matplotlib / Jupyter notebook customization.\n\n");
+
+  printf("PRE-PROCESSING & MESH GENERATION QUICK WORKFLOW:\n");
+  printf("  1. Define geometry:                 Points ('pnt'), lines ('line'), surfaces ('surf'), bodies ('body')\n");
+  printf("  2. Assign element types:            'elty all he20' (20-node hex), 'elty all te10' (10-node tet)\n");
+  printf("  3. Mesh geometry:                   'mesh all'\n");
+  printf("  4. Verify mesh:                     'plus ea all', 'view sh', 'view elem'\n");
+  printf("  5. Export to CCX solver:            'send all abq'\n");
+  printf("  6. Save geometry:                   'save' (saves to <model>.fbd)\n");
+  printf("  7. Exit:                            'exit' (save and quit) or 'quit' (quit without saving)\n\n");
+
+  printf("DOCUMENTATION & HELP:\n");
+  printf("  PDF Manual:                         cgx_2.23/doc/cgx.pdf\n");
+  printf("  In-App Command Help:                Type 'help' in the command line bar for full keyword syntax.\n");
+  printf("  Interactive Context Menu:           Right-click in graphics viewport -> Help -> CGX Manual.\n\n");
+}
+
+
+
 int main( int argc, char **argv )
 {
   int i,j;
@@ -7593,6 +7724,22 @@ int main( int argc, char **argv )
   printf("  Disclaimer:\n");
   printf("  Provided AS IS for academic exploration with NO WARRANTY of any kind.\n");
   printf("================================================================================\n\n");
+
+  /* Early command line check for help or version requests */
+  for (j=1; j<argc; j++)
+  {
+    if (strcmp(argv[j], "-h") == 0 || strcmp(argv[j], "--help") == 0 ||
+        strcmp(argv[j], "-help") == 0 || strcmp(argv[j], "-?") == 0)
+    {
+      print_help(argv[0]);
+      exit(0);
+    }
+    if (strcmp(argv[j], "--version") == 0 || strcmp(argv[j], "-V") == 0)
+    {
+      printf("CalculiX GraphiX (CGX) - GLFW Edition, Version %s\n\n", VERSION);
+      exit(0);
+    }
+  }
 
   if (getenv("CGXDOCS")!=NULL) {
   	sprintf(helpfile[0],"%s",getenv("CGXDOCS"));
@@ -7854,7 +8001,8 @@ int main( int argc, char **argv )
         else strcpy( datin, argv[i]); 
       } 
 
-      if( compare( argv[j], "--v", 3 ) == 3 ) { printf("Version %s\n", VERSION);  exit (0); } 
+      if( compare( argv[j], "--v", 3 ) == 3 || strcmp( argv[j], "--version" ) == 0 || strcmp( argv[j], "-V" ) == 0 ) { printf("Version %s\n", VERSION);  exit (0); } 
+      if( compare( argv[j], "-h", 2 ) == 2 || compare( argv[j], "--h", 3 ) == 3 ) { print_help(argv[0]); exit(0); } 
     }
     if (inpformat==0)
     {

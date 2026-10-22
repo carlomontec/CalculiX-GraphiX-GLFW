@@ -519,6 +519,7 @@ void DrawCommandLine(char *string, int curpos);
 
 /*  extFunktions.h */
 void help( void );
+void print_help( const char *progname );
 void resetScaleValues( Scale *scale);
 void getScaleValues( int setNr, Sets *set, Points *point, Nodes *node, Scale *scale);
 int compareInt(int *a, int *b);
