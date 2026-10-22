@@ -125,11 +125,10 @@ extern sem_t   sem_rep;
 /*---------------------------------------------------------*/
 void help( void )
 {
-  // remember for doc:
-  // swep, move etc 'rad' [<p1> <p2> <value> <div>] missing in latex doc
-  //
+  print_help( "cgx" );
+
   printf ("\n---------------------------------------------------------\n");
-  printf ("\n             Quick help for the experienced user \n");
+  printf ("\n             Detailed Alphabetical Command Syntax        \n");
   printf ("\n---------------------------------------------------------\n");
   printf ("\n\nEnvironment variables evaluated at startup (default values defined in cgx.h): \n");
   printf (" CGXDOCS:  Overwrites the cgx helpfile\n");
