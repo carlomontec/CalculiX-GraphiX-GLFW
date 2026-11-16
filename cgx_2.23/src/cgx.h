@@ -183,6 +183,8 @@ used fom material illumination
 #define DIFF     0.80
 #define MAT_DIFF 0.6
 #define MAT_SPEC 0.38
+#define RESULT_AMB  0.60  /* result contours: ambient share of the legend colour */
+#define RESULT_DIFF 0.40  /* result contours: diffuse share (AMB+DIFF=1) */
 
 #define  CMAP_CELLS_LIGHT  34             /* number of grey-values in the colormap */
 #define  CMAP_DARKSHIFT     5             /* black-shift of the most bright color-cell */
@@ -577,6 +579,7 @@ void frame(void);
 void frameSet(int setNrbuf);
 void menu( int selection );
 void createHardcopy( int selection, char *fileName );
+int  cgx_defer_hardcopy( const char *fileName );
 void updateDispLists(void);
 void set_cur_lc(int lc);
 void ConfigureAndShowWindow_Light(void);

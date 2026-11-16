@@ -465,6 +465,35 @@ void drawNodes_plot( int num, int *name, Nodes *node , int col, char type, int w
 
 
 
+/* Result contours are read against the colour bar, so the lit colour must stay
+   close to the legend colour on every face, front or back: two-sided lighting,
+   lit = colormap * (RESULT_AMB + RESULT_DIFF*N.L) + specular. The light/model/
+   material factors are chosen so that these products come out exactly:
+   global ambient 0, material ambient = diffuse = 1, light ambient = RESULT_AMB,
+   light diffuse = RESULT_DIFF. Everything is restored by resultLightEnd(), so
+   plain geometry shading and the front/back commands are unaffected. */
+static void resultLightBegin(void)
+{
+  static const GLfloat zero[4] = { 0.f, 0.f, 0.f, 1.f };
+  static const GLfloat one[4]  = { 1.f, 1.f, 1.f, 1.f };
+  GLfloat amb[4]  = { RESULT_AMB,  RESULT_AMB,  RESULT_AMB,  1.f };
+  GLfloat diff[4] = { RESULT_DIFF, RESULT_DIFF, RESULT_DIFF, 1.f };
+
+  glPushAttrib(GL_LIGHTING_BIT);
+  glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+  glLightModelfv(GL_LIGHT_MODEL_AMBIENT, zero);
+  glLightfv(GL_LIGHT0, GL_AMBIENT, amb);
+  glLightfv(GL_LIGHT0, GL_DIFFUSE, diff);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, one);
+  glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, one);
+}
+
+static void resultLightEnd(void)
+{
+  glPopAttrib();
+}
+
+
 void drawElements_plot( int num, int *name, Nodes *node, double *colNr, Elements *e_enqire, int col, char type, int width, int pickflag )
 {
   int i, j, n;
@@ -495,6 +524,7 @@ void drawElements_plot( int num, int *name, Nodes *node, double *colNr, Elements
     glEnable(GL_TEXTURE_1D);
 
     setMaterial_rgb(1, 1.);
+    resultLightBegin();
     glEnable( GL_LIGHTING );
 
     for (i=0; i<num; i++ )
@@ -1353,6 +1383,7 @@ void drawElements_plot( int num, int *name, Nodes *node, double *colNr, Elements
         glEnd();
       }
     }
+    resultLightEnd();
     glDisable(GL_TEXTURE_1D);
     glDisable( GL_LIGHTING );
   }
@@ -2800,6 +2831,7 @@ void drawFaces_plot( int num, int *name, Nodes *node, double *colNr, Faces *face
     glEnable(GL_TEXTURE_1D);
 
     setMaterial_rgb(1, 1.);
+    resultLightBegin();
     glEnable( GL_LIGHTING );
 
     for (i=0; i<num; i++ )
@@ -2923,6 +2955,7 @@ void drawFaces_plot( int num, int *name, Nodes *node, double *colNr, Faces *face
         break;
       }
     }
+    resultLightEnd();
     glDisable(GL_TEXTURE_1D);
     glDisable( GL_LIGHTING );
   }
