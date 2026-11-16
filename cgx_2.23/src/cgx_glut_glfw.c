@@ -33,6 +33,7 @@ extern int mainmenu;
 extern int activWindow;
 extern int w0, w1, w2, w3;
 extern void cgx_execute_command_string(const char *cmd_str);
+extern void createHardcopy(int selection, char *fileName);
 
 /* Window definition */
 typedef struct {
@@ -225,15 +226,35 @@ static void queue_command(const char *cmd) {
     if (g_glfw_window) glfwPostEmptyEvent();
 }
 
+/* Deferred hardcopy: a hcpy arriving through the stdin queue only records a
+   request; the capture is done in glutMainLoop after the complete frame
+   (3D + overlays) has been drawn, just before the buffer swap. */
+static int  g_in_queued_cmd = 0;
+static int  g_hcpy_pending = 0;
+static char g_hcpy_name[512];
+
+int cgx_defer_hardcopy(const char *name)
+{
+    if (!g_in_queued_cmd || g_hcpy_pending) return 0;  /* caller captures immediately */
+    g_hcpy_name[0] = '\0';
+    if (name) { strncpy(g_hcpy_name, name, sizeof(g_hcpy_name) - 1); g_hcpy_name[sizeof(g_hcpy_name) - 1] = '\0'; }
+    g_hcpy_pending = 1;
+    g_need_redisplay = 1;
+    return 1;
+}
+
 static void process_queued_commands(void) {
     pthread_mutex_lock(&g_cmd_queue_mutex);
-    while (g_cmd_queue_head != g_cmd_queue_tail) {
+    /* stop draining once a capture is pending: the frame must be rendered first */
+    while (g_cmd_queue_head != g_cmd_queue_tail && !g_hcpy_pending) {
         char cmd[512];
         strncpy(cmd, g_cmd_queue[g_cmd_queue_head], 512);
         g_cmd_queue_head = (g_cmd_queue_head + 1) % MAX_QUEUED_CMDS;
         pthread_mutex_unlock(&g_cmd_queue_mutex);
         
+        g_in_queued_cmd = 1;
         cgx_execute_command_string(cmd);
+        g_in_queued_cmd = 0;
         g_need_redisplay = 1;
         
         pthread_mutex_lock(&g_cmd_queue_mutex);
@@ -1960,7 +1981,8 @@ void glutMainLoop(void)
     {
       glfwWaitEventsTimeout(0.05);
     }
-    process_queued_commands();
+    /* ready gate: hold stdin commands until the startup idle function (model load) is done */
+    if (!g_idle_func) process_queued_commands();
 
     if (g_idle_func)
     {
@@ -2067,6 +2089,14 @@ void glutMainLoop(void)
       glPopMatrix();
       glMatrixMode(GL_MODELVIEW);
       glPopAttrib();
+
+      if (g_hcpy_pending)
+      {
+        char name[512];
+        strcpy(name, g_hcpy_name);
+        g_hcpy_pending = 0;
+        createHardcopy(5, name[0] ? name : NULL);
+      }
 
       glfwSwapBuffers(g_glfw_window);
     }

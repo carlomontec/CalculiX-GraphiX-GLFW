@@ -17375,15 +17375,15 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
     else if(compareStrings(name, "png")>0 || compareStrings(name, "ps")>0 ||
             compareStrings(name, "tga")>0 || compareStrings(name, "gif")>0)
     {
-      createHardcopy(5, sbuf);
+      if(!cgx_defer_hardcopy(sbuf)) createHardcopy(5, sbuf);
     }
     else if(args>=1 && strlen(name)>0)
     {
-      createHardcopy(5, name);
+      if(!cgx_defer_hardcopy(name)) createHardcopy(5, name);
     }
     else
     {
-      createHardcopy(5, NULL);
+      if(!cgx_defer_hardcopy(NULL)) createHardcopy(5, NULL);
     }
   }
   else if (compareStrings(type, "INT")>0)
