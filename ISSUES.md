@@ -1,6 +1,6 @@
 # CalculiX GraphiX (GLFW Edition) — Issue Tracker
 
-This document records confirmed issues, root causes, and planned fixes for upcoming development sessions.
+> **Archive Status**: Historical issues `#001`–`#007` listed below (mirroring GitHub Issues `#3`–`#9`) have been resolved in subsequent updates (`fix/ui-ux-improvements` and result contour lighting updates in `fdbf826`, with shaded results intentionally enabled by default). Please track open issues on [GitHub Issues](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/issues).
 
 ---
 

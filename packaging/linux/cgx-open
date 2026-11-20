@@ -1,0 +1,60 @@
+#!/bin/sh
+set -e
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+if [ -x "$SCRIPT_DIR/cgx_glfw" ]; then
+    CGX_BIN="$SCRIPT_DIR/cgx_glfw"
+elif command -v cgx_glfw >/dev/null 2>&1; then
+    CGX_BIN="$(command -v cgx_glfw)"
+else
+    echo "Error: cgx_glfw executable not found." >&2
+    exit 1
+fi
+
+if [ "$#" -eq 0 ]; then
+    exec "$CGX_BIN"
+fi
+
+TARGET="$1"
+shift
+
+case "$TARGET" in
+    -*)
+        exec "$CGX_BIN" "$TARGET" "$@"
+        ;;
+esac
+
+if [ -e "$TARGET" ]; then
+    TARGET_DIR="$(CDPATH= cd -- "$(dirname -- "$TARGET")" && pwd)"
+    TARGET_BASE="$(basename -- "$TARGET")"
+    cd "$TARGET_DIR"
+    FILE_ARG="$TARGET_DIR/$TARGET_BASE"
+else
+    TARGET_BASE="$(basename -- "$TARGET")"
+    FILE_ARG="$TARGET"
+fi
+
+EXT=""
+case "$TARGET_BASE" in
+    *.*)
+        EXT="$(printf '%s' "${TARGET_BASE##*.}" | tr '[:upper:]' '[:lower:]')"
+        ;;
+esac
+
+case "$EXT" in
+    fbl|fbd)
+        exec "$CGX_BIN" -b "$FILE_ARG" "$@"
+        ;;
+    inp)
+        exec "$CGX_BIN" -c "$FILE_ARG" "$@"
+        ;;
+    stl)
+        exec "$CGX_BIN" -stl "$FILE_ARG" "$@"
+        ;;
+    vtk)
+        exec "$CGX_BIN" -vtk "$FILE_ARG" "$@"
+        ;;
+    *)
+        exec "$CGX_BIN" "$FILE_ARG" "$@"
+        ;;
+esac

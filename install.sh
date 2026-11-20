@@ -6,9 +6,9 @@
 #   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/install.sh)"
 #
 # Supports:
-#   - macOS (Apple Silicon arm64 & Intel x86_64)
+#   - macOS (Apple Silicon arm64 pre-built; Intel builds from source)
 #   - Linux (x86_64 & ARM64)
-#   - Windows (MSYS2 / MinGW64 / Git Bash x86_64)
+#   - Windows (MSYS2 UCRT64 / MinGW64 / Git Bash x86_64)
 # ==============================================================================
 
 set -e
@@ -151,56 +151,38 @@ ensure_homebrew_macos() {
     fi
 }
 
-# Function: Install Runtime Dependencies
+# Function: Check Optional Runtime Tools (no sudo or Homebrew required for static binaries)
 install_runtime_deps() {
-    echo -e "\n${BOLD}--> Checking runtime dependencies...${NC}"
+    echo -e "\n${BOLD}--> Checking optional runtime tools...${NC}"
     if [ "${OS}" = "Darwin" ]; then
-        ensure_homebrew_macos
-        if brew list glfw &>/dev/null; then
-            echo -e "${GREEN}[OK] GLFW runtime is already installed.${NC}"
+        echo -e "${GREEN}[OK] Standalone macOS binary embeds GLFW (no Homebrew runtime dependency).${NC}"
+        if command -v gnuplot &>/dev/null; then
+            echo -e "${GREEN}[OK] gnuplot is available for 2D engineering plots.${NC}"
         else
-            echo "Installing glfw via Homebrew..."
-            brew install glfw
+            echo -e "${BLUE}Tip: Install gnuplot ('brew install gnuplot') if you want 2D plot image rendering.${NC}"
         fi
         if command -v ffmpeg &>/dev/null; then
             echo -e "${GREEN}[OK] ffmpeg video tools available for MP4 recording.${NC}"
         else
-            echo -e "${BLUE}Tip: Install ffmpeg via 'brew install ffmpeg' to enable MP4 video recording.${NC}"
-        fi
-        if command -v gnuplot &>/dev/null; then
-            echo -e "${GREEN}[OK] gnuplot is available for 2D engineering plots.${NC}"
-        else
-            echo "Installing gnuplot via Homebrew for 2D plots..."
-            brew install gnuplot
+            echo -e "${BLUE}Tip: Install ffmpeg ('brew install ffmpeg') to enable MP4 video recording.${NC}"
         fi
     elif [ "${OS}" = "Linux" ]; then
+        echo -e "${GREEN}[OK] Standalone Linux binary embeds GLFW 3.4 (runtime X11/Wayland support).${NC}"
+        if command -v ldconfig &>/dev/null && ! ldconfig -p 2>/dev/null | grep -q "libGL\.so\.1"; then
+            echo -e "${YELLOW}Tip: Ensure OpenGL/Mesa runtime libraries (libgl1 / libglu1-mesa) are installed.${NC}"
+        fi
         if command -v gnuplot &>/dev/null; then
             echo -e "${GREEN}[OK] gnuplot is available for 2D engineering plots.${NC}"
         else
             echo -e "${BLUE}Tip: Install gnuplot ('sudo apt install gnuplot' or 'sudo pacman -S gnuplot') for 2D plots.${NC}"
         fi
-        if ldconfig -p 2>/dev/null | grep -q "libglfw\.so" || [ -f /lib64/libglfw.so.3 ] || [ -f /usr/lib/libglfw.so.3 ] || [ -f /usr/lib/x86_64-linux-gnu/libglfw.so.3 ] || [ -f /home/linuxbrew/.linuxbrew/lib/libglfw.so ]; then
-            echo -e "${GREEN}[OK] GLFW runtime library is already installed.${NC}"
-            if command -v ffmpeg &>/dev/null; then
-                echo -e "${GREEN}[OK] ffmpeg video tools available for MP4 recording.${NC}"
-            else
-                echo -e "${BLUE}Tip: Install ffmpeg (sudo apt install ffmpeg) to enable MP4 video recording.${NC}"
-            fi
-            return 0
-        fi
-
-        echo "Installing missing runtime libraries (requires sudo)..."
-        if command -v apt-get &>/dev/null; then
-            sudo apt-get update -y && sudo apt-get install -y libglfw3 libglu1-mesa ffmpeg gnuplot
-        elif command -v dnf &>/dev/null; then
-            sudo dnf install -y glfw mesa-libGLU ffmpeg gnuplot
-        elif command -v pacman &>/dev/null; then
-            sudo pacman -S --needed --noconfirm glfw-x11 mesa glu ffmpeg gnuplot
+        if command -v ffmpeg &>/dev/null; then
+            echo -e "${GREEN}[OK] ffmpeg video tools available for MP4 recording.${NC}"
         else
-            echo -e "${YELLOW}Please ensure libglfw3 and OpenGL/Mesa runtime libraries are installed.${NC}"
+            echo -e "${BLUE}Tip: Install ffmpeg ('sudo apt install ffmpeg') to enable MP4 video recording.${NC}"
         fi
     elif [ "${OS}" = "Windows" ]; then
-        echo -e "${GREEN}[OK] Windows runtime libraries configured.${NC}"
+        echo -e "${GREEN}[OK] Windows standalone runtime configured.${NC}"
         if command -v ffmpeg &>/dev/null; then
             echo -e "${GREEN}[OK] ffmpeg video tools available for MP4 recording.${NC}"
         else
@@ -209,7 +191,7 @@ install_runtime_deps() {
         if command -v gnuplot &>/dev/null; then
             echo -e "${GREEN}[OK] gnuplot is available for 2D engineering plots.${NC}"
         else
-            echo -e "${BLUE}Tip: Install gnuplot for Windows (pacman -S mingw-w64-x86_64-gnuplot or winget install Gnuplot.Gnuplot) for 2D plots.${NC}"
+            echo -e "${BLUE}Tip: Install gnuplot for Windows (pacman -S mingw-w64-ucrt-x86_64-gnuplot or winget install Gnuplot.Gnuplot) for 2D plots.${NC}"
         fi
     fi
 }
@@ -272,8 +254,9 @@ install_build_deps() {
         fi
 
         if command -v pacman &>/dev/null; then
-            echo "Installing MinGW-w64 toolchain and GLFW via pacman..."
-            pacman -S --needed --noconfirm mingw-w64-x86_64-gcc mingw-w64-x86_64-glfw mingw-w64-x86_64-cmake make git
+            PKG_PREFIX="${MINGW_PACKAGE_PREFIX:-mingw-w64-ucrt-x86_64}"
+            echo "Installing MinGW-w64 toolchain and GLFW via pacman (${PKG_PREFIX})..."
+            pacman -S --needed --noconfirm "${PKG_PREFIX}-gcc" "${PKG_PREFIX}-glfw" "${PKG_PREFIX}-cmake" "${PKG_PREFIX}-ninja" make git
         else
             echo -e "${YELLOW}Notice: pacman package manager not found in current environment.${NC}"
             if [ "$HAS_COMPILER" -eq 0 ] || [ "$HAS_CMAKE" -eq 0 ]; then
@@ -308,6 +291,53 @@ create_user_alias() {
     fi
 }
 
+# Function: Verify downloaded binary against SHA256SUMS.txt
+verify_sha256() {
+    local file_path="$1"
+    local asset_name="$2"
+    local sums_file
+    sums_file="$(mktemp)"
+
+    if ! curl -fsSL -o "${sums_file}" "${RELEASE_URL}/SHA256SUMS.txt" 2>/dev/null; then
+        rm -f "${sums_file}"
+        echo -e "${YELLOW}Notice: SHA256SUMS.txt not found at release URL; skipping checksum verification.${NC}"
+        return 0
+    fi
+
+    local expected_hash
+    expected_hash=$(awk -v target="$asset_name" '{
+        fname = $2
+        sub(/^\.\//, "", fname)
+        sub(/^\*/, "", fname)
+        if (fname == target) { print tolower($1); exit }
+    }' "${sums_file}")
+    rm -f "${sums_file}"
+
+    if [ -z "${expected_hash}" ]; then
+        echo -e "${YELLOW}Notice: '${asset_name}' not listed in SHA256SUMS.txt; skipping checksum verification.${NC}"
+        return 0
+    fi
+
+    local actual_hash=""
+    if command -v sha256sum &>/dev/null; then
+        actual_hash=$(sha256sum "${file_path}" | awk '{print tolower($1)}')
+    elif command -v shasum &>/dev/null; then
+        actual_hash=$(shasum -a 256 "${file_path}" | awk '{print tolower($1)}')
+    else
+        echo -e "${YELLOW}Notice: No SHA-256 tool found; skipping checksum verification.${NC}"
+        return 0
+    fi
+
+    if [ "${expected_hash}" != "${actual_hash}" ]; then
+        echo -e "${RED}Error: SHA-256 checksum mismatch for ${asset_name}!${NC}"
+        echo "  Expected: ${expected_hash}"
+        echo "  Actual:   ${actual_hash}"
+        rm -f "${file_path}"
+        exit 1
+    fi
+    echo -e "${GREEN}[OK] SHA-256 checksum verified for ${asset_name}.${NC}"
+}
+
 # Function: Fast Install via Pre-built Binary
 do_fast_install() {
     if [ -z "${BINARY_NAME}" ]; then
@@ -320,11 +350,14 @@ do_fast_install() {
 
     DOWNLOAD_URL="${RELEASE_URL}/${BINARY_NAME}"
     TARGET_BIN="${INSTALL_DIR}/cgx_glfw${BIN_EXT}"
+    TMP_BIN="$(mktemp)"
 
     echo -e "\n${BOLD}--> Fetching pre-compiled binary from:${NC}"
     echo "    ${DOWNLOAD_URL}"
     
-    if curl -fSL --progress-bar -o "${TARGET_BIN}" "${DOWNLOAD_URL}"; then
+    if curl -fSL --progress-bar -o "${TMP_BIN}" "${DOWNLOAD_URL}"; then
+        verify_sha256 "${TMP_BIN}" "${BINARY_NAME}"
+        mv -f "${TMP_BIN}" "${TARGET_BIN}"
         chmod +x "${TARGET_BIN}"
         if [ "${OS}" = "Darwin" ]; then
             xattr -d com.apple.quarantine "${TARGET_BIN}" 2>/dev/null || true
@@ -332,6 +365,7 @@ do_fast_install() {
         create_user_alias "${TARGET_BIN}"
         echo -e "${GREEN}[OK] Successfully installed: ${TARGET_BIN}${NC}"
     else
+        rm -f "${TMP_BIN}"
         echo -e "${YELLOW}Notice: Pre-compiled binary not found on GitHub Releases yet (${DOWNLOAD_URL}).${NC}"
         echo -e "${BOLD}--> Automatically falling back to local compilation...${NC}"
         do_build_install

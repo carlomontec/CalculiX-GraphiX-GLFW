@@ -2,7 +2,7 @@
 Name=CalculiX GraphiX GLFW
 GenericName=FEA Pre- and Post-Processor
 Comment=3D Pre- and Post-Processor for Finite Element Analysis (GLFW Edition)
-Exec=cgx_glfw %f
+Exec=cgx-open %f
 Icon=calculix-cgx
 Terminal=true
 Type=Application

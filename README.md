@@ -2,7 +2,7 @@
 
 > **A new 3D backend and multi-platform edition of CalculiX GraphiX.**
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](COPYING)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](cgx_2.23/COPYING)
 [![Platform: macOS | Linux | Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen.svg)](INSTALL.md)
 [![Graphics: GLFW3 + Modern OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20stb__truetype-orange.svg)](#highlights--new-features)
 [![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](GUI_EXTRA_FEATURES.md#6-native-paraview-vtupvd-exporter)
@@ -55,8 +55,23 @@ Then run from anywhere:
 cgx_glfw <model.frd>
 ```
 
-* **Windows**: Download standalone binaries from [**Releases**](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases).
-* **Detailed Guide**: For CMake build instructions, prerequisites, and options, see [**INSTALL.md**](INSTALL.md).
+* **Pre-built Binaries & Installers**: Download from [**Releases**](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases):
+  * **macOS (Apple Silicon `arm64`)**: `CalculiX-GraphiX-GLFW-macOS-arm64.dmg` or standalone `cgx_glfw-macos-arm64`
+  * **Windows (`x86_64`)**: `CalculiX-GraphiX-GLFW-Setup-windows-x86_64.exe` (installer with `.frd`/`.fbl`/`.inp` file associations) or standalone `cgx_glfw-windows-x86_64.exe`
+  * **Linux (`x86_64` & `arm64`)**: `cgx_glfw-linux-<arch>.tar.gz` (includes binary and zero-`sudo` desktop/MIME installer) or standalone `cgx_glfw-linux-<arch>`
+* **Detailed Guide**: For CMake build instructions, prerequisites, and checksum verification, see [**INSTALL.md**](INSTALL.md).
+
+### Security Notice (Unsigned Binaries)
+
+Pre-built binaries are not signed with commercial Apple Developer ID or Windows Authenticode certificates. All release assets include `SHA256SUMS.txt` for verification.
+
+* **macOS Gatekeeper**: Because the app bundle and binary are ad-hoc signed, macOS may block launching downloaded files (*"cannot be opened because Apple cannot check it for malicious software"* or *"is damaged and can't be opened"*). Clear the quarantine flag in Terminal or allow it in **System Settings → Privacy & Security → Open Anyway**:
+  ```bash
+  xattr -cr "/Applications/CalculiX GraphiX GLFW.app"
+  # or for the standalone CLI binary:
+  xattr -d com.apple.quarantine cgx_glfw-macos-arm64
+  ```
+* **Windows SmartScreen**: Microsoft Defender SmartScreen may display *"Windows protected your PC"* on unsigned `.exe` downloads. Click **More info → Run anyway** to proceed.
 ---
 
 ## Controls & Mouse Gestures

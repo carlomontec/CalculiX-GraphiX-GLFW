@@ -177,10 +177,16 @@ file(GLOB LIBSNL_SOURCES "${LIBSNL_SRC_DIR}/*.cpp")
 # -----------------------------------------------------------------------------
 # Target Executable
 # -----------------------------------------------------------------------------
+set(CGX_WIN_RESOURCES "")
+if(WIN32)
+    set(CGX_WIN_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/cgx.rc")
+endif()
+
 add_executable(cgx_glfw
     ${CGX_C_SOURCES}
     ${CGX_CXX_SOURCES}
     ${LIBSNL_SOURCES}
+    ${CGX_WIN_RESOURCES}
 )
 
 target_include_directories(cgx_glfw PRIVATE
@@ -188,6 +194,11 @@ target_include_directories(cgx_glfw PRIVATE
     ${CGX_SRC_DIR}/tetgen
     ${LIBSNL_SRC_DIR}
 )
+if(WIN32)
+    target_include_directories(cgx_glfw PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows
+    )
+endif()
 
 target_compile_definitions(cgx_glfw PRIVATE
     USE_GLFW
@@ -256,7 +267,10 @@ if(STATIC_GLFW AND APPLE)
     endif()
 elseif(WIN32)
     # Statically link GLFW on Windows for zero external DLL dependency
-    find_library(GLFW_STATIC_LIB NAMES libglfw3.a glfw3)
+    find_library(GLFW_STATIC_LIB NAMES libglfw3.a)
+    if(NOT GLFW_STATIC_LIB)
+        find_library(GLFW_STATIC_LIB NAMES glfw3)
+    endif()
     if(GLFW_STATIC_LIB)
         message(STATUS "Using static GLFW library on Windows: ${GLFW_STATIC_LIB}")
         target_link_libraries(cgx_glfw PRIVATE "${GLFW_STATIC_LIB}")
@@ -269,6 +283,25 @@ elseif(WIN32)
             target_link_libraries(cgx_glfw PRIVATE ${GLFW_LIBRARY})
         endif()
     endif()
+elseif(STATIC_GLFW AND UNIX AND NOT APPLE)
+    # Fetch and compile GLFW 3.4 statically on Linux (runtime dlopen for X11 & Wayland)
+    include(FetchContent)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+    set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_X11 ON CACHE BOOL "" FORCE)
+    set(GLFW_BUILD_WAYLAND ON CACHE BOOL "" FORCE)
+    FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw.git
+        GIT_TAG 3.4
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(glfw)
+    target_link_libraries(cgx_glfw PRIVATE glfw m dl Threads::Threads)
+    target_link_options(cgx_glfw PRIVATE -static-libgcc -static-libstdc++ -Wl,--as-needed)
 else()
     # Dynamic or standard discovery
     find_package(glfw3 3.3 CONFIG QUIET)

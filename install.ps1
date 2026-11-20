@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # CalculiX GraphiX (GLFW Edition) — Windows PowerShell Universal Installer
 #
 # 1-Liner Usage (from PowerShell as standard User):
@@ -144,7 +144,7 @@ function Ensure-MsysRoot {
     exit 1
 }
 
-function Invoke-MsysBash($msysRoot, $cmd, $msystem = "MINGW64") {
+function Invoke-MsysBash($msysRoot, $cmd, $msystem = "UCRT64") {
     $bashExe = "$msysRoot\usr\bin\bash.exe"
     $env:MSYSTEM = $msystem
     $env:CHERE_INVOKING = "1"
@@ -157,12 +157,47 @@ function Invoke-MsysBash($msysRoot, $cmd, $msystem = "MINGW64") {
 # -----------------------------------------------------------------------------
 # 3. Fast Binary Installation
 # -----------------------------------------------------------------------------
+function Verify-Sha256($FilePath, $AssetName) {
+    $sumsUrl = "${ReleaseUrl}/SHA256SUMS.txt"
+    $sumsFile = "$env:TEMP\cgx_SHA256SUMS_$(Get-Random).txt"
+    try {
+        Invoke-WebRequest -Uri $sumsUrl -OutFile $sumsFile -UseBasicParsing
+    } catch {
+        Write-Warn "SHA256SUMS.txt not found at release URL; skipping checksum verification."
+        return
+    }
+
+    try {
+        $expectedHash = $null
+        $escapedName = [regex]::Escape($AssetName)
+        foreach ($line in (Get-Content -Path $sumsFile)) {
+            if ($line -match "^([0-9a-fA-F]{64})\s+\*?(\./)?${escapedName}\s*$") {
+                $expectedHash = $matches[1].ToLower()
+                break
+            }
+        }
+        if (-not $expectedHash) {
+            Write-Warn "'$AssetName' not listed in SHA256SUMS.txt; skipping checksum verification."
+            return
+        }
+        $actualHash = (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash.ToLower()
+        if ($actualHash -ne $expectedHash) {
+            Remove-Item $FilePath -Force -ErrorAction SilentlyContinue
+            throw "SHA-256 checksum mismatch for $AssetName (expected $expectedHash, got $actualHash)."
+        }
+        Write-Success "SHA-256 checksum verified for $AssetName."
+    } finally {
+        Remove-Item $sumsFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Do-FastInstall {
     Write-Step "Fetching pre-compiled standalone Windows release binary..."
     
     $assetCandidates = @("cgx_glfw-windows-x86_64.exe", "cgx_glfw-windows-x86_64.zip")
     $downloadOk = $false
     $downloadedFile = $null
+    $downloadedAsset = $null
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -172,9 +207,10 @@ function Do-FastInstall {
         Write-Host "Checking release asset: $downloadUrl" -ForegroundColor Cyan
         try {
             Invoke-WebRequest -Uri $downloadUrl -OutFile $tempTarget -UseBasicParsing
-            if (Test-Path $tempTarget) {
+            if ((Test-Path $tempTarget) -and ((Get-Item $tempTarget).Length -gt 0)) {
                 $downloadOk = $true
                 $downloadedFile = $tempTarget
+                $downloadedAsset = $asset
                 break
             }
         } catch {
@@ -188,6 +224,8 @@ function Do-FastInstall {
         Do-BuildInstall $false
         return
     }
+
+    Verify-Sha256 $downloadedFile $downloadedAsset
 
     if (-not (Test-Path $InstallDir)) {
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
@@ -223,21 +261,21 @@ function Do-FastInstall {
 function Do-BuildInstall($forceHead = $false) {
     $msysRoot = Ensure-MsysRoot
 
-    Write-Step "Checking MinGW-w64 (MINGW64) build tools & GLFW libraries..."
+    Write-Step "Checking MinGW-w64 (UCRT64) build tools & GLFW libraries..."
     $requiredPackages = @(
         "git",
         "make",
-        "mingw-w64-x86_64-gcc",
-        "mingw-w64-x86_64-glfw",
-        "mingw-w64-x86_64-cmake",
-        "mingw-w64-x86_64-ninja",
-        "mingw-w64-x86_64-pkgconf"
+        "mingw-w64-ucrt-x86_64-gcc",
+        "mingw-w64-ucrt-x86_64-glfw",
+        "mingw-w64-ucrt-x86_64-cmake",
+        "mingw-w64-ucrt-x86_64-ninja",
+        "mingw-w64-ucrt-x86_64-pkgconf"
     )
 
     $pkgListStr = $requiredPackages -join " "
     Write-Host "Ensuring build dependencies via pacman ($pkgListStr)..." -ForegroundColor Cyan
-    Invoke-MsysBash $msysRoot "pacman -Sy --noconfirm --needed $pkgListStr" "MINGW64"
-    Write-Success "MinGW-w64 build tools and GLFW libraries verified."
+    Invoke-MsysBash $msysRoot "pacman -Sy --noconfirm --needed $pkgListStr" "UCRT64"
+    Write-Success "MinGW-w64 (UCRT64) build tools and GLFW libraries verified."
 
     # Locate source directory
     $candidateDirs = @(
@@ -267,13 +305,13 @@ function Do-BuildInstall($forceHead = $false) {
         } else {
             "git clone $GithubRepoUrl '$($tempDir -replace '\\','/')/cgx'"
         }
-        Invoke-MsysBash $msysRoot $cloneCmd "MINGW64"
+        Invoke-MsysBash $msysRoot $cloneCmd "UCRT64"
         $sourceDir = "$tempDir\cgx"
         $isTempClone = $true
 
         if (-not $forceHead) {
             $tagCheckout = "cd '$($sourceDir -replace '\\','/')' && LATEST_TAG=`$(git tag -l 'v*' | sort -V | tail -n 1) && [ -n `"`$LATEST_TAG`" ] && git checkout `$LATEST_TAG || true"
-            Invoke-MsysBash $msysRoot $tagCheckout "MINGW64"
+            Invoke-MsysBash $msysRoot $tagCheckout "UCRT64"
         }
     }
 
@@ -283,7 +321,7 @@ function Do-BuildInstall($forceHead = $false) {
 
     Write-Step "Compiling CalculiX GraphiX (GLFW Edition) with CMake & Ninja..."
     $buildCmd = "cd '$sourceDirMsys' && rm -rf build && cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release && cmake --build build"
-    Invoke-MsysBash $msysRoot $buildCmd "MINGW64"
+    Invoke-MsysBash $msysRoot $buildCmd "UCRT64"
 
     $builtExe = "$sourceDir\bin\cgx_glfw.exe"
     if (-not (Test-Path $builtExe)) {
@@ -380,7 +418,7 @@ if (Test-Path $installedBin) {
     try {
         $msysRoot = Find-MsysRoot
         if ($msysRoot -and (Test-Path "test\test_vtu.fbl")) {
-            Invoke-MsysBash $msysRoot "'$($installedBin -replace '\\','/')' -bg test/test_vtu.fbl" "MINGW64"
+            Invoke-MsysBash $msysRoot "'$($installedBin -replace '\\','/')' -bg test/test_vtu.fbl" "UCRT64"
             if (Test-Path "all.vtu") {
                 Write-Success "CalculiX GraphiX (GLFW Edition) launch & VTU export verification passed!"
                 Remove-Item all.vtu, all.pvd, all_step_*.vtu -Force -ErrorAction SilentlyContinue
