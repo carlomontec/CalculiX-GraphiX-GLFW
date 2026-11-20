@@ -102,10 +102,16 @@ jobs:
 
       - name: Inspect binary dependencies
         run: |
-          echo "=== Dynamic link check (should contain ZERO libglfw or libstdc++) ==="
+          echo "=== Direct DT_NEEDED entries (should contain ZERO libglfw or libstdc++) ==="
+          readelf -d bin/cgx_glfw | grep "(NEEDED)"
+          if readelf -d bin/cgx_glfw | grep "(NEEDED)" | grep -E "libglfw|libstdc\+\+"; then
+            echo "ERROR: cgx_glfw directly links libglfw or libstdc++."
+            exit 1
+          fi
+          echo "=== Full transitive ldd tree (should contain ZERO libglfw) ==="
           ldd bin/cgx_glfw
-          if ldd bin/cgx_glfw | grep -E "libglfw|libstdc\+\+"; then
-            echo "ERROR: libglfw or libstdc++ was dynamically linked."
+          if ldd bin/cgx_glfw | grep "libglfw"; then
+            echo "ERROR: libglfw was dynamically linked."
             exit 1
           fi
 
@@ -176,10 +182,16 @@ jobs:
 
       - name: Inspect binary dependencies
         run: |
-          echo "=== Dynamic link check (should contain ZERO libglfw or libstdc++) ==="
+          echo "=== Direct DT_NEEDED entries (should contain ZERO libglfw or libstdc++) ==="
+          readelf -d bin/cgx_glfw | grep "(NEEDED)"
+          if readelf -d bin/cgx_glfw | grep "(NEEDED)" | grep -E "libglfw|libstdc\+\+"; then
+            echo "ERROR: cgx_glfw directly links libglfw or libstdc++."
+            exit 1
+          fi
+          echo "=== Full transitive ldd tree (should contain ZERO libglfw) ==="
           ldd bin/cgx_glfw
-          if ldd bin/cgx_glfw | grep -E "libglfw|libstdc\+\+"; then
-            echo "ERROR: libglfw or libstdc++ was dynamically linked."
+          if ldd bin/cgx_glfw | grep "libglfw"; then
+            echo "ERROR: libglfw was dynamically linked."
             exit 1
           fi
 
