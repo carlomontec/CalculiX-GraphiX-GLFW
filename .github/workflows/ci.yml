@@ -2,15 +2,15 @@ name: CI Matrix Build & Headless Tests
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build-test-macos-arm64:
     name: macOS (Apple Silicon arm64)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -31,8 +31,8 @@ jobs:
         run: |
           echo "=== Dynamic link check (should contain ZERO Homebrew dylibs) ==="
           otool -L bin/cgx_glfw
-          if otool -L bin/cgx_glfw | grep -q "libglfw"; then
-            echo "ERROR: libglfw was dynamically linked instead of statically baked."
+          if otool -L bin/cgx_glfw | grep -qE "libglfw|/opt/homebrew"; then
+            echo "ERROR: libglfw or a Homebrew dylib was dynamically linked instead of statically baked."
             exit 1
           fi
 
@@ -146,21 +146,31 @@ jobs:
       - name: Setup MSYS2 & MinGW-w64 toolchain
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-glfw
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
-            mingw-w64-x86_64-python
-            mingw-w64-x86_64-gnuplot
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-glfw
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-gnuplot
 
       - name: Configure and Build with CMake
         shell: msys2 {0}
         run: |
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
+
+      - name: Inspect binary DLL dependencies
+        shell: msys2 {0}
+        run: |
+          echo "=== Dynamic DLL check (should contain ZERO MSYS2/MinGW runtime DLLs) ==="
+          objdump -p bin/cgx_glfw.exe | grep "DLL Name:"
+          if objdump -p bin/cgx_glfw.exe | grep -iE "DLL Name:.*(glfw|libgcc|libstdc\+\+|libwinpthread|msys-)"; then
+            echo "ERROR: Unexpected MSYS2/MinGW runtime DLL dependency detected."
+            exit 1
+          fi
 
       - name: Run headless regression test (-bg)
         shell: msys2 {0}

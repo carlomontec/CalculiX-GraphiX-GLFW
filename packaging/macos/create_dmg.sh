@@ -25,6 +25,10 @@ cp -R "$APP_DIR" "$TEMP_DMG_DIR/"
 cp "$SCRIPT_DIR/Install CLI Tool.command" "$TEMP_DMG_DIR/"
 chmod +x "$TEMP_DMG_DIR/Install CLI Tool.command"
 
+# Copy license notices
+cp "$REPO_ROOT/cgx_2.23/COPYING" "$TEMP_DMG_DIR/LICENSE.txt"
+cp "$REPO_ROOT/THIRD_PARTY_LICENSES.md" "$TEMP_DMG_DIR/THIRD_PARTY_LICENSES.md"
+
 # Create symlink to /Applications
 ln -s /Applications "$TEMP_DMG_DIR/Applications"
 

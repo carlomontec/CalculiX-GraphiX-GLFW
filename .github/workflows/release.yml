@@ -12,14 +12,14 @@ permissions:
 jobs:
   build-macos-arm64:
     name: Build macOS (Apple Silicon arm64)
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Install build dependencies
         run: |
-          brew install glfw pkg-config cmake
+          brew install glfw pkg-config cmake gnuplot
 
       - name: Configure and Build (Standalone Static GLFW)
         run: |
@@ -30,8 +30,8 @@ jobs:
         run: |
           echo "=== Dynamic link check ==="
           otool -L bin/cgx_glfw
-          if otool -L bin/cgx_glfw | grep -q "libglfw"; then
-            echo "ERROR: libglfw was dynamically linked instead of statically baked."
+          if otool -L bin/cgx_glfw | grep -qE "libglfw|/opt/homebrew"; then
+            echo "ERROR: libglfw or a Homebrew dylib was dynamically linked instead of statically baked."
             exit 1
           fi
 
@@ -39,6 +39,11 @@ jobs:
         run: |
           ./bin/cgx_glfw -bg test/test_vtu.fbl
           test -s all.vtu
+          test -s all.pvd
+
+      - name: Run Automated Test Suite (CTest)
+        run: |
+          ctest --test-dir build --output-on-failure
 
       - name: Prepare distribution asset & Code Sign
         run: |
@@ -46,7 +51,7 @@ jobs:
           cp bin/cgx_glfw dist/cgx_glfw-macos-arm64
           chmod +x dist/cgx_glfw-macos-arm64
           codesign --force --deep --sign - dist/cgx_glfw-macos-arm64
-          
+
           echo "=== Building macOS DMG ==="
           ./packaging/macos/create_dmg.sh
 
@@ -59,7 +64,7 @@ jobs:
             dist/CalculiX-GraphiX-GLFW-macOS-arm64.dmg
 
   build-linux-x86_64:
-    name: Build Linux (x86_64 / glibc)
+    name: Build Linux (x86_64 / glibc 2.35)
     runs-on: ubuntu-22.04
     steps:
       - name: Check out repository
@@ -71,77 +76,140 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             cmake \
-            libglfw3-dev \
+            git \
+            pkg-config \
             libgl1-mesa-dev \
             libglu1-mesa-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libwayland-dev \
+            libwayland-bin \
+            wayland-protocols \
+            libxkbcommon-dev \
+            extra-cmake-modules \
             fonts-dejavu-core \
-            fonts-liberation
+            fonts-liberation \
+            python3 \
+            gnuplot
 
-      - name: Configure and Build
+      - name: Configure and Build (Static GLFW 3.4)
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DSTATIC_GLFW=ON
           cmake --build build --config Release --parallel
+
+      - name: Inspect binary dependencies
+        run: |
+          echo "=== Dynamic link check (should contain ZERO libglfw or libstdc++) ==="
+          ldd bin/cgx_glfw
+          if ldd bin/cgx_glfw | grep -E "libglfw|libstdc\+\+"; then
+            echo "ERROR: libglfw or libstdc++ was dynamically linked."
+            exit 1
+          fi
 
       - name: Headless sanity test
         run: |
           ./bin/cgx_glfw -bg test/test_vtu.fbl
           test -s all.vtu
+          test -s all.pvd
 
-      - name: Prepare distribution asset
+      - name: Run Automated Test Suite (CTest)
+        run: |
+          ctest --test-dir build --output-on-failure
+
+      - name: Prepare distribution assets
         run: |
           mkdir -p dist
           cp bin/cgx_glfw dist/cgx_glfw-linux-x86_64
           chmod +x dist/cgx_glfw-linux-x86_64
+          ./packaging/linux/create_tarball.sh x86_64
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cgx_glfw-linux-x86_64
-          path: dist/cgx_glfw-linux-x86_64
+          name: linux-x86_64-artifacts
+          path: |
+            dist/cgx_glfw-linux-x86_64
+            dist/cgx_glfw-linux-x86_64.tar.gz
 
   build-linux-arm64:
-    name: Build Linux (ARM64 aarch64 / Raspberry Pi)
+    name: Build Linux (ARM64 aarch64 / glibc 2.35)
     runs-on: ubuntu-24.04-arm
+    container: ubuntu:22.04
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Install build dependencies & fonts
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y \
+            ca-certificates \
             build-essential \
             cmake \
-            libglfw3-dev \
+            git \
+            pkg-config \
             libgl1-mesa-dev \
             libglu1-mesa-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libwayland-dev \
+            libwayland-bin \
+            wayland-protocols \
+            libxkbcommon-dev \
+            extra-cmake-modules \
             fonts-dejavu-core \
-            fonts-liberation
+            fonts-liberation \
+            python3 \
+            gnuplot
 
-      - name: Configure and Build
+      - name: Configure and Build (Static GLFW 3.4)
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DSTATIC_GLFW=ON
           cmake --build build --config Release --parallel
+
+      - name: Inspect binary dependencies
+        run: |
+          echo "=== Dynamic link check (should contain ZERO libglfw or libstdc++) ==="
+          ldd bin/cgx_glfw
+          if ldd bin/cgx_glfw | grep -E "libglfw|libstdc\+\+"; then
+            echo "ERROR: libglfw or libstdc++ was dynamically linked."
+            exit 1
+          fi
 
       - name: Headless sanity test
         run: |
           ./bin/cgx_glfw -bg test/test_vtu.fbl
           test -s all.vtu
+          test -s all.pvd
 
-      - name: Prepare distribution asset
+      - name: Run Automated Test Suite (CTest)
+        run: |
+          ctest --test-dir build --output-on-failure
+
+      - name: Prepare distribution assets
         run: |
           mkdir -p dist
           cp bin/cgx_glfw dist/cgx_glfw-linux-arm64
           chmod +x dist/cgx_glfw-linux-arm64
+          ./packaging/linux/create_tarball.sh arm64
 
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: cgx_glfw-linux-arm64
-          path: dist/cgx_glfw-linux-arm64
+          name: linux-arm64-artifacts
+          path: |
+            dist/cgx_glfw-linux-arm64
+            dist/cgx_glfw-linux-arm64.tar.gz
 
   build-windows-x64:
-    name: Build Windows (x64 / MinGW-w64)
+    name: Build Windows (x64 / MinGW-w64 UCRT64)
     runs-on: windows-latest
     steps:
       - name: Check out repository
@@ -150,13 +218,15 @@ jobs:
       - name: Setup MSYS2 & MinGW-w64 toolchain
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
-            mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-glfw
-            mingw-w64-x86_64-cmake
-            mingw-w64-x86_64-ninja
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-glfw
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-gnuplot
 
       - name: Configure and Build with CMake
         shell: msys2 {0}
@@ -164,11 +234,27 @@ jobs:
           cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           cmake --build build --config Release
 
+      - name: Inspect binary DLL dependencies
+        shell: msys2 {0}
+        run: |
+          echo "=== Dynamic DLL check (should contain ZERO MSYS2/MinGW runtime DLLs) ==="
+          objdump -p bin/cgx_glfw.exe | grep "DLL Name:"
+          if objdump -p bin/cgx_glfw.exe | grep -iE "DLL Name:.*(glfw|libgcc|libstdc\+\+|libwinpthread|msys-)"; then
+            echo "ERROR: Unexpected MSYS2/MinGW runtime DLL dependency detected."
+            exit 1
+          fi
+
       - name: Headless sanity test
         shell: msys2 {0}
         run: |
           ./bin/cgx_glfw.exe -bg test/test_vtu.fbl
           test -s all.vtu
+          test -s all.pvd
+
+      - name: Run Automated Test Suite (CTest)
+        shell: msys2 {0}
+        run: |
+          ctest --test-dir build --output-on-failure
 
       - name: Prepare distribution asset
         shell: msys2 {0}
@@ -179,7 +265,8 @@ jobs:
       - name: Build Windows Inno Setup Installer
         run: |
           choco install innosetup -y --no-progress
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\setup.iss
+          $appVer = if ("${{ github.ref }}".StartsWith("refs/tags/")) { "${{ github.ref_name }}".TrimStart("v") } else { "2.23-dev" }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$appVer" packaging\windows\setup.iss
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -203,9 +290,16 @@ jobs:
       - name: Generate SHA256 Checksums
         run: |
           cd dist
+          rm -f SHA256SUMS.txt
           sha256sum * > SHA256SUMS.txt
           echo "=== Generated SHA256 Checksums ==="
           cat SHA256SUMS.txt
+
+      - name: Upload consolidated distribution preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dist-preview
+          path: dist/
 
       - name: Publish Release Assets
         uses: softprops/action-gh-release@v2
@@ -216,7 +310,9 @@ jobs:
             dist/CalculiX-GraphiX-GLFW-Setup-windows-x86_64.exe
             dist/cgx_glfw-macos-arm64
             dist/cgx_glfw-linux-x86_64
+            dist/cgx_glfw-linux-x86_64.tar.gz
             dist/cgx_glfw-linux-arm64
+            dist/cgx_glfw-linux-arm64.tar.gz
             dist/cgx_glfw-windows-x86_64.exe
             dist/SHA256SUMS.txt
           generate_release_notes: true

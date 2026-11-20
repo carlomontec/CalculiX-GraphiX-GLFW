@@ -29,23 +29,47 @@ The binary is installed into `~/.local/bin/cgx_glfw` and added to your `PATH`.
 
 ## 2. Pre-Compiled Binaries
 
-Pre-compiled standalone binaries are available on the [**Releases Page**](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases):
+Pre-compiled standalone binaries, installers, and `SHA256SUMS.txt` checksums are published on the [**Releases Page**](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases):
 
-* **Windows**: Download `cgx_glfw-windows-x86_64.exe` (statically linked, standalone).
+* **macOS (Apple Silicon / `arm64`)**:
+  * **DMG Installer**: `CalculiX-GraphiX-GLFW-macOS-arm64.dmg` — drag `CalculiX GraphiX GLFW.app` to `Applications`, and optionally run `Install CLI Tool.command` to add user-space `cgx` / `cgx_glfw` links in `~/.local/bin`.
+  * **Standalone CLI binary**: `cgx_glfw-macos-arm64` (statically links GLFW; zero Homebrew runtime dependency).
+* **Windows (`x86_64`)**:
+  * **Windows Installer**: `CalculiX-GraphiX-GLFW-Setup-windows-x86_64.exe` — installs `cgx_glfw.exe` and `cgx.exe`, registers `.frd`/`.fbl`/`.inp` file associations, and optionally adds the install folder to `PATH`.
+  * **Standalone CLI binary**: `cgx_glfw-windows-x86_64.exe` (statically linked against GLFW and C/C++ runtimes; zero MSYS2 DLL dependencies).
   ```powershell
-  # PowerShell 1-Liner:
-  Invoke-WebRequest -Uri "https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases/latest/download/cgx_glfw-windows-x86_64.exe" -OutFile "cgx_glfw.exe"
+  # PowerShell 1-Liner (binary + PATH setup):
+  irm https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/install.ps1 | iex
   ```
-* **macOS (Apple Silicon / arm64)**: Download `cgx_glfw-macos-arm64`.
-* **Linux (x86_64)**: Download `cgx_glfw-linux-x86_64`.
-* **Linux (ARM64 / aarch64)**: Download `cgx_glfw-linux-arm64`.
+* **Linux (`x86_64` & `arm64` / `aarch64`)**:
+  * **Desktop Bundle**: `cgx_glfw-linux-x86_64.tar.gz` or `cgx_glfw-linux-arm64.tar.gz` — extract and run `./install-desktop.sh` to install `cgx_glfw` / `cgx` into `~/.local/bin` and `.desktop`/MIME associations into `~/.local/share` without `sudo`.
+  * **Standalone CLI binary**: `cgx_glfw-linux-x86_64` or `cgx_glfw-linux-arm64` — built on Ubuntu 22.04 (`glibc 2.35`) with static GLFW 3.4 (runtime `dlopen` for X11 and Wayland) and static C++ runtime.
 
-On macOS/Linux, make the binary executable before running:
+On macOS/Linux, make standalone binaries executable before running:
 ```bash
 chmod +x cgx_glfw-*
-xattr -d com.apple.quarantine cgx_glfw-macos-* 2>/dev/null || true # macOS only
 ./cgx_glfw-*
 ```
+
+Verify any downloaded file against `SHA256SUMS.txt`:
+```bash
+shasum -a 256 -c SHA256SUMS.txt --ignore-missing   # macOS
+sha256sum -c SHA256SUMS.txt --ignore-missing       # Linux
+```
+```powershell
+Get-FileHash .\cgx_glfw-windows-x86_64.exe -Algorithm SHA256   # Windows
+```
+
+### Security Notice (Unsigned Binaries)
+
+Release binaries and installers are not signed with commercial Apple Developer ID or Windows Authenticode certificates.
+
+* **macOS Gatekeeper**: Downloaded `.dmg`/`.app`/binary files carry the `com.apple.quarantine` attribute and may trigger *"cannot be opened because Apple cannot check it for malicious software"* or *"is damaged and can't be opened"*. Clear the quarantine attribute or allow execution via **System Settings → Privacy & Security → Open Anyway**:
+  ```bash
+  xattr -cr "/Applications/CalculiX GraphiX GLFW.app"
+  xattr -d com.apple.quarantine cgx_glfw-macos-arm64 2>/dev/null || true
+  ```
+* **Windows SmartScreen**: Microsoft Defender SmartScreen may display *"Windows protected your PC"* when running an unsigned `.exe` or `Setup.exe`. Click **More info → Run anyway** after verifying the SHA-256 hash against `SHA256SUMS.txt`.
 
 ---
 
@@ -97,7 +121,7 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w
    > **Note on Static Linking & Platform Status**:
    > * **macOS / Linux**: Fully supported and verified on small, medium, and large multi-dataset FEA models.
    > * **macOS**: `STATIC_GLFW=ON` is enabled by default, creating a standalone binary with zero Homebrew runtime dependency.
-   > * **Windows (MinGW)**: Builds a standalone `.exe` statically linked with GLFW and GCC runtime. Standard models, meshing, and interactive commands are fully operational. Large multi-dataset modal models (e.g. 100k+ elements with 10+ modes) are currently under investigation for Windows-specific heap/stream handling.
+   > * **Windows (MinGW UCRT64)**: Builds a standalone `.exe` statically linked against `libglfw3.a` and the GCC/C++ runtime, with 64-bit FRD file offsets (`readfrd.c`) and QUAD8 VBO bounds fixes.
 
 3. **Run**:
    ```bash
@@ -122,10 +146,10 @@ make -f Makefile.glfw -j
 ../../bin/cgx_glfw
 ```
 
-### Windows (MSYS2 MinGW-w64)
+### Windows (MSYS2 MinGW-w64 UCRT64)
 ```bash
 cd cgx_2.23/src
-make -f Makefile.glfw.win -j
+make -f Makefile.glfw -j
 ../../bin/cgx_glfw.exe
 ```
 
