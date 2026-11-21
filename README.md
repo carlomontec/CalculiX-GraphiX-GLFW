@@ -18,6 +18,7 @@ All core CGX geometry, meshing (`libSNL`), batch commands, macro scripts (`.fbl`
 - **Vector typography with 3-tier UI scaling.** Built-in `stb_truetype` rendering replaces legacy X11/GLUT bitmap fonts and supports Small (`14pt`), Medium (`20pt`, default), and Big (`32pt`) text scaling across menus, labels, and the command bar.
 - **Dark mode, 3D perspective, and Cubehelix colormap by default.** Launches in dark slate (`#0D121A`) with 3D perspective projection, shaded results enabled, and the perceptually monotonic `cubehelix (reversed)` colormap (grayscale-print-safe and colorblind-friendly).
 - **Interactive command bar and trackpad/mouse navigation.** Includes command history (<kbd>↑</kbd>/<kbd>↓</kbd>), Levenshtein typo suggestions (e.g., `fram` → `frame`), modifier-key pan/zoom for trackpads and mice, and a right-click cascading context menu.
+- **Optional interactive HUD overlays.** Provides a collapsible top-right `Tools` bar (`F2` / `view hud`) anchored to the 3D viewport (`Fit`, `Iso`, `Wire`/`Fill`, `Elem`, `Persp`, `Theme`, `Spin`, `Shot`, `Axes`), a clickable 3D orientation `Axes` widget (`F3` / `view axes`), a collapsible top-left `Tree` drawer (`F4` / `view tree`) with `Model` (materials, element sets, geometry, prefix-colored node sets, visibility toggles, Solo `S`, `All`) and `Results` (datasets and components) tabs, and turntable auto-rotation and recording (`rot auto`, `movie turntable`). All overlays are hidden by default, adapt to Dark/Light mode, and are excluded from PNG, GIF, and MP4 captures.
 - **Native media capture and ParaView export.** Saves PNG screenshots (`hcpy`), animated GIFs, and MP4 recordings (when `ffmpeg` is available) without requiring ImageMagick, and exports models and time-step results directly to `.vtu` and `.pvd` (`send all vtu all`).
 - **Integrated TetGen tetrahedral meshing.** Includes native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1) alongside CGX's structured hexahedral and sweep meshers.
 - **Automated headless verification.** A 24-test headless suite (`tests/run_tests.py` / CTest) validates geometry, hexahedral/wedge sweeping, TetGen meshing, exports, and post-processing across all four CI matrix targets.
@@ -32,6 +33,7 @@ Upstream CalculiX GraphiX is the reference implementation. The table summarizes 
 | **Typography** | X11 / GLUT bitmap fonts | `stb_truetype` vector fonts with 3-tier UI scaling (`14pt` / `20pt` / `32pt`) |
 | **Build & Platforms** | Platform-specific Makefiles (primarily Linux/Unix) | Single `CMakeLists.txt` for Linux (`x86_64`, `ARM64`), macOS, and Windows, plus installers and release binaries |
 | **Defaults** | White background, orthographic projection, classic colormap | Dark slate (`#0D121A`), 3D perspective, shaded results, `cubehelix (reversed)` |
+| **Interactive HUD & Tree** | Keyboard commands and right-click menu | Optional viewport-anchored Tools bar (`F2`), clickable Axes (`F3`), Model/Results Tree (`F4`), turntable spin & recording |
 | **2D Plotting** | PostScript / `gv` | High-DPI PNG (`pngcairo`), SVG, PDF via Gnuplot + generated `graph_<Nr>.py` Matplotlib scripts |
 | **Screenshots & Video** | External ImageMagick (`import`) | Native PNG (`hcpy`), GIF, and MP4 (via `ffmpeg`) |
 | **ParaView Export** | External converters or `.frd` readers | Native `send all vtu all` (`.vtu` / `.pvd`) |
@@ -71,6 +73,7 @@ Run from anywhere once installed:
 
 ```bash
 cgx_glfw test/beam_modal.frd
+cgx_glfw model.frd model.inp    # Load results together with .inp sets & materials
 ```
 
 Prerequisites, installer flags, uninstall instructions (`uninstall.sh`), and manual build steps are documented in [INSTALL.md](INSTALL.md).
@@ -108,6 +111,9 @@ Release binaries are not signed with commercial Apple Developer ID or Windows Au
 | **Scroll Wheel** or **Trackpad Pinch** | Step zoom |
 | **Right Click + Drag** | Pan (drag threshold ≥ 4 px) |
 | **Right Click** (tap & release) | Open multi-level cascading context menu |
+| **`F2`** | Toggle collapsible HUD Tools bar |
+| **`F3`** | Toggle interactive orientation Axes |
+| **`F4`** | Toggle collapsible Model & Results Tree |
 
 ### Common interactive commands
 
@@ -117,14 +123,17 @@ Type commands in the bottom command bar (run `cgx_glfw --help` for the CLI summa
 |:---|:---|
 | `frame` | Fit and center the model in the viewport |
 | `rot iso` / `rot dim` / `rot tri` | Isometric, dimetric, or trimetric orientation |
+| `rot auto [deg/s\|on\|off]` | Start, set speed, or stop turntable auto-rotation |
 | `view persp` / `view ortho` | Switch between 3D perspective and orthographic projection |
 | `view dark` / `view light` | Switch between Dark Mode (`#0D121A`) and Light Mode |
+| `view hud [on\|off]` / `view axes [on\|off]` / `view tree [on\|off]` | Toggle HUD Tools bar, interactive Axes, or Model & Results Tree |
 | `ds <step> e <comp>` | Load and display result dataset (e.g., `ds 4 e 4`) |
 | `plot fv all` / `plot f all` / `plot e all` | Plot filled contours, filled surfaces, or element wireframe |
 | `cmap <palette>` | Switch colormap (`cubehelix`, `coolwarm`, `turbo`, `viridis`, `inferno`, `jet`, `classic`) |
 | `anim real` | Start real-time modal or transient animation |
 | `hcpy [name]` | Save viewport screenshot directly to PNG (`hcpy_1.png` or `<name>.png`) |
 | `movie cycle [name.mp4\|name.gif]` | Record one full cycle to MP4 (via `ffmpeg`) or GIF |
+| `movie turntable [name.mp4\|name.gif] [frames]` | Record a 360° turntable MP4 or GIF |
 | `graph <set> l +` | Plot path values along a node sequence |
 | `graph <set> f <comp>` | Plot response vs. frequency or time across steps |
 | `send all vtu all` | Export model and all time-steps to ParaView `.vtu` and `.pvd` |

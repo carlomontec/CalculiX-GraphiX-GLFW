@@ -200,6 +200,30 @@ GLFWwindow *cgx_glfw_get_window(void);
 void cgx_glfw_toggle_command_bar(void);
 int  cgx_glfw_is_command_bar_visible(void);
 
+/* Lightweight Interactive HUD & Turntable Auto-Rotate */
+void cgx_glfw_set_auto_rotate(int enable, double deg_per_sec);
+void cgx_glfw_toggle_auto_rotate(void);
+int  cgx_glfw_is_auto_rotate_active(void);
+void cgx_glfw_start_turntable_recording(int total_frames);
+void cgx_glfw_toggle_hud_toolbar(void);
+int  cgx_glfw_is_hud_toolbar_visible(void);
+void cgx_glfw_set_hud_toolbar_visible(int visible);
+void cgx_glfw_toggle_gizmo(void);
+int  cgx_glfw_is_gizmo_visible(void);
+void cgx_glfw_set_gizmo_visible(int visible);
+void cgx_glfw_toggle_tree(void);
+int  cgx_glfw_is_tree_visible(void);
+void cgx_glfw_set_tree_visible(int visible);
+void cgx_glfw_queue_command(const char *cmd);
+
+/* Shared UI Drawing & Scaling Helpers */
+void  cgx_ui_draw_text(float x, float y, const char *str, float r, float g, float b, int win_h);
+float cgx_ui_text_width(const char *str);
+int   cgx_ui_font_tier(void);
+int   cgx_ui_cmd_bar_height(void);
+int   cgx_ui_top_tab_height(void);
+void  cgx_ui_get_viewport_rect(int win_w, int win_h, int *out_x, int *out_y, int *out_w, int *out_h);
+
 /* DPI and Line/Point Width Utilities */
 float cgx_get_fb_scale(void);
 void  cgx_glLineWidth(float width);

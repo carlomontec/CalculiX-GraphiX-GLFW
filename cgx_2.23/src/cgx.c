@@ -2799,6 +2799,33 @@ void pre_rot( char *record)
   if (compare(type, "iso", 3)==3 || compare(type, "isometric", 9)==9) orientModel(7);
   else if (compare(type, "dim", 3)==3 || compare(type, "dimetric", 8)==8) orientModel(8);
   else if (compare(type, "trim", 4)==4 || compare(type, "trimetric", 9)==9) orientModel(9);
+  else if (compare(type, "auto", 4)==4)
+  {
+    char arg2[MAX_LINE_LENGTH];
+    arg2[0] = '\0';
+    if (sscanf(record, "%*s %255s", arg2) == 1)
+    {
+      if (compare(arg2, "off", 3)==3 || compare(arg2, "stop", 4)==4 || strcmp(arg2, "0")==0)
+      {
+        cgx_glfw_set_auto_rotate(0, 0.0);
+      }
+      else if (compare(arg2, "on", 2)==2)
+      {
+        cgx_glfw_set_auto_rotate(1, 0.0);
+      }
+      else
+      {
+        double spd = atof(arg2);
+        if (spd != 0.0) cgx_glfw_set_auto_rotate(1, spd);
+        else cgx_glfw_set_auto_rotate(0, 0.0);
+      }
+    }
+    else
+    {
+      cgx_glfw_toggle_auto_rotate();
+    }
+    return;
+  }
   else if (type[0]=='u') rot_u(angle);
   else if (type[0]=='r') rot_r(angle);
   else if (type[0]=='c') rot_c(angle);
@@ -4429,6 +4456,18 @@ void selectGUI(int value)
              modernGpuFlag ? "ON (VBO / GLSL Shaders)" : "OFF (Legacy Display Lists)");
       glutPostRedisplay();
       break;
+    case 5: /* Toggle Auto-Rotate */
+      cgx_glfw_toggle_auto_rotate();
+      break;
+    case 6: /* Toggle HUD Toolbar */
+      cgx_glfw_toggle_hud_toolbar();
+      break;
+    case 7: /* Toggle Orientation Gizmo */
+      cgx_glfw_toggle_gizmo();
+      break;
+    case 8: /* Toggle Model Tree */
+      cgx_glfw_toggle_tree();
+      break;
   }
 }
 
@@ -4549,6 +4588,36 @@ void pre_view(char *string)
       else if(pset[i].col==1) pset[i].col=0;
     }
     if(inpformat) updateDispLists();
+    return;
+  }
+  else if (compare(type, "hud", 3)==3 || compare(type, "toolbar", 4)==4)
+  {
+    if (length==2 && (compare(param, "off", 3)==3 || strcmp(param, "0")==0))
+      cgx_glfw_set_hud_toolbar_visible(0);
+    else if (length==2 && (compare(param, "on", 2)==2 || strcmp(param, "1")==0))
+      cgx_glfw_set_hud_toolbar_visible(1);
+    else
+      cgx_glfw_toggle_hud_toolbar();
+    return;
+  }
+  else if (compare(type, "gizmo", 5)==5 || compare(type, "axes", 4)==4)
+  {
+    if (length==2 && (compare(param, "off", 3)==3 || strcmp(param, "0")==0))
+      cgx_glfw_set_gizmo_visible(0);
+    else if (length==2 && (compare(param, "on", 2)==2 || strcmp(param, "1")==0))
+      cgx_glfw_set_gizmo_visible(1);
+    else
+      cgx_glfw_toggle_gizmo();
+    return;
+  }
+  else if (compare(type, "tree", 4)==4)
+  {
+    if (length==2 && (compare(param, "off", 3)==3 || strcmp(param, "0")==0))
+      cgx_glfw_set_tree_visible(0);
+    else if (length==2 && (compare(param, "on", 2)==2 || strcmp(param, "1")==0))
+      cgx_glfw_set_tree_visible(1);
+    else
+      cgx_glfw_toggle_tree();
     return;
   }
   if(!inpformat) return;
@@ -8079,6 +8148,10 @@ int main( int argc, char **argv )
   glutAddMenuEntry("Toggle Perspective 3D", 2);
   glutAddMenuEntry("Toggle Command Line Bar", 3);
   glutAddMenuEntry("[Experimental] Modern GPU Pipeline", 4);
+  glutAddMenuEntry("Toggle Auto-Rotate", 5);
+  glutAddMenuEntry("Toggle HUD Toolbar (F2)", 6);
+  glutAddMenuEntry("Toggle Interactive Axes (F3)", 7);
+  glutAddMenuEntry("Toggle Model Tree (F4)", 8);
   glutAddSubMenu  ("Text Size", subsubmenu_fontsize );
   
   submenu_view = glutCreateMenu( selectView );
