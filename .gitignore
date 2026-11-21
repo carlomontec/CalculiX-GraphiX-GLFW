@@ -15,3 +15,11 @@ cgx_glfw-*
 dist/
 temp/
 
+# Local AI agent & private development files
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+ISSUES.md
+LINUX_DEV_SUMMARY.md
+
+

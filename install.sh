@@ -558,7 +558,7 @@ finalize_installation() {
     echo -e "  - ${GREEN}PNG Screenshots:${NC} 'hcpy' (zero external dependencies)"
     echo -e "  - ${GREEN}Animated GIFs:${NC}   'movie start my.gif' (zero external dependencies)"
     echo -e "  - ${GREEN}MP4 Video:${NC}       'movie start my.mp4' (requires ffmpeg)"
-    echo -e "  See ${BOLD}exporting_videos.md${NC} for complete details."
+    echo -e "  Run ${BOLD}cgx --help${NC} for the full command reference."
     if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
         if [ "$USE_HEAD" = "1" ]; then
             echo -e "\n${YELLOW}Note: To use 'cgx_dev' immediately in this current shell, run:${NC}"
