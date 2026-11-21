@@ -1,129 +1,195 @@
 # CalculiX GraphiX (GLFW Edition)
 
-> **A new 3D backend and multi-platform edition of CalculiX GraphiX.**
-
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](cgx_2.23/COPYING)
-[![Platform: macOS | Linux | Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen.svg)](INSTALL.md)
-[![Graphics: GLFW3 + Modern OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20stb__truetype-orange.svg)](#highlights--new-features)
-[![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](#popular-commands-type-in-bottom-bar)
+[![Platform: Linux (x86_64, ARM64) | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20x86__64%20%2F%20ARM64%20%7C%20macOS%20%7C%20Windows-brightgreen.svg)](#quick-install)
+[![Graphics: GLFW3 + OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20OpenGL%20%2B%20stb__truetype-orange.svg)](#highlights)
+[![Export: ParaView VTU/PVD](https://img.shields.io/badge/Export-ParaView%20VTU%2FPVD-purple.svg)](#paraview-export)
+
+[CalculiX GraphiX (CGX)](https://www.dhondt.de/) is the open-source three-dimensional pre- and post-processor for finite-element analysis written by Klaus Wittig. This edition replaces the legacy X11, GLX, and GLUT windowing stack with a native GLFW3 and OpenGL renderer so that CGX builds and runs from a single codebase on Linux, macOS, and Windows.
+
+All core CGX geometry, meshing (`libSNL`), batch commands, macro scripts (`.fbl`), and file parsers (`.frd`, `.inp`, `.stl`, `.step`) are preserved.
 
 ![CalculiX GraphiX GLFW Edition](img/cgx_glfw.png)
 
----
+## Highlights
 
-## About This Project
+- **Single-source cross-platform builds and installers.** Compiles from one [`CMakeLists.txt`](CMakeLists.txt) on Linux (`x86_64` and `ARM64`), macOS (Apple Silicon), and Windows (`x86_64` MinGW-w64). One-line installers (`install.sh`, `install.ps1`) and pre-built release binaries are provided for all three operating systems.
+- **Native GLFW3 windowing and modern OpenGL rendering.** Windowing, mouse, keyboard, and menus are routed through [GLFW3](https://www.glfw.org/), paired with packed Vertex Buffer Objects (VBOs), GLSL shaders, Blinn-Phong metallic surface lighting, and state-isolated 2D HUD overlays.
+- **Vector typography with 3-tier UI scaling.** Built-in `stb_truetype` rendering replaces legacy X11/GLUT bitmap fonts and supports Small (`14pt`), Medium (`20pt`, default), and Big (`32pt`) text scaling across menus, labels, and the command bar.
+- **Dark mode, 3D perspective, and Cubehelix colormap by default.** Launches in dark slate (`#0D121A`) with 3D perspective projection, shaded results enabled, and the perceptually monotonic `cubehelix (reversed)` colormap (grayscale-print-safe and colorblind-friendly).
+- **Interactive command bar and trackpad/mouse navigation.** Includes command history (<kbd>↑</kbd>/<kbd>↓</kbd>), Levenshtein typo suggestions (e.g., `fram` → `frame`), modifier-key pan/zoom for trackpads and mice, and a right-click cascading context menu.
+- **Native media capture and ParaView export.** Saves PNG screenshots (`hcpy`), animated GIFs, and MP4 recordings (when `ffmpeg` is available) without requiring ImageMagick, and exports models and time-step results directly to `.vtu` and `.pvd` (`send all vtu all`).
+- **Integrated TetGen tetrahedral meshing.** Includes native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1) alongside CGX's structured hexahedral and sweep meshers.
+- **Automated headless verification.** A 24-test headless suite (`tests/run_tests.py` / CTest) validates geometry, hexahedral/wedge sweeping, TetGen meshing, exports, and post-processing across all four CI matrix targets.
 
-This project is an exploration to learn AI agentic development, based on the work of the original authors and contributors of **CalculiX GraphiX (CGX)**, led by **Klaus Wittig** (https://www.calculix.de/ See section _CalculiX GraphiX_).
+## Compared with upstream CalculiX GraphiX
 
-There are two objectives of this project.
-* to make CGX compatible from single source for Linux, macOS and Windows for the community. A new meshing implementation via TetGen is also provided. 
-* to explore agent-assisted refactoring by modernising CGX's windowing and rendering layer (via GLFW3) while keeping all core finite element mechanics and solver workflows completely intact.
+Upstream CalculiX GraphiX is the reference implementation. The table summarizes what this edition changes or adds relative to upstream CGX 2.23:
 
-These code additions are generated with Google Antigravity using Google Gemini 3.7 Flash, Gemini Pro 3.1 and Claude Opus 4.6.
+| | Upstream CGX 2.23 | This edition |
+|:---|:---|:---|
+| **Windowing & Graphics** | X11 / GLX / GLUT | GLFW3 + OpenGL (VBOs, GLSL shaders, metallic lighting, isolated 2D HUD) |
+| **Typography** | X11 / GLUT bitmap fonts | `stb_truetype` vector fonts with 3-tier UI scaling (`14pt` / `20pt` / `32pt`) |
+| **Build & Platforms** | Platform-specific Makefiles (primarily Linux/Unix) | Single `CMakeLists.txt` for Linux (`x86_64`, `ARM64`), macOS, and Windows, plus installers and release binaries |
+| **Defaults** | White background, orthographic projection, classic colormap | Dark slate (`#0D121A`), 3D perspective, shaded results, `cubehelix (reversed)` |
+| **2D Plotting** | PostScript / `gv` | High-DPI PNG (`pngcairo`), SVG, PDF via Gnuplot + generated `graph_<Nr>.py` Matplotlib scripts |
+| **Screenshots & Video** | External ImageMagick (`import`) | Native PNG (`hcpy`), GIF, and MP4 (via `ffmpeg`) |
+| **ParaView Export** | External converters or `.frd` readers | Native `send all vtu all` (`.vtu` / `.pvd`) |
+| **Verification** | Manual inspection | 24 automated headless tests (`tests/run_tests.py` / CTest) on 4 CI platforms |
 
----
+## Contents
 
-## Highlights & New Features
+- [Quick install](#quick-install)
+- [Pre-built binaries](#pre-built-binaries)
+- [Controls and commands](#controls-and-commands)
+- [ParaView export](#paraview-export)
+- [Build system (CMake)](#build-system-cmake)
+- [Verification](#verification)
+- [Relationship to upstream CalculiX](#relationship-to-upstream-calculix)
+- [Companion project: CalculiX CrunchiX Multi-Solver Edition](#companion-project-calculix-crunchix-multi-solver-edition)
+- [Documentation](#documentation)
+- [About this project](#about-this-project)
+- [Attribution and license](#attribution-and-license)
 
-* **Modern GPU Pipeline (GLSL Shaders)**: Rendering pipeline with packed Vertex Buffer Objects, custom GLSL shaders and metallic lighting.
-* **New 3D Backend via GLFW**: Windowing and input events are routed through a  native [**GLFW3**](https://www.glfw.org/) layer across macOS (Apple Silicon), Linux (Wayland/X11), and Windows.
-* **Dark Mode & Perspective 3D**:  Dark slate aesthetic with 3D perspective projection.
-* **Cubehelix (Reversed) Scientific Colormap**: Default perceptually monotonic colormap (Green, 2011) that is 100% black & white print safe and colorblind friendly.
-* **Interactive Command Bar with Fuzzy Suggestions**: In-window command line bar with history navigation (<kbd>↑</kbd>/<kbd>↓</kbd>) and intelligent Levenshtein typo suggestions (e.g. `fram` $\rightarrow$ `frame`).
-* **Keyboard Navigation Modifiers**: <kbd>Shift</kbd>/<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + Left Drag to Pan, and <kbd>Alt</kbd>/<kbd>Option</kbd> + Left Drag to Zoom.
-* **Updated 2D Plotting Pipeline**: Modernized post-processing graph pipeline producing high-resolution digital plots and Matplotlib plot template files.
-* **Native Screenshots and Movie Creation**: Screenshot and movie export are performed directly without an external ImageMagick dependency. MP4 videos can be generated if FFmpeg is available.
-* **Native VTU/PVD Exporter**: Direct export of FEA results to ParaView-compatible `.vtu` and `.pvd` formats (`send all vtu all`).
-* **Integrated TetGen Mesher**: Native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1).
+## Quick install
 
-![High-DPI 2D Plot](img/cgx_plot_cantilever.png)
-
-> 📖 **Reference**: Run `cgx_glfw --help` for the built-in CLI and interactive command summary, or see the full user manual in [`cgx_2.23/doc/cgx.pdf`](cgx_2.23/doc/cgx.pdf).
-
----
-
-## Quick Start (Universal 1-Liner)
-
-Install **CalculiX GraphiX (GLFW Edition)** on **macOS (Apple Silicon)** or **Linux** with a single command:
+### Linux and macOS
 
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/install.sh)"
 ```
 
-Then run from anywhere:
-```bash
-cgx_glfw <model.frd>
+The installer installs `cgx_glfw` (and creates a user-space `cgx` alias in `~/.local/bin`) using either a pre-built release binary (`--binary`) or a local CMake build (`--build` / `--head`), without requiring `sudo`.
+
+### Windows (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/install.ps1 | iex
 ```
 
-* **Pre-built Binaries & Installers**: Download from [**Releases**](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases):
-  * **macOS (Apple Silicon `arm64`)**: `CalculiX-GraphiX-GLFW-macOS-arm64.dmg` or standalone `cgx_glfw-macos-arm64`
-  * **Windows (`x86_64`)**: `CalculiX-GraphiX-GLFW-Setup-windows-x86_64.exe` (installer with `.frd`/`.fbl`/`.inp` file associations) or standalone `cgx_glfw-windows-x86_64.exe`
-  * **Linux (`x86_64` & `arm64`)**: `cgx_glfw-linux-<arch>.tar.gz` (includes binary and zero-`sudo` desktop/MIME installer) or standalone `cgx_glfw-linux-<arch>`
-* **Detailed Guide**: For CMake build instructions, prerequisites, and checksum verification, see [**INSTALL.md**](INSTALL.md).
+Run from anywhere once installed:
 
-### Security Notice (Unsigned Binaries)
+```bash
+cgx_glfw test/beam_modal.frd
+```
 
-Pre-built binaries are not signed with commercial Apple Developer ID or Windows Authenticode certificates. All release assets include `SHA256SUMS.txt` for verification.
+Prerequisites, installer flags, uninstall instructions (`uninstall.sh`), and manual build steps are documented in [INSTALL.md](INSTALL.md).
 
-* **macOS Gatekeeper**: Because the app bundle and binary are ad-hoc signed, macOS may block launching downloaded files (*"cannot be opened because Apple cannot check it for malicious software"* or *"is damaged and can't be opened"*). Clear the quarantine flag in Terminal or allow it in **System Settings → Privacy & Security → Open Anyway**:
+## Pre-built binaries
+
+Standalone executables, installers, and `SHA256SUMS.txt` checksums are published on the [Releases page](https://github.com/carlomontec/CalculiX-GraphiX-GLFW/releases):
+
+| Platform | Assets | Notes |
+|:---|:---|:---|
+| **macOS (`arm64`)** | `CalculiX-GraphiX-GLFW-macOS-arm64.dmg`, `cgx_glfw-macos-arm64` | Static GLFW; no Homebrew runtime dependency. |
+| **Windows (`x86_64`)** | `CalculiX-GraphiX-GLFW-Setup-windows-x86_64.exe`, `cgx_glfw-windows-x86_64.exe` | Installer registers `.frd`/`.fbl`/`.inp` associations; static GLFW and MinGW runtime. |
+| **Linux (`x86_64` & `arm64`)** | `cgx_glfw-linux-<arch>.tar.gz`, `cgx_glfw-linux-<arch>` | Built on Ubuntu 22.04 (`glibc 2.35`) with static GLFW 3.4 (runtime `dlopen` for X11/Wayland); `.tar.gz` includes user-space `.desktop`/MIME installer. |
+
+### Security notice (unsigned binaries)
+
+Release binaries are not signed with commercial Apple Developer ID or Windows Authenticode certificates. Verify downloads against `SHA256SUMS.txt` before running:
+
+- **macOS Gatekeeper:** Ad-hoc signed downloads carry `com.apple.quarantine`. Clear it in Terminal or allow the binary in **System Settings → Privacy & Security → Open Anyway**:
   ```bash
   xattr -cr "/Applications/CalculiX GraphiX GLFW.app"
-  # or for the standalone CLI binary:
   xattr -d com.apple.quarantine cgx_glfw-macos-arm64
   ```
-* **Windows SmartScreen**: Microsoft Defender SmartScreen may display *"Windows protected your PC"* on unsigned `.exe` downloads. Click **More info → Run anyway** to proceed.
----
+- **Windows SmartScreen:** Click **More info → Run anyway** when prompted for unsigned `.exe` downloads.
 
-## Controls & Mouse Gestures
+## Controls and commands
+
+### Mouse and keyboard gestures
 
 | Gesture / Shortcut | Action |
-| :--- | :--- |
-| **Left Click + Drag** | **Rotate / Orbit 3D Model** (smooth trackball rotation around model center) |
-| **Shift + Left Drag** or **Ctrl/Cmd + Drag** | **Pan / Translate** model horizontally & vertically |
-| **Alt / Option + Left Drag** | **Smooth Continuous Zoom** |
-| **Scroll Wheel** or **Trackpad Pinch** | **Step Zoom** (unbounded zoom range) |
-| **Right Click + Drag** | **Pan** (drag threshold $\ge 4\text{px}$) |
-| **Right Click** (tap & release) | **Open Multi-Level Cascading Context Menu** |
+|:---|:---|
+| **Left Click + Drag** | Orbit / rotate 3D model around model center |
+| **Shift + Left Drag** or **Ctrl/Cmd + Drag** | Pan / translate model horizontally and vertically |
+| **Alt / Option + Left Drag** | Smooth continuous zoom |
+| **Scroll Wheel** or **Trackpad Pinch** | Step zoom |
+| **Right Click + Drag** | Pan (drag threshold ≥ 4 px) |
+| **Right Click** (tap & release) | Open multi-level cascading context menu |
 
----
+### Common interactive commands
 
-## Popular Commands (Type in Bottom Bar)
+Type commands in the bottom command bar (run `cgx_glfw --help` for the CLI summary or see [`cgx_2.23/doc/cgx.pdf`](cgx_2.23/doc/cgx.pdf) for the full manual):
 
 | Command | Action |
-| :--- | :--- |
-| `frame` | Auto-fit and center the 3D model in the viewport |
-| `rot iso` / `rot dim` / `rot tri` | Standard axonometric orientations (Isometric, Dimetric, Trimetric) |
-| `view persp` | Switch to realistic 3D Perspective Projection |
-| `view ortho` | Switch to classic Orthographic parallel view |
-| `view dark` | Switch viewport to modern Dark Mode (`#0D121A`) |
-| `view light` | Switch viewport to classic Light Mode (White) |
-| `ds <step> e <comp>` | Load and display specific result dataset (e.g. `ds 4 e 4`) |
-| `plot fv all` | Plot filled contour values on entire model |
-| `plot f all` | Plot filled surfaces |
-| `plot e all` | Plot element wireframe mesh |
-| `cmap <palette>` | Change colormap (`coolwarm`, `turbo`, `viridis`, `inferno`, `jet`, `classic`) |
+|:---|:---|
+| `frame` | Fit and center the model in the viewport |
+| `rot iso` / `rot dim` / `rot tri` | Isometric, dimetric, or trimetric orientation |
+| `view persp` / `view ortho` | Switch between 3D perspective and orthographic projection |
+| `view dark` / `view light` | Switch between Dark Mode (`#0D121A`) and Light Mode |
+| `ds <step> e <comp>` | Load and display result dataset (e.g., `ds 4 e 4`) |
+| `plot fv all` / `plot f all` / `plot e all` | Plot filled contours, filled surfaces, or element wireframe |
+| `cmap <palette>` | Switch colormap (`cubehelix`, `coolwarm`, `turbo`, `viridis`, `inferno`, `jet`, `classic`) |
 | `anim real` | Start real-time modal or transient animation |
 | `hcpy [name]` | Save viewport screenshot directly to PNG (`hcpy_1.png` or `<name>.png`) |
-| `movie cycle [name.mp4\|name.gif]` | Record 1 full oscillation/sequence cycle to MP4 (via `ffmpeg`) or GIF |
-| `graph <set> l +` | Plot path values along node sequence (high-DPI 2D graph) |
-| `graph <set> f <comp>` | Plot response vs frequency/time across steps for node set |
-| `send all vtu all` | Export entire model and all time-steps to ParaView `.vtu` & `.pvd` |
+| `movie cycle [name.mp4\|name.gif]` | Record one full cycle to MP4 (via `ffmpeg`) or GIF |
+| `graph <set> l +` | Plot path values along a node sequence |
+| `graph <set> f <comp>` | Plot response vs. frequency or time across steps |
+| `send all vtu all` | Export model and all time-steps to ParaView `.vtu` and `.pvd` |
 
----
+## ParaView export
 
-## License & Attribution
+For external 3D post-processing, `send all vtu all` writes native XML VTK unstructured grid files (`.vtu`) and a ParaView collection index (`.pvd`) directly from CGX without intermediate converters.
 
-This project is free and open-source software distributed under the **GNU General Public License Version 2 (GPL-2.0 or later)**, strictly adhering to the original CalculiX licensing. This project is maintained by Dr. Carlo Monjaraz-Tec.
+## Build system (CMake)
 
-### Original Authors & Copyright:
-* **CalculiX GraphiX (CGX)** is created and copyrighted by **Klaus Wittig**.
-* **CalculiX CrunchiX (CCX)** is created and copyrighted by **Dr. Guido Dhondt**.
-* Official CalculiX website: [http://www.calculix.de](http://www.calculix.de) / [https://www.dhondt.de](https://www.dhondt.de)
+Configure and build with [`CMakeLists.txt`](CMakeLists.txt):
 
-### Third-Party Libraries & Credits:
-* Modern single-file dependencies ([`stb_image_write.h`](cgx_2.23/src/stb_image_write.h), [`stb_truetype.h`](cgx_2.23/src/stb_truetype.h), [`msf_gif.h`](cgx_2.23/src/msf_gif.h)), GLFW3, TetGen, and Iosevka fonts retain their respective open-source licenses.
-* For the complete summary and full license texts, see [**THIRD_PARTY_LICENSES.md**](THIRD_PARTY_LICENSES.md).
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+```
 
-### Project Maintainer & AI Pairing:
-* This fork is an effort by **Dr-Ing. Carlo Monjaraz-Tec** ([@carlomontec](https://github.com/carlomontec)) as an open-source academic exploration of agent-assisted scientific software modernization.
-* **Disclaimer**: This software is provided "AS IS", without warranty of any kind, express or implied. The authors assume no liability for errors, bugs, or damages.
+- On macOS, `STATIC_GLFW=ON` is enabled by default so `bin/cgx_glfw` has no Homebrew runtime dependency.
+- Large FRD datasets (> 2 GB) use 64-bit file offsets in `readfrd.c`, and quadratic `QUAD8` face tessellation uses bounds-checked 6-triangle decomposition.
+- A standalone `cgx_2.23/src/Makefile.glfw` is also kept in the tree as a non-CMake alternative.
+
+See [INSTALL.md](INSTALL.md) for per-OS package prerequisites and build details.
+
+## Verification
+
+An automated headless test suite in [`tests/run_tests.py`](tests/run_tests.py) runs 24 integration tests covering geometry scripting, hexahedral/wedge sweeping, TetGen tetrahedral meshing, `.inp`/`.vtu` export, and post-processing:
+
+```bash
+# Run via Python test runner
+python3 tests/run_tests.py
+
+# Or via CTest
+ctest --test-dir build --output-on-failure
+```
+
+Every push and pull request to `main` is built and tested in GitHub Actions across four targets: macOS (`arm64`), Linux (`x86_64`), Linux (`arm64`), and Windows (`x86_64` MinGW-w64).
+
+## Relationship to upstream CalculiX
+
+This repository tracks upstream CalculiX GraphiX 2.23 (`cgx_2.23`). Upstream geometry, meshing (`libSNL`), batch execution, `.fbl` macro syntax, and solver file interfaces are kept compatible so existing CalculiX workflows run unmodified.
+
+## Companion project: CalculiX CrunchiX Multi-Solver Edition
+
+For the finite-element solver side, see [CalculiX CrunchiX Multi-Solver Edition](https://github.com/carlomontec/CalculiX-CrunchiX-MultiSolver), which provides a single CMake build, one-line installers, and MUMPS / Apple Accelerate / Intel oneMKL PARDISO / SPOOLES solver backends across Linux, macOS, and Windows.
+
+## Documentation
+
+| Document | Content |
+|:---|:---|
+| [INSTALL.md](INSTALL.md) | Prerequisites, installers, CMake options, manual builds, checksum verification |
+| [`cgx_2.23/doc/cgx.pdf`](cgx_2.23/doc/cgx.pdf) | Upstream CalculiX GraphiX user manual |
+| [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) | Licenses for bundled third-party libraries and headers |
+| [`tests/run_tests.py`](tests/run_tests.py) | Automated headless test suite runner (24 tests across 5 categories) |
+
+## About this project
+
+The goal is a CalculiX GraphiX that is straightforward to install and run on modern macOS, Linux, and Windows systems while preserving Klaus Wittig's finite-element pre- and post-processing engine.
+
+The project was also developed as a practical exploration of AI-assisted programming in a scientific codebase. AI coding tools were used for much of the GLFW windowing layer, OpenGL/shader refactoring, CMake packaging, and test automation; changes are reviewed and verified against the automated test suite.
+
+## Attribution and license
+
+CalculiX GraphiX is free software distributed under the GNU General Public License version 2 ([`cgx_2.23/COPYING`](cgx_2.23/COPYING)). CalculiX GraphiX was created by **Klaus Wittig**, and CalculiX CrunchiX is written and maintained by **Dr. Guido Dhondt**. This edition is maintained by **Dr. Carlo Monjaraz-Tec** ([@carlomontec](https://github.com/carlomontec)).
+
+- CalculiX: [calculix.de](https://www.calculix.de) and [dhondt.de](https://www.dhondt.de)
+- Community: [CalculiX Discourse](https://calculix.discourse.group)
+
+Bundled third-party components (GLFW3, TetGen, `stb_truetype.h`, `stb_image_write.h`, `msf_gif.h`, `libSNL`) retain their respective open-source licenses; see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
