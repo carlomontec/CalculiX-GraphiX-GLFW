@@ -160,6 +160,7 @@ set(CGX_C_SOURCES
     ${CGX_SRC_DIR}/userFunction.c
     ${CGX_SRC_DIR}/cgx_capture.c
     ${CGX_SRC_DIR}/cgx_glut_glfw.c
+    ${CGX_SRC_DIR}/cgx_tree.c
     ${CGX_SRC_DIR}/cgx_iosevka_font.c
     ${CGX_SRC_DIR}/cgx_shaders.c
     ${CGX_SRC_DIR}/cgx_vbo.c
