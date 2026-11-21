@@ -14201,6 +14201,42 @@ void pre_movie(char *string)
     cgx_movie_set_delay(cycle_delay);
     printf("Movie frame delay set to %.4f sec (approx %d fps)\n", cycle_delay, (int)(1.0/cycle_delay + 0.5));
   }
+  else if (compareStrings(type, "turntable")>0)
+  {
+    char arg1[MAX_LINE_LENGTH], arg2[MAX_LINE_LENGTH];
+    int n_frames = 120;
+    double tt_delay = cgx_movie_has_custom_delay() ? cgx_movie_get_delay() : (1.0 / 30.0);
+    arg1[0] = arg2[0] = '\0';
+    strcpy(movie, "turntable.mp4");
+    int nargs = sscanf(string, "%*s %255s %255s", arg1, arg2);
+    if (nargs >= 1 && arg1[0] != '\0')
+    {
+      if (checkIfNumber(arg1) && strchr(arg1, '.') == NULL)
+      {
+        int parsed = atoi(arg1);
+        if (parsed >= 12) n_frames = parsed;
+        if (nargs >= 2 && arg2[0] != '\0') strcpy(movie, arg2);
+      }
+      else
+      {
+        strcpy(movie, arg1);
+        if (nargs >= 2 && arg2[0] != '\0')
+        {
+          int parsed = atoi(arg2);
+          if (parsed >= 12) n_frames = parsed;
+        }
+      }
+    }
+    movieFlag = 0;
+    stopFlag = 0;
+    movieFrames = n_frames;
+    printf("[CGX] Recording 360 deg turntable (%d frames @ %.1f fps, %.2f deg/frame) to '%s'...\n",
+           n_frames, 1.0 / tt_delay, 360.0 / (double)n_frames, movie);
+    if (cgx_movie_start(movie, n_frames, tt_delay) == 0)
+    {
+      cgx_glfw_start_turntable_recording(n_frames);
+    }
+  }
   else if (compareStrings(type, "cycle")>0 || compareStrings(type, "startcycle")>0 || compareStrings(type, "loop")>0)
   {
     length=sscanf(string, "%*s %s", movie);

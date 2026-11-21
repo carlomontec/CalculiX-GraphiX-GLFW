@@ -34,6 +34,15 @@ extern int activWindow;
 extern int w0, w1, w2, w3;
 extern void cgx_execute_command_string(const char *cmd_str);
 extern void createHardcopy(int selection, char *fileName);
+extern void rot_r(double a);
+extern int cgx_movie_is_recording(void);
+extern void cgx_movie_add_frame(void);
+extern GLdouble R[4][4];
+extern int perspectiveFlag;
+extern int backgrndcol;
+extern char elemEdgeFlag;
+extern void frame(void);
+extern void selectView(int selection);
 
 /* Window definition */
 typedef struct {
@@ -120,6 +129,20 @@ static double g_last_mouse_x = 0.0;
 static double g_last_mouse_y = 0.0;
 static int g_mouse_buttons[5] = { GLUT_UP, GLUT_UP, GLUT_UP, GLUT_UP, GLUT_UP };
 
+/* Lightweight Interactive HUD & Turntable Auto-Rotate (all hidden/off by default) */
+static int    g_auto_rotate_active = 0;
+static double g_auto_rotate_speed = 25.0; /* degrees per second */
+static double g_auto_rotate_last_time = 0.0;
+static int    g_turntable_rec_remaining = 0;
+static double g_turntable_step_deg = 3.0;
+
+static int    g_hud_toolbar_visible = 0;
+static int    g_gizmo_visible = 0;
+static int    g_hud_hovered_btn = -1;
+static int    g_hud_tab_hovered = 0;
+static int    g_gizmo_hovered_idx = -1;
+static int    g_is_wireframe = 0;
+
 /* Helper: find window by id */
 static CGXWindow *get_window(int id)
 {
@@ -201,6 +224,90 @@ void cgx_glfw_toggle_command_bar(void)
 int cgx_glfw_is_command_bar_visible(void)
 {
   return g_cmd_bar_visible;
+}
+
+void cgx_glfw_set_auto_rotate(int enable, double deg_per_sec)
+{
+  g_auto_rotate_active = enable ? 1 : 0;
+  if (deg_per_sec != 0.0)
+  {
+    g_auto_rotate_speed = deg_per_sec;
+  }
+  g_auto_rotate_last_time = g_glfw_window ? glfwGetTime() : 0.0;
+  if (g_auto_rotate_active)
+  {
+    char msg[128];
+    snprintf(msg, sizeof(msg), "Auto-rotate ON (%.1f deg/s) - click model to stop", g_auto_rotate_speed);
+    printf("\n %s\n\n", msg);
+    cgx_set_gui_status(msg);
+  }
+  else
+  {
+    printf("\n Auto-rotate OFF.\n\n");
+    cgx_set_gui_status("Auto-rotate stopped");
+  }
+  g_need_redisplay = 1;
+  if (g_glfw_window) glfwPostEmptyEvent();
+}
+
+void cgx_glfw_toggle_auto_rotate(void)
+{
+  cgx_glfw_set_auto_rotate(!g_auto_rotate_active, 0.0);
+}
+
+int cgx_glfw_is_auto_rotate_active(void)
+{
+  return g_auto_rotate_active;
+}
+
+void cgx_glfw_start_turntable_recording(int total_frames)
+{
+  if (total_frames < 12) total_frames = 120;
+  g_auto_rotate_active = 0;
+  g_turntable_rec_remaining = total_frames;
+  g_turntable_step_deg = 360.0 / (double)total_frames;
+  g_need_redisplay = 1;
+  if (g_glfw_window) glfwPostEmptyEvent();
+}
+
+void cgx_glfw_set_hud_toolbar_visible(int visible)
+{
+  g_hud_toolbar_visible = visible ? 1 : 0;
+  g_hud_hovered_btn = -1;
+  printf("\n HUD Toolbar %s (F2).\n\n", g_hud_toolbar_visible ? "shown" : "hidden");
+  cgx_set_gui_status(g_hud_toolbar_visible ? "HUD Toolbar ON (F2)" : "HUD Toolbar OFF (F2)");
+  g_need_redisplay = 1;
+  if (g_glfw_window) glfwPostEmptyEvent();
+}
+
+void cgx_glfw_toggle_hud_toolbar(void)
+{
+  cgx_glfw_set_hud_toolbar_visible(!g_hud_toolbar_visible);
+}
+
+int cgx_glfw_is_hud_toolbar_visible(void)
+{
+  return g_hud_toolbar_visible;
+}
+
+void cgx_glfw_set_gizmo_visible(int visible)
+{
+  g_gizmo_visible = visible ? 1 : 0;
+  g_gizmo_hovered_idx = -1;
+  printf("\n Interactive Axes %s (F3).\n\n", g_gizmo_visible ? "shown" : "hidden");
+  cgx_set_gui_status(g_gizmo_visible ? "Interactive Axes ON (F3)" : "Interactive Axes OFF (F3)");
+  g_need_redisplay = 1;
+  if (g_glfw_window) glfwPostEmptyEvent();
+}
+
+void cgx_glfw_toggle_gizmo(void)
+{
+  cgx_glfw_set_gizmo_visible(!g_gizmo_visible);
+}
+
+int cgx_glfw_is_gizmo_visible(void)
+{
+  return g_gizmo_visible;
 }
 
 /* --------------------------------------------------------------------  */
@@ -1497,6 +1604,578 @@ static void render_command_bar(int win_w, int win_h)
 }
 
 /* --------------------------------------------------------------------  */
+/* Lightweight Collapsible HUD Toolbar (Top-Center, Hidden by Default)   */
+/* --------------------------------------------------------------------  */
+
+#define HUD_BTN_COUNT 9
+
+static void draw_chevron_lr(float cx, float cy_gl, float half_w, float half_h, int point_right)
+{
+  float dx = point_right ? half_w : -half_w;
+  glBegin(GL_LINE_STRIP);
+    glVertex2f(cx - dx, cy_gl - half_h);
+    glVertex2f(cx + dx, cy_gl);
+    glVertex2f(cx - dx, cy_gl + half_h);
+  glEnd();
+}
+
+static void get_hud_pull_tab_rect(int win_w, int *x1, int *y1, int *x2, int *y2)
+{
+  int tier = get_ui_font_tier();
+  int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
+  int outer = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
+  int pad_x = (tier == 0) ? 9  : (tier == 1 ? 11 : 15);
+  int gap_chev = (tier == 0) ? 6 : (tier == 1 ? 7 : 10);
+  int chev_w = (tier == 0) ? 6 : (tier == 1 ? 8 : 11);
+  int h = btn_h + outer * 2;
+  float tw = get_text_width_dynamic("Tools");
+  int w = (int)ceil(tw) + gap_chev + chev_w + pad_x * 2;
+  *x2 = win_w - 8;
+  *x1 = *x2 - w;
+  *y1 = 0;
+  *y2 = h;
+}
+
+static int hit_test_hud_pull_tab(int mx, int my, int win_w)
+{
+  if (win_w < 200) return 0;
+  int x1, y1, x2, y2;
+  get_hud_pull_tab_rect(win_w, &x1, &y1, &x2, &y2);
+  return (mx >= x1 && mx <= x2 && my >= y1 && my <= y2) ? 1 : 0;
+}
+
+static void render_hud_pull_tab(int win_w, int win_h)
+{
+  if (win_w < 200 || win_h < 120) return;
+
+  int x1, y1, x2, y2;
+  get_hud_pull_tab_rect(win_w, &x1, &y1, &x2, &y2);
+  int tier = get_ui_font_tier();
+  int pad_x = (tier == 0) ? 9 : (tier == 1 ? 11 : 15);
+  int gap_chev = (tier == 0) ? 6 : (tier == 1 ? 7 : 10);
+  int chev_w = (tier == 0) ? 6 : (tier == 1 ? 8 : 11);
+  int tab_h = y2 - y1;
+  int dark = (backgrndcol == 0);
+
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+  if (g_hud_tab_hovered)
+  {
+    glColor4f(0.18f, 0.48f, 0.82f, 0.96f);
+  }
+  else if (g_hud_toolbar_visible)
+  {
+    if (dark) glColor4f(0.05f, 0.08f, 0.12f, 0.88f);
+    else      glColor4f(0.94f, 0.96f, 0.98f, 0.92f);
+  }
+  else if (dark)
+  {
+    glColor4f(0.05f, 0.08f, 0.12f, 0.48f);
+  }
+  else
+  {
+    glColor4f(0.90f, 0.93f, 0.96f, 0.60f);
+  }
+  glRectf((float)x1, (float)(win_h - y2), (float)x2, (float)(win_h - y1));
+
+  if (g_hud_tab_hovered)
+  {
+    glColor4f(0.35f, 0.78f, 1.0f, 0.95f);
+  }
+  else if (g_hud_toolbar_visible)
+  {
+    if (dark) glColor4f(0.20f, 0.30f, 0.42f, 0.95f);
+    else      glColor4f(0.68f, 0.74f, 0.82f, 0.95f);
+  }
+  else if (dark)
+  {
+    glColor4f(0.24f, 0.34f, 0.46f, 0.55f);
+  }
+  else
+  {
+    glColor4f(0.62f, 0.68f, 0.76f, 0.68f);
+  }
+
+  glLineWidth(1.0f);
+  glBegin(GL_LINE_STRIP);
+    glVertex2f((float)x1, (float)(win_h - y1));
+    glVertex2f((float)x1, (float)(win_h - y2));
+    glVertex2f((float)x2, (float)(win_h - y2));
+    glVertex2f((float)x2, (float)(win_h - y1));
+  glEnd();
+
+  float tr, tg, tb, ta = 1.0f;
+  if (g_hud_tab_hovered)
+  {
+    tr = 1.0f; tg = 1.0f; tb = 1.0f;
+  }
+  else if (g_hud_toolbar_visible)
+  {
+    if (dark) { tr = 0.92f; tg = 0.95f; tb = 0.98f; }
+    else      { tr = 0.10f; tg = 0.14f; tb = 0.20f; }
+  }
+  else if (dark)
+  {
+    tr = 0.86f; tg = 0.91f; tb = 0.97f; ta = 0.82f;
+  }
+  else
+  {
+    tr = 0.15f; tg = 0.20f; tb = 0.28f; ta = 0.85f;
+  }
+
+  float chev_cx = (float)x1 + (float)pad_x + (float)chev_w * 0.5f;
+  float chev_cy_gl = (float)win_h - (float)tab_h * 0.50f;
+  glColor4f(tr, tg, tb, ta);
+  glLineWidth(1.5f);
+  draw_chevron_lr(chev_cx, chev_cy_gl, (float)chev_w * 0.40f, (float)tab_h * 0.16f, g_hud_toolbar_visible);
+
+  int baseline_y = y1 + (int)(tab_h * 0.68f);
+  float text_x = (float)x1 + (float)pad_x + (float)chev_w + (float)gap_chev;
+  draw_ui_text_dynamic(text_x, (float)baseline_y, "Tools", tr, tg, tb, win_h);
+}
+
+static const char *get_hud_button_label(int idx, int for_width)
+{
+  switch (idx)
+  {
+    case 0: return "Fit";
+    case 1: return "Iso";
+    case 2: return for_width ? "Wire" : (g_is_wireframe ? "Fill" : "Wire");
+    case 3: return "Elem";
+    case 4: return "Persp";
+    case 5: return "Theme";
+    case 6: return "Spin";
+    case 7: return "Shot";
+    case 8: return "Axes";
+    default: return "";
+  }
+}
+
+static int is_hud_button_disabled(int idx)
+{
+  if (idx == 3 && g_is_wireframe) return 1;
+  return 0;
+}
+
+static int is_hud_button_active(int idx)
+{
+  switch (idx)
+  {
+    case 2: return g_is_wireframe ? 1 : 0;
+    case 3: return (!g_is_wireframe && elemEdgeFlag) ? 1 : 0;
+    case 4: return perspectiveFlag ? 1 : 0;
+    case 6: return g_auto_rotate_active ? 1 : 0;
+    case 8: return g_gizmo_visible ? 1 : 0;
+    default: return 0;
+  }
+}
+
+static void compute_hud_toolbar_layout(int win_w,
+                                       int out_x1[HUD_BTN_COUNT],
+                                       int out_x2[HUD_BTN_COUNT],
+                                       int *out_y1, int *out_y2,
+                                       int *out_bar_x1, int *out_bar_x2,
+                                       int *out_bar_y1, int *out_bar_y2)
+{
+  int tier = get_ui_font_tier();
+  int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
+  int pad_x = (tier == 0) ? 8  : (tier == 1 ? 11 : 15);
+  int gap   = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
+  int outer = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
+
+  int widths[HUD_BTN_COUNT];
+  int total_btn_w = 0;
+  for (int i = 0; i < HUD_BTN_COUNT; i++)
+  {
+    float tw = get_text_width_dynamic(get_hud_button_label(i, 1));
+    widths[i] = (int)ceil(tw) + pad_x * 2;
+    total_btn_w += widths[i];
+  }
+  total_btn_w += gap * (HUD_BTN_COUNT - 1);
+
+  int tx1, ty1, tx2, ty2;
+  get_hud_pull_tab_rect(win_w, &tx1, &ty1, &tx2, &ty2);
+
+  int bar_w = total_btn_w + outer * 2;
+  int bar_x2 = tx1;
+  int bar_x1 = bar_x2 - bar_w;
+  if (bar_x1 < 8)
+  {
+    bar_x1 = 8;
+    bar_x2 = bar_x1 + bar_w;
+  }
+  int bar_y1 = ty1;
+
+  int cur_x = bar_x1 + outer;
+  int y1 = bar_y1 + outer;
+  int y2 = y1 + btn_h;
+  for (int i = 0; i < HUD_BTN_COUNT; i++)
+  {
+    out_x1[i] = cur_x;
+    out_x2[i] = cur_x + widths[i];
+    cur_x = out_x2[i] + gap;
+  }
+
+  *out_y1 = y1;
+  *out_y2 = y2;
+  *out_bar_x1 = bar_x1;
+  *out_bar_x2 = bar_x2;
+  *out_bar_y1 = bar_y1;
+  *out_bar_y2 = ty2;
+}
+
+static int hit_test_hud_toolbar(int mx, int my, int win_w, int win_h)
+{
+  (void)win_h;
+  if (!g_hud_toolbar_visible || win_w < 200) return -1;
+
+  int bx1[HUD_BTN_COUNT], bx2[HUD_BTN_COUNT];
+  int y1, y2, bar_x1, bar_x2, bar_y1, bar_y2;
+  compute_hud_toolbar_layout(win_w, bx1, bx2, &y1, &y2, &bar_x1, &bar_x2, &bar_y1, &bar_y2);
+
+  if (mx < bar_x1 || mx > bar_x2 || my < bar_y1 || my > bar_y2) return -1;
+  if (my >= y1 && my <= y2)
+  {
+    for (int i = 0; i < HUD_BTN_COUNT; i++)
+    {
+      if (mx >= bx1[i] && mx <= bx2[i]) return i;
+    }
+  }
+  return -2; /* inside toolbar frame padding */
+}
+
+static void dispatch_hud_button(int idx)
+{
+  if (is_hud_button_disabled(idx)) return;
+  switch (idx)
+  {
+    case 0: frame(); break;
+    case 1: queue_command("rot iso"); break;
+    case 2:
+      if (!g_is_wireframe)
+      {
+        if (elemEdgeFlag) elemEdgeFlag = 0;
+        selectView(4);
+      }
+      else
+      {
+        selectView(3);
+      }
+      break;
+    case 3: selectView(8); break;
+    case 4: queue_command(perspectiveFlag ? "view ortho" : "view persp"); break;
+    case 5: queue_command(backgrndcol ? "view bg k" : "view bg w"); break;
+    case 6: cgx_glfw_toggle_auto_rotate(); break;
+    case 7: queue_command("hcpy"); break;
+    case 8: cgx_glfw_toggle_gizmo(); break;
+    default: break;
+  }
+}
+
+static void render_hud_toolbar(int win_w, int win_h)
+{
+  if (!g_hud_toolbar_visible || win_w < 200 || win_h < 120) return;
+
+  int bx1[HUD_BTN_COUNT], bx2[HUD_BTN_COUNT];
+  int y1, y2, bar_x1, bar_x2, bar_y1, bar_y2;
+  compute_hud_toolbar_layout(win_w, bx1, bx2, &y1, &y2, &bar_x1, &bar_x2, &bar_y1, &bar_y2);
+
+  int dark = (backgrndcol == 0);
+  int btn_h = y2 - y1;
+  int baseline_y = y1 + (int)(btn_h * 0.70f);
+
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+  /* Outer toolbar strip */
+  if (dark) glColor4f(0.05f, 0.08f, 0.12f, 0.88f);
+  else      glColor4f(0.94f, 0.96f, 0.98f, 0.92f);
+  glRectf((float)bar_x1, (float)(win_h - bar_y2), (float)bar_x2, (float)(win_h - bar_y1));
+
+  if (dark) glColor4f(0.20f, 0.30f, 0.42f, 0.95f);
+  else      glColor4f(0.68f, 0.74f, 0.82f, 0.95f);
+  glLineWidth(1.1f);
+  glBegin(GL_LINE_LOOP);
+    glVertex2f((float)bar_x1, (float)(win_h - bar_y1));
+    glVertex2f((float)bar_x2, (float)(win_h - bar_y1));
+    glVertex2f((float)bar_x2, (float)(win_h - bar_y2));
+    glVertex2f((float)bar_x1, (float)(win_h - bar_y2));
+  glEnd();
+
+  for (int i = 0; i < HUD_BTN_COUNT; i++)
+  {
+    int disabled = is_hud_button_disabled(i);
+    int active = is_hud_button_active(i);
+    int hovered = (!disabled && g_hud_hovered_btn == i);
+    const char *label = get_hud_button_label(i, 0);
+
+    if (disabled)
+    {
+      if (dark) glColor4f(0.08f, 0.11f, 0.16f, 0.60f);
+      else      glColor4f(0.88f, 0.90f, 0.93f, 0.65f);
+    }
+    else if (hovered)
+    {
+      glColor4f(0.18f, 0.48f, 0.82f, 0.96f);
+    }
+    else if (active)
+    {
+      if (dark) glColor4f(0.12f, 0.34f, 0.56f, 0.92f);
+      else      glColor4f(0.16f, 0.46f, 0.78f, 0.92f);
+    }
+    else
+    {
+      if (dark) glColor4f(0.10f, 0.14f, 0.20f, 0.85f);
+      else      glColor4f(0.86f, 0.89f, 0.94f, 0.90f);
+    }
+    glRectf((float)bx1[i], (float)(win_h - y2), (float)bx2[i], (float)(win_h - y1));
+
+    if (active)
+    {
+      glColor4f(0.25f, 0.80f, 1.0f, 1.0f);
+      glRectf((float)bx1[i], (float)(win_h - y2), (float)bx2[i], (float)(win_h - (y2 - 2)));
+    }
+
+    float tr = 1.0f, tg = 1.0f, tb = 1.0f;
+    if (disabled)
+    {
+      if (dark) { tr = 0.42f; tg = 0.48f; tb = 0.56f; }
+      else      { tr = 0.55f; tg = 0.60f; tb = 0.66f; }
+    }
+    else if (!hovered && !active)
+    {
+      if (dark) { tr = 0.90f; tg = 0.94f; tb = 0.98f; }
+      else      { tr = 0.10f; tg = 0.14f; tb = 0.20f; }
+    }
+    float tw = get_text_width_dynamic(label);
+    float tx = (float)bx1[i] + ((float)(bx2[i] - bx1[i]) - tw) * 0.5f;
+    draw_ui_text_dynamic(tx, (float)baseline_y, label, tr, tg, tb, win_h);
+  }
+}
+
+/* --------------------------------------------------------------------  */
+/* Clickable 3D Orientation Gizmo (Top-Right, Hidden by Default)         */
+/* --------------------------------------------------------------------  */
+
+typedef struct {
+  int   id;
+  float ax, ay, az;
+  float sx, sy, sz;
+  float px_top, py_top;
+  float px_gl, py_gl;
+  float r, g, b;
+  const char *label;
+  const char *cmd;
+  int   is_pos;
+} CGXGizmoHandle;
+
+static void get_gizmo_metrics(int win_w, float *cx, float *cy_top, float *radius, float *arm, float *dot_r)
+{
+  int tier = get_ui_font_tier();
+  int tx1, ty1, tx2, ty2;
+  get_hud_pull_tab_rect(win_w, &tx1, &ty1, &tx2, &ty2);
+  *radius = (tier == 0) ? 40.0f : (tier == 1 ? 48.0f : 60.0f);
+  *arm    = (*radius) * 0.68f;
+  *dot_r  = (tier == 0) ? 8.5f : (tier == 1 ? 10.5f : 13.5f);
+  *cx     = (float)win_w - (*radius) - 16.0f;
+  *cy_top = (float)ty2 + (*radius) + 12.0f;
+}
+
+static void build_gizmo_handles(int win_w, int win_h, CGXGizmoHandle handles[6])
+{
+  static const struct {
+    int id; float ax, ay, az; float r, g, b;
+    const char *label; const char *cmd; int is_pos;
+  } defs[6] = {
+    { 0,  1.0f,  0.0f,  0.0f, 0.92f, 0.26f, 0.26f, "X",  "rot x",  1 },
+    { 1, -1.0f,  0.0f,  0.0f, 0.55f, 0.22f, 0.22f, "-X", "rot -x", 0 },
+    { 2,  0.0f,  1.0f,  0.0f, 0.22f, 0.82f, 0.36f, "Y",  "rot y",  1 },
+    { 3,  0.0f, -1.0f,  0.0f, 0.18f, 0.48f, 0.24f, "-Y", "rot -y", 0 },
+    { 4,  0.0f,  0.0f,  1.0f, 0.26f, 0.66f, 0.98f, "Z",  "rot z",  1 },
+    { 5,  0.0f,  0.0f, -1.0f, 0.20f, 0.40f, 0.62f, "-Z", "rot -z", 0 }
+  };
+
+  float cx, cy_top, radius, arm, dot_r;
+  get_gizmo_metrics(win_w, &cx, &cy_top, &radius, &arm, &dot_r);
+  float cy_gl = (float)win_h - cy_top;
+
+  for (int i = 0; i < 6; i++)
+  {
+    handles[i].id = defs[i].id;
+    handles[i].ax = defs[i].ax;
+    handles[i].ay = defs[i].ay;
+    handles[i].az = defs[i].az;
+    handles[i].r  = defs[i].r;
+    handles[i].g  = defs[i].g;
+    handles[i].b  = defs[i].b;
+    handles[i].label  = defs[i].label;
+    handles[i].cmd    = defs[i].cmd;
+    handles[i].is_pos = defs[i].is_pos;
+
+    double sx = R[0][0] * defs[i].ax + R[1][0] * defs[i].ay + R[2][0] * defs[i].az;
+    double sy = R[0][1] * defs[i].ax + R[1][1] * defs[i].ay + R[2][1] * defs[i].az;
+    double sz = R[0][2] * defs[i].ax + R[1][2] * defs[i].ay + R[2][2] * defs[i].az;
+
+    handles[i].sx = (float)sx;
+    handles[i].sy = (float)sy;
+    handles[i].sz = (float)sz;
+    handles[i].px_top = cx + (float)sx * arm;
+    handles[i].py_top = cy_top - (float)sy * arm;
+    handles[i].px_gl  = cx + (float)sx * arm;
+    handles[i].py_gl  = cy_gl + (float)sy * arm;
+  }
+
+  /* Sort back-to-front by sz (6-element insertion sort) */
+  for (int i = 1; i < 6; i++)
+  {
+    CGXGizmoHandle key = handles[i];
+    int j = i - 1;
+    while (j >= 0 && handles[j].sz > key.sz)
+    {
+      handles[j + 1] = handles[j];
+      j--;
+    }
+    handles[j + 1] = key;
+  }
+}
+
+static void draw_filled_circle(float cx, float cy, float r, int segs)
+{
+  glBegin(GL_TRIANGLE_FAN);
+    glVertex2f(cx, cy);
+    for (int i = 0; i <= segs; i++)
+    {
+      float a = (float)i * (6.2831853f / (float)segs);
+      glVertex2f(cx + cosf(a) * r, cy + sinf(a) * r);
+    }
+  glEnd();
+}
+
+static void draw_circle_outline(float cx, float cy, float r, int segs)
+{
+  glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < segs; i++)
+    {
+      float a = (float)i * (6.2831853f / (float)segs);
+      glVertex2f(cx + cosf(a) * r, cy + sinf(a) * r);
+    }
+  glEnd();
+}
+
+static int hit_test_orientation_gizmo(int mx, int my, int win_w, int win_h)
+{
+  if (!g_gizmo_visible || win_w < 200 || win_h < 200) return -1;
+
+  float cx, cy_top, radius, arm, dot_r;
+  get_gizmo_metrics(win_w, &cx, &cy_top, &radius, &arm, &dot_r);
+
+  float dx_c = (float)mx - cx;
+  float dy_c = (float)my - cy_top;
+  if (dx_c * dx_c + dy_c * dy_c > (radius + 6.0f) * (radius + 6.0f)) return -1;
+
+  CGXGizmoHandle handles[6];
+  build_gizmo_handles(win_w, win_h, handles);
+
+  /* Check front-to-back across axis handles */
+  float hit_r = dot_r * 1.15f;
+  for (int i = 5; i >= 0; i--)
+  {
+    float dx = (float)mx - handles[i].px_top;
+    float dy = (float)my - handles[i].py_top;
+    if (dx * dx + dy * dy <= hit_r * hit_r) return handles[i].id;
+  }
+
+  /* Center Iso button */
+  if (dx_c * dx_c + dy_c * dy_c <= (dot_r * 0.9f) * (dot_r * 0.9f)) return 6;
+
+  return -2; /* inside gizmo disc backdrop */
+}
+
+static void dispatch_gizmo_click(int idx)
+{
+  static const char *cmds[7] = {
+    "rot x", "rot -x", "rot y", "rot -y", "rot z", "rot -z", "rot iso"
+  };
+  if (idx >= 0 && idx < 7) queue_command(cmds[idx]);
+}
+
+static void render_orientation_gizmo(int win_w, int win_h)
+{
+  if (!g_gizmo_visible || win_w < 200 || win_h < 200) return;
+
+  float cx, cy_top, radius, arm, dot_r;
+  get_gizmo_metrics(win_w, &cx, &cy_top, &radius, &arm, &dot_r);
+  float cy_gl = (float)win_h - cy_top;
+  int dark = (backgrndcol == 0);
+  int tier = get_ui_font_tier();
+  float cap_half = (tier == 0) ? 4.5f : (tier == 1 ? 6.5f : 10.5f);
+
+  CGXGizmoHandle handles[6];
+  build_gizmo_handles(win_w, win_h, handles);
+
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+  /* Subtle circular backdrop */
+  if (dark) glColor4f(0.06f, 0.09f, 0.14f, 0.65f);
+  else      glColor4f(0.92f, 0.94f, 0.97f, 0.78f);
+  draw_filled_circle(cx, cy_gl, radius, 28);
+
+  if (dark) glColor4f(0.22f, 0.32f, 0.44f, 0.70f);
+  else      glColor4f(0.68f, 0.74f, 0.82f, 0.85f);
+  glLineWidth(1.0f);
+  draw_circle_outline(cx, cy_gl, radius, 28);
+
+  /* Draw axis stems back-to-front */
+  for (int i = 0; i < 6; i++)
+  {
+    float alpha = handles[i].is_pos ? 0.92f : 0.40f;
+    glLineWidth(handles[i].is_pos ? 2.2f : 1.2f);
+    glColor4f(handles[i].r, handles[i].g, handles[i].b, alpha);
+    glBegin(GL_LINES);
+      glVertex2f(cx, cy_gl);
+      glVertex2f(handles[i].px_gl, handles[i].py_gl);
+    glEnd();
+  }
+
+  /* Center Iso handle */
+  int iso_hov = (g_gizmo_hovered_idx == 6);
+  if (iso_hov) glColor4f(0.25f, 0.78f, 1.0f, 0.95f);
+  else if (dark) glColor4f(0.35f, 0.45f, 0.58f, 0.85f);
+  else           glColor4f(0.55f, 0.62f, 0.72f, 0.90f);
+  draw_filled_circle(cx, cy_gl, dot_r * (iso_hov ? 0.65f : 0.48f), 16);
+
+  /* Draw axis handles back-to-front */
+  for (int i = 0; i < 6; i++)
+  {
+    int hov = (g_gizmo_hovered_idx == handles[i].id);
+    float r_circle = handles[i].is_pos ? dot_r : (dot_r * 0.76f);
+    if (hov) r_circle *= 1.16f;
+
+    float depth_alpha = 0.55f + 0.45f * ((handles[i].sz + 1.0f) * 0.5f);
+    if (!handles[i].is_pos && !hov) depth_alpha *= 0.65f;
+    if (hov) depth_alpha = 1.0f;
+
+    glColor4f(handles[i].r, handles[i].g, handles[i].b, depth_alpha);
+    draw_filled_circle(handles[i].px_gl, handles[i].py_gl, r_circle, 20);
+
+    if (hov)
+    {
+      glColor4f(1.0f, 1.0f, 1.0f, 0.95f);
+      glLineWidth(1.5f);
+      draw_circle_outline(handles[i].px_gl, handles[i].py_gl, r_circle, 20);
+    }
+
+    if (handles[i].is_pos || hov)
+    {
+      float tw = get_text_width_dynamic(handles[i].label);
+      draw_ui_text_dynamic(handles[i].px_top - tw * 0.5f,
+                           handles[i].py_top + cap_half,
+                           handles[i].label,
+                           1.0f, 1.0f, 1.0f, win_h);
+    }
+  }
+}
+
+/* --------------------------------------------------------------------  */
 /* GLFW Callback Handlers & Event Translation                            */
 /* --------------------------------------------------------------------  */
 
@@ -1504,6 +2183,20 @@ static void glfw_key_callback(GLFWwindow *window, int key, int scancode, int act
 {
   (void)window; (void)scancode; (void)mods;
   if (action != GLFW_PRESS && action != GLFW_REPEAT) return;
+
+  if (action == GLFW_PRESS && mods == 0)
+  {
+    if (key == GLFW_KEY_F2)
+    {
+      cgx_glfw_toggle_hud_toolbar();
+      return;
+    }
+    if (key == GLFW_KEY_F3)
+    {
+      cgx_glfw_toggle_gizmo();
+      return;
+    }
+  }
 
   if (g_cascade_depth > 0 && key == GLFW_KEY_ESCAPE)
   {
@@ -1716,8 +2409,82 @@ static void glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypo
   /* Multi-level menu hover update */
   if (g_cascade_depth > 0)
   {
+    g_hud_hovered_btn = -1;
+    g_hud_tab_hovered = 0;
+    g_gizmo_hovered_idx = -1;
     update_cascade_hover((int)xpos, (int)ypos, win_w, win_h);
     return;
+  }
+
+  /* Lightweight fixed top-center Tools tab + optional HUD Toolbar hover checks */
+  {
+    int tab_h = hit_test_hud_pull_tab((int)xpos, (int)ypos, win_w);
+    if (tab_h != g_hud_tab_hovered)
+    {
+      g_hud_tab_hovered = tab_h;
+      g_need_redisplay = 1;
+    }
+    if (tab_h)
+    {
+      if (g_hud_hovered_btn != -1)
+      {
+        g_hud_hovered_btn = -1;
+        g_need_redisplay = 1;
+      }
+      if (g_mouse_buttons[0] != GLUT_DOWN &&
+          g_mouse_buttons[1] != GLUT_DOWN &&
+          g_mouse_buttons[2] != GLUT_DOWN &&
+          !g_right_dragging)
+      {
+        return;
+      }
+    }
+  }
+
+  if (g_hud_toolbar_visible)
+  {
+    int h = hit_test_hud_toolbar((int)xpos, (int)ypos, win_w, win_h);
+    int btn_h = (h >= 0) ? h : -1;
+    if (btn_h != g_hud_hovered_btn)
+    {
+      g_hud_hovered_btn = btn_h;
+      g_need_redisplay = 1;
+    }
+    if (h != -1 &&
+        g_mouse_buttons[0] != GLUT_DOWN &&
+        g_mouse_buttons[1] != GLUT_DOWN &&
+        g_mouse_buttons[2] != GLUT_DOWN &&
+        !g_right_dragging)
+    {
+      return;
+    }
+  }
+  else
+  {
+    g_hud_hovered_btn = -1;
+  }
+
+  if (g_gizmo_visible)
+  {
+    int gh = hit_test_orientation_gizmo((int)xpos, (int)ypos, win_w, win_h);
+    int handle_h = (gh >= 0) ? gh : -1;
+    if (handle_h != g_gizmo_hovered_idx)
+    {
+      g_gizmo_hovered_idx = handle_h;
+      g_need_redisplay = 1;
+    }
+    if (gh != -1 &&
+        g_mouse_buttons[0] != GLUT_DOWN &&
+        g_mouse_buttons[1] != GLUT_DOWN &&
+        g_mouse_buttons[2] != GLUT_DOWN &&
+        !g_right_dragging)
+    {
+      return;
+    }
+  }
+  else
+  {
+    g_gizmo_hovered_idx = -1;
   }
 
   if (g_cmd_bar_visible && ypos >= win_h - bar_h) return;
@@ -1810,8 +2577,54 @@ static void glfw_mouse_button_callback(GLFWwindow *window, int button, int actio
     return;
   }
 
+  /* Consume paired press/release on HUD Toolbar or Orientation Gizmo without stopping auto-rotate */
+  static int g_hud_click_captured = 0;
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE && g_hud_click_captured)
+  {
+    g_hud_click_captured = 0;
+    return;
+  }
+  if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+  {
+    if (hit_test_hud_pull_tab((int)g_last_mouse_x, (int)g_last_mouse_y, win_w))
+    {
+      g_hud_click_captured = 1;
+      cgx_glfw_toggle_hud_toolbar();
+      return;
+    }
+    if (g_hud_toolbar_visible)
+    {
+      int h = hit_test_hud_toolbar((int)g_last_mouse_x, (int)g_last_mouse_y, win_w, win_h);
+      if (h != -1)
+      {
+        g_hud_click_captured = 1;
+        if (h >= 0) dispatch_hud_button(h);
+        g_need_redisplay = 1;
+        return;
+      }
+    }
+    if (g_gizmo_visible)
+    {
+      int gh = hit_test_orientation_gizmo((int)g_last_mouse_x, (int)g_last_mouse_y, win_w, win_h);
+      if (gh != -1)
+      {
+        g_hud_click_captured = 1;
+        if (gh >= 0) dispatch_gizmo_click(gh);
+        g_need_redisplay = 1;
+        return;
+      }
+    }
+  }
+
   CGXWindow *win = find_window_at((int)g_last_mouse_x, (int)g_last_mouse_y);
   if (!win) return;
+
+  /* Any direct click on the 3D viewport stops interactive auto-rotate */
+  if (action == GLFW_PRESS && button == GLFW_MOUSE_BUTTON_LEFT && g_auto_rotate_active)
+  {
+    g_auto_rotate_active = 0;
+    cgx_set_gui_status("Auto-rotate stopped");
+  }
 
   int sx, sy, sw, sh;
   get_window_screen_rect(win, &sx, &sy, &sw, &sh);
@@ -1971,9 +2784,9 @@ void glutMainLoop(void)
 
   while (!glfwWindowShouldClose(g_glfw_window))
   {
-    /* During startup (idle func active) or when redisplay is pending, poll events.
+    /* During startup (idle func active), auto-rotate, turntable recording, or pending redisplay, poll events.
        When truly idle, block with a timeout to save CPU/GPU cycles. */
-    if (g_idle_func || g_need_redisplay)
+    if (g_idle_func || g_need_redisplay || g_auto_rotate_active || g_turntable_rec_remaining > 0)
     {
       glfwPollEvents();
     }
@@ -1987,6 +2800,23 @@ void glutMainLoop(void)
     if (g_idle_func)
     {
       g_idle_func();
+      g_need_redisplay = 1;
+    }
+    else if (g_turntable_rec_remaining > 0)
+    {
+      g_need_redisplay = 1;
+    }
+    else if (g_auto_rotate_active)
+    {
+      double now = glfwGetTime();
+      double dt = now - g_auto_rotate_last_time;
+      g_auto_rotate_last_time = now;
+      if (dt < 0.0) dt = 0.0;
+      if (dt > 0.1) dt = 0.1;
+      if (dt > 0.0)
+      {
+        rot_r(g_auto_rotate_speed * dt);
+      }
       g_need_redisplay = 1;
     }
 
@@ -2050,7 +2880,46 @@ void glutMainLoop(void)
         }
       }
 
-      /* 2D UI Overlay Pass: Command Bar & Multi-Level Cascade Popup Menu */
+      if (g_hud_toolbar_visible)
+      {
+        GLint pm[2] = { GL_FILL, GL_FILL };
+        glGetIntegerv(GL_POLYGON_MODE, pm);
+        g_is_wireframe = (pm[0] == GL_LINE);
+      }
+
+      /* Capture screenshots & turntable frames before 2D HUD overlays so exported images stay clean */
+      if (g_hcpy_pending)
+      {
+        char name[512];
+        strcpy(name, g_hcpy_name);
+        g_hcpy_pending = 0;
+        createHardcopy(5, name[0] ? name : NULL);
+      }
+
+      if (g_turntable_rec_remaining > 0)
+      {
+        if (!cgx_movie_is_recording())
+        {
+          g_turntable_rec_remaining = 0;
+        }
+        else
+        {
+          cgx_movie_add_frame();
+          g_turntable_rec_remaining--;
+          if (g_turntable_rec_remaining > 0 && cgx_movie_is_recording())
+          {
+            rot_r(g_turntable_step_deg);
+            g_need_redisplay = 1;
+          }
+          else
+          {
+            rot_r(g_turntable_step_deg);
+            cgx_set_gui_status("Turntable recording complete");
+          }
+        }
+      }
+
+      /* 2D UI Overlay Pass: Command Bar, Optional HUD Widgets & Cascade Popup Menu */
       glViewport(0, 0, fb_w, fb_h);
       glDisable(GL_SCISSOR_TEST);
 
@@ -2072,6 +2941,19 @@ void glutMainLoop(void)
       glEnable(GL_BLEND);
       glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+      /* Render expanded HUD Toolbar to the left of the fixed top-right Tools tab */
+      if (g_hud_toolbar_visible)
+      {
+        render_hud_toolbar(win_w, win_h);
+      }
+      render_hud_pull_tab(win_w, win_h);
+
+      /* Render optional top-right Interactive Axes if visible */
+      if (g_gizmo_visible)
+      {
+        render_orientation_gizmo(win_w, win_h);
+      }
+
       /* Render bottom Command Bar if visible */
       if (g_cmd_bar_visible)
       {
@@ -2089,14 +2971,6 @@ void glutMainLoop(void)
       glPopMatrix();
       glMatrixMode(GL_MODELVIEW);
       glPopAttrib();
-
-      if (g_hcpy_pending)
-      {
-        char name[512];
-        strcpy(name, g_hcpy_name);
-        g_hcpy_pending = 0;
-        createHardcopy(5, name[0] ? name : NULL);
-      }
 
       glfwSwapBuffers(g_glfw_window);
     }
