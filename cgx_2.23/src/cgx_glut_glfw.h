@@ -200,6 +200,18 @@ GLFWwindow *cgx_glfw_get_window(void);
 void cgx_glfw_toggle_command_bar(void);
 int  cgx_glfw_is_command_bar_visible(void);
 
+/* Lightweight Interactive HUD & Turntable Auto-Rotate */
+void cgx_glfw_set_auto_rotate(int enable, double deg_per_sec);
+void cgx_glfw_toggle_auto_rotate(void);
+int  cgx_glfw_is_auto_rotate_active(void);
+void cgx_glfw_start_turntable_recording(int total_frames);
+void cgx_glfw_toggle_hud_toolbar(void);
+int  cgx_glfw_is_hud_toolbar_visible(void);
+void cgx_glfw_set_hud_toolbar_visible(int visible);
+void cgx_glfw_toggle_gizmo(void);
+int  cgx_glfw_is_gizmo_visible(void);
+void cgx_glfw_set_gizmo_visible(int visible);
+
 /* DPI and Line/Point Width Utilities */
 float cgx_get_fb_scale(void);
 void  cgx_glLineWidth(float width);
