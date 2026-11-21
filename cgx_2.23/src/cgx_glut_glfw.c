@@ -12,6 +12,7 @@
 #include "cgx_glut_glfw.h"
 #include "cgx_app_icon.h"
 #include "cgx_shaders.h"
+#include "cgx_tree.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -1327,6 +1328,80 @@ static float get_text_width_dynamic(const char *str)
   return width / scale_x;
 }
 
+void cgx_glfw_toggle_tree(void)
+{
+  cgx_tree_toggle();
+}
+
+int cgx_glfw_is_tree_visible(void)
+{
+  return cgx_tree_is_visible();
+}
+
+void cgx_glfw_set_tree_visible(int visible)
+{
+  cgx_tree_set_visible(visible);
+}
+
+void cgx_glfw_queue_command(const char *cmd)
+{
+  if (cmd && cmd[0] != '\0') queue_command(cmd);
+}
+
+void cgx_ui_draw_text(float x, float y, const char *str, float r, float g, float b, int win_h)
+{
+  draw_ui_text_dynamic(x, y, str, r, g, b, win_h);
+}
+
+float cgx_ui_text_width(const char *str)
+{
+  return get_text_width_dynamic(str);
+}
+
+int cgx_ui_font_tier(void)
+{
+  return get_ui_font_tier();
+}
+
+int cgx_ui_cmd_bar_height(void)
+{
+  return get_cmd_bar_height();
+}
+
+int cgx_ui_top_tab_height(void)
+{
+  int tier = get_ui_font_tier();
+  int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
+  int outer = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
+  return btn_h + outer * 2;
+}
+
+void cgx_ui_get_viewport_rect(int win_w, int win_h, int *out_x, int *out_y, int *out_w, int *out_h)
+{
+  CGXWindow *vp = (w1 > 0) ? get_window(w1) : get_window(2);
+  if (vp && vp->width > 10 && vp->height > 10)
+  {
+    int x, y, w, h;
+    get_window_screen_rect(vp, &x, &y, &w, &h);
+    if (x < 0) x = 0;
+    if (y < 0) y = 0;
+    if (x + w > win_w) w = win_w - x;
+    if (y + h > win_h) h = win_h - y;
+    if (w > 10 && h > 10)
+    {
+      *out_x = x;
+      *out_y = y;
+      *out_w = w;
+      *out_h = h;
+      return;
+    }
+  }
+  *out_x = 0;
+  *out_y = 0;
+  *out_w = win_w;
+  *out_h = win_h;
+}
+
 /* --------------------------------------------------------------------  */
 /* Multi-Level Recursive Popup Menu Engine                               */
 /* --------------------------------------------------------------------  */
@@ -1619,8 +1694,10 @@ static void draw_chevron_lr(float cx, float cy_gl, float half_w, float half_h, i
   glEnd();
 }
 
-static void get_hud_pull_tab_rect(int win_w, int *x1, int *y1, int *x2, int *y2)
+static void get_hud_pull_tab_rect(int win_w, int win_h, int *x1, int *y1, int *x2, int *y2)
 {
+  int vx, vy, vw, vh;
+  cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
   int tier = get_ui_font_tier();
   int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
   int outer = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
@@ -1630,17 +1707,17 @@ static void get_hud_pull_tab_rect(int win_w, int *x1, int *y1, int *x2, int *y2)
   int h = btn_h + outer * 2;
   float tw = get_text_width_dynamic("Tools");
   int w = (int)ceil(tw) + gap_chev + chev_w + pad_x * 2;
-  *x2 = win_w - 8;
+  *x2 = vx + vw;
   *x1 = *x2 - w;
-  *y1 = 0;
-  *y2 = h;
+  *y1 = vy;
+  *y2 = vy + h;
 }
 
-static int hit_test_hud_pull_tab(int mx, int my, int win_w)
+static int hit_test_hud_pull_tab(int mx, int my, int win_w, int win_h)
 {
-  if (win_w < 200) return 0;
+  if (win_w < 200 || win_h < 120) return 0;
   int x1, y1, x2, y2;
-  get_hud_pull_tab_rect(win_w, &x1, &y1, &x2, &y2);
+  get_hud_pull_tab_rect(win_w, win_h, &x1, &y1, &x2, &y2);
   return (mx >= x1 && mx <= x2 && my >= y1 && my <= y2) ? 1 : 0;
 }
 
@@ -1649,7 +1726,7 @@ static void render_hud_pull_tab(int win_w, int win_h)
   if (win_w < 200 || win_h < 120) return;
 
   int x1, y1, x2, y2;
-  get_hud_pull_tab_rect(win_w, &x1, &y1, &x2, &y2);
+  get_hud_pull_tab_rect(win_w, win_h, &x1, &y1, &x2, &y2);
   int tier = get_ui_font_tier();
   int pad_x = (tier == 0) ? 9 : (tier == 1 ? 11 : 15);
   int gap_chev = (tier == 0) ? 6 : (tier == 1 ? 7 : 10);
@@ -1724,7 +1801,7 @@ static void render_hud_pull_tab(int win_w, int win_h)
   }
 
   float chev_cx = (float)x1 + (float)pad_x + (float)chev_w * 0.5f;
-  float chev_cy_gl = (float)win_h - (float)tab_h * 0.50f;
+  float chev_cy_gl = (float)win_h - ((float)y1 + (float)tab_h * 0.50f);
   glColor4f(tr, tg, tb, ta);
   glLineWidth(1.5f);
   draw_chevron_lr(chev_cx, chev_cy_gl, (float)chev_w * 0.40f, (float)tab_h * 0.16f, g_hud_toolbar_visible);
@@ -1770,13 +1847,16 @@ static int is_hud_button_active(int idx)
   }
 }
 
-static void compute_hud_toolbar_layout(int win_w,
+static void compute_hud_toolbar_layout(int win_w, int win_h,
                                        int out_x1[HUD_BTN_COUNT],
                                        int out_x2[HUD_BTN_COUNT],
                                        int *out_y1, int *out_y2,
                                        int *out_bar_x1, int *out_bar_x2,
                                        int *out_bar_y1, int *out_bar_y2)
 {
+  int vx, vy, vw, vh;
+  cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
+
   int tier = get_ui_font_tier();
   int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
   int pad_x = (tier == 0) ? 8  : (tier == 1 ? 11 : 15);
@@ -1794,14 +1874,14 @@ static void compute_hud_toolbar_layout(int win_w,
   total_btn_w += gap * (HUD_BTN_COUNT - 1);
 
   int tx1, ty1, tx2, ty2;
-  get_hud_pull_tab_rect(win_w, &tx1, &ty1, &tx2, &ty2);
+  get_hud_pull_tab_rect(win_w, win_h, &tx1, &ty1, &tx2, &ty2);
 
   int bar_w = total_btn_w + outer * 2;
   int bar_x2 = tx1;
   int bar_x1 = bar_x2 - bar_w;
-  if (bar_x1 < 8)
+  if (bar_x1 < vx)
   {
-    bar_x1 = 8;
+    bar_x1 = vx;
     bar_x2 = bar_x1 + bar_w;
   }
   int bar_y1 = ty1;
@@ -1826,12 +1906,11 @@ static void compute_hud_toolbar_layout(int win_w,
 
 static int hit_test_hud_toolbar(int mx, int my, int win_w, int win_h)
 {
-  (void)win_h;
-  if (!g_hud_toolbar_visible || win_w < 200) return -1;
+  if (!g_hud_toolbar_visible || win_w < 200 || win_h < 120) return -1;
 
   int bx1[HUD_BTN_COUNT], bx2[HUD_BTN_COUNT];
   int y1, y2, bar_x1, bar_x2, bar_y1, bar_y2;
-  compute_hud_toolbar_layout(win_w, bx1, bx2, &y1, &y2, &bar_x1, &bar_x2, &bar_y1, &bar_y2);
+  compute_hud_toolbar_layout(win_w, win_h, bx1, bx2, &y1, &y2, &bar_x1, &bar_x2, &bar_y1, &bar_y2);
 
   if (mx < bar_x1 || mx > bar_x2 || my < bar_y1 || my > bar_y2) return -1;
   if (my >= y1 && my <= y2)
@@ -1878,7 +1957,7 @@ static void render_hud_toolbar(int win_w, int win_h)
 
   int bx1[HUD_BTN_COUNT], bx2[HUD_BTN_COUNT];
   int y1, y2, bar_x1, bar_x2, bar_y1, bar_y2;
-  compute_hud_toolbar_layout(win_w, bx1, bx2, &y1, &y2, &bar_x1, &bar_x2, &bar_y1, &bar_y2);
+  compute_hud_toolbar_layout(win_w, win_h, bx1, bx2, &y1, &y2, &bar_x1, &bar_x2, &bar_y1, &bar_y2);
 
   int dark = (backgrndcol == 0);
   int btn_h = y2 - y1;
@@ -1968,16 +2047,18 @@ typedef struct {
   int   is_pos;
 } CGXGizmoHandle;
 
-static void get_gizmo_metrics(int win_w, float *cx, float *cy_top, float *radius, float *arm, float *dot_r)
+static void get_gizmo_metrics(int win_w, int win_h, float *cx, float *cy_top, float *radius, float *arm, float *dot_r)
 {
+  int vx, vy, vw, vh;
+  cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
   int tier = get_ui_font_tier();
   int tx1, ty1, tx2, ty2;
-  get_hud_pull_tab_rect(win_w, &tx1, &ty1, &tx2, &ty2);
+  get_hud_pull_tab_rect(win_w, win_h, &tx1, &ty1, &tx2, &ty2);
   *radius = (tier == 0) ? 40.0f : (tier == 1 ? 48.0f : 60.0f);
   *arm    = (*radius) * 0.68f;
   *dot_r  = (tier == 0) ? 8.5f : (tier == 1 ? 10.5f : 13.5f);
-  *cx     = (float)win_w - (*radius) - 16.0f;
-  *cy_top = (float)ty2 + (*radius) + 12.0f;
+  *cx     = (float)(vx + vw) - (*radius) - 12.0f;
+  *cy_top = (float)ty2 + (*radius) + 10.0f;
 }
 
 static void build_gizmo_handles(int win_w, int win_h, CGXGizmoHandle handles[6])
@@ -1995,7 +2076,7 @@ static void build_gizmo_handles(int win_w, int win_h, CGXGizmoHandle handles[6])
   };
 
   float cx, cy_top, radius, arm, dot_r;
-  get_gizmo_metrics(win_w, &cx, &cy_top, &radius, &arm, &dot_r);
+  get_gizmo_metrics(win_w, win_h, &cx, &cy_top, &radius, &arm, &dot_r);
   float cy_gl = (float)win_h - cy_top;
 
   for (int i = 0; i < 6; i++)
@@ -2066,7 +2147,7 @@ static int hit_test_orientation_gizmo(int mx, int my, int win_w, int win_h)
   if (!g_gizmo_visible || win_w < 200 || win_h < 200) return -1;
 
   float cx, cy_top, radius, arm, dot_r;
-  get_gizmo_metrics(win_w, &cx, &cy_top, &radius, &arm, &dot_r);
+  get_gizmo_metrics(win_w, win_h, &cx, &cy_top, &radius, &arm, &dot_r);
 
   float dx_c = (float)mx - cx;
   float dy_c = (float)my - cy_top;
@@ -2103,7 +2184,7 @@ static void render_orientation_gizmo(int win_w, int win_h)
   if (!g_gizmo_visible || win_w < 200 || win_h < 200) return;
 
   float cx, cy_top, radius, arm, dot_r;
-  get_gizmo_metrics(win_w, &cx, &cy_top, &radius, &arm, &dot_r);
+  get_gizmo_metrics(win_w, win_h, &cx, &cy_top, &radius, &arm, &dot_r);
   float cy_gl = (float)win_h - cy_top;
   int dark = (backgrndcol == 0);
   int tier = get_ui_font_tier();
@@ -2194,6 +2275,11 @@ static void glfw_key_callback(GLFWwindow *window, int key, int scancode, int act
     if (key == GLFW_KEY_F3)
     {
       cgx_glfw_toggle_gizmo();
+      return;
+    }
+    if (key == GLFW_KEY_F4)
+    {
+      cgx_tree_toggle();
       return;
     }
   }
@@ -2416,9 +2502,9 @@ static void glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypo
     return;
   }
 
-  /* Lightweight fixed top-center Tools tab + optional HUD Toolbar hover checks */
+  /* Lightweight fixed top-right Tools tab + optional HUD Toolbar hover checks */
   {
-    int tab_h = hit_test_hud_pull_tab((int)xpos, (int)ypos, win_w);
+    int tab_h = hit_test_hud_pull_tab((int)xpos, (int)ypos, win_w, win_h);
     if (tab_h != g_hud_tab_hovered)
     {
       g_hud_tab_hovered = tab_h;
@@ -2485,6 +2571,15 @@ static void glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypo
   else
   {
     g_gizmo_hovered_idx = -1;
+  }
+
+  if (cgx_tree_on_mouse_move((int)xpos, (int)ypos, win_w, win_h) &&
+      g_mouse_buttons[0] != GLUT_DOWN &&
+      g_mouse_buttons[1] != GLUT_DOWN &&
+      g_mouse_buttons[2] != GLUT_DOWN &&
+      !g_right_dragging)
+  {
+    return;
   }
 
   if (g_cmd_bar_visible && ypos >= win_h - bar_h) return;
@@ -2586,7 +2681,7 @@ static void glfw_mouse_button_callback(GLFWwindow *window, int button, int actio
   }
   if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
   {
-    if (hit_test_hud_pull_tab((int)g_last_mouse_x, (int)g_last_mouse_y, win_w))
+    if (hit_test_hud_pull_tab((int)g_last_mouse_x, (int)g_last_mouse_y, win_w, win_h))
     {
       g_hud_click_captured = 1;
       cgx_glfw_toggle_hud_toolbar();
@@ -2614,6 +2709,12 @@ static void glfw_mouse_button_callback(GLFWwindow *window, int button, int actio
         return;
       }
     }
+  }
+
+  if (cgx_tree_on_mouse_button(button, action, mods, (int)g_last_mouse_x, (int)g_last_mouse_y, win_w, win_h))
+  {
+    g_need_redisplay = 1;
+    return;
   }
 
   CGXWindow *win = find_window_at((int)g_last_mouse_x, (int)g_last_mouse_y);
@@ -2712,6 +2813,14 @@ static void glfw_mouse_button_callback(GLFWwindow *window, int button, int actio
 static void glfw_scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
 {
   (void)window; (void)xoffset;
+  int win_w = 800, win_h = 600;
+  if (g_glfw_window) glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
+  if (cgx_tree_on_scroll(yoffset, (int)g_last_mouse_x, (int)g_last_mouse_y, win_w, win_h))
+  {
+    g_need_redisplay = 1;
+    return;
+  }
+
   CGXWindow *win = find_window_at((int)g_last_mouse_x, (int)g_last_mouse_y);
   if (!win) win = get_window(2);
   if (!win || !win->mouse_func) return;
@@ -2953,6 +3062,9 @@ void glutMainLoop(void)
       {
         render_orientation_gizmo(win_w, win_h);
       }
+
+      /* Render fixed top-left Tree tab and optional Model/Results drawer */
+      cgx_tree_render(win_w, win_h, fb_w, fb_h);
 
       /* Render bottom Command Bar if visible */
       if (g_cmd_bar_visible)

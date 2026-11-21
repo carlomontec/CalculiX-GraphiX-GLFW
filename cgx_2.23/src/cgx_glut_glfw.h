@@ -211,6 +211,18 @@ void cgx_glfw_set_hud_toolbar_visible(int visible);
 void cgx_glfw_toggle_gizmo(void);
 int  cgx_glfw_is_gizmo_visible(void);
 void cgx_glfw_set_gizmo_visible(int visible);
+void cgx_glfw_toggle_tree(void);
+int  cgx_glfw_is_tree_visible(void);
+void cgx_glfw_set_tree_visible(int visible);
+void cgx_glfw_queue_command(const char *cmd);
+
+/* Shared UI Drawing & Scaling Helpers */
+void  cgx_ui_draw_text(float x, float y, const char *str, float r, float g, float b, int win_h);
+float cgx_ui_text_width(const char *str);
+int   cgx_ui_font_tier(void);
+int   cgx_ui_cmd_bar_height(void);
+int   cgx_ui_top_tab_height(void);
+void  cgx_ui_get_viewport_rect(int win_w, int win_h, int *out_x, int *out_y, int *out_w, int *out_h);
 
 /* DPI and Line/Point Width Utilities */
 float cgx_get_fb_scale(void);

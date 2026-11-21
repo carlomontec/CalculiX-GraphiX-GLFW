@@ -69,6 +69,7 @@ ULIB = \
 GLFW_LIB = \
  cgx_capture.c \
  cgx_glut_glfw.c \
+ cgx_tree.c \
  cgx_iosevka_font.c \
  cgx_shaders.c \
  cgx_vbo.c

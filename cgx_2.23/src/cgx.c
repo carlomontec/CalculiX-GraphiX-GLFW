@@ -4465,6 +4465,9 @@ void selectGUI(int value)
     case 7: /* Toggle Orientation Gizmo */
       cgx_glfw_toggle_gizmo();
       break;
+    case 8: /* Toggle Model Tree */
+      cgx_glfw_toggle_tree();
+      break;
   }
 }
 
@@ -4605,6 +4608,16 @@ void pre_view(char *string)
       cgx_glfw_set_gizmo_visible(1);
     else
       cgx_glfw_toggle_gizmo();
+    return;
+  }
+  else if (compare(type, "tree", 4)==4)
+  {
+    if (length==2 && (compare(param, "off", 3)==3 || strcmp(param, "0")==0))
+      cgx_glfw_set_tree_visible(0);
+    else if (length==2 && (compare(param, "on", 2)==2 || strcmp(param, "1")==0))
+      cgx_glfw_set_tree_visible(1);
+    else
+      cgx_glfw_toggle_tree();
     return;
   }
   if(!inpformat) return;
@@ -8138,6 +8151,7 @@ int main( int argc, char **argv )
   glutAddMenuEntry("Toggle Auto-Rotate", 5);
   glutAddMenuEntry("Toggle HUD Toolbar (F2)", 6);
   glutAddMenuEntry("Toggle Interactive Axes (F3)", 7);
+  glutAddMenuEntry("Toggle Model Tree (F4)", 8);
   glutAddSubMenu  ("Text Size", subsubmenu_fontsize );
   
   submenu_view = glutCreateMenu( selectView );
