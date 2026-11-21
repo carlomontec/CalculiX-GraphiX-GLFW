@@ -5,7 +5,7 @@
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](cgx_2.23/COPYING)
 [![Platform: macOS | Linux | Windows](https://img.shields.io/badge/Platform-macOS%20%7C%20Linux%20%7C%20Windows-brightgreen.svg)](INSTALL.md)
 [![Graphics: GLFW3 + Modern OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20stb__truetype-orange.svg)](#highlights--new-features)
-[![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](GUI_EXTRA_FEATURES.md#6-native-paraview-vtupvd-exporter)
+[![ParaView: Native VTU/PVD](https://img.shields.io/badge/ParaView-Native%20VTU%2FPVD-purple.svg)](#popular-commands-type-in-bottom-bar)
 
 ![CalculiX GraphiX GLFW Edition](img/cgx_glfw.png)
 
@@ -32,13 +32,13 @@ These code additions are generated with Google Antigravity using Google Gemini 3
 * **Interactive Command Bar with Fuzzy Suggestions**: In-window command line bar with history navigation (<kbd>↑</kbd>/<kbd>↓</kbd>) and intelligent Levenshtein typo suggestions (e.g. `fram` $\rightarrow$ `frame`).
 * **Keyboard Navigation Modifiers**: <kbd>Shift</kbd>/<kbd>Ctrl</kbd>/<kbd>Cmd</kbd> + Left Drag to Pan, and <kbd>Alt</kbd>/<kbd>Option</kbd> + Left Drag to Zoom.
 * **Updated 2D Plotting Pipeline**: Modernized post-processing graph pipeline producing high-resolution digital plots and Matplotlib plot template files.
-* **Native screenshots and movie creation** Screenshot an movie export are now done without external ImageMagick library. MP4 videos can be generated if FFMPEG is available.
+* **Native Screenshots and Movie Creation**: Screenshot and movie export are performed directly without an external ImageMagick dependency. MP4 videos can be generated if FFmpeg is available.
 * **Native VTU/PVD Exporter**: Direct export of FEA results to ParaView-compatible `.vtu` and `.pvd` formats (`send all vtu all`).
 * **Integrated TetGen Mesher**: Native 3D tetrahedral meshing via [TetGen](https://wias-berlin.de/software/index.jsp?id=TetGen&lang=1).
 
 ![High-DPI 2D Plot](img/cgx_plot_cantilever.png)
 
-> 📖 **Deep Dive**: For full details on all GUI enhancements, see [**GUI Extra Features**](GUI_EXTRA_FEATURES.md). For 2D plotting and companion scripts, see [**Modern 2D Plotting**](MODERN_2D_PLOTTING.md). For technical rendering architecture, see [**Modern 3D Pipeline Architecture**](MODERN_3D_PIPELINE.md).
+> 📖 **Reference**: Run `cgx_glfw --help` for the built-in CLI and interactive command summary, or see the full user manual in [`cgx_2.23/doc/cgx.pdf`](cgx_2.23/doc/cgx.pdf).
 
 ---
 
@@ -92,6 +92,7 @@ Pre-built binaries are not signed with commercial Apple Developer ID or Windows 
 | Command | Action |
 | :--- | :--- |
 | `frame` | Auto-fit and center the 3D model in the viewport |
+| `rot iso` / `rot dim` / `rot tri` | Standard axonometric orientations (Isometric, Dimetric, Trimetric) |
 | `view persp` | Switch to realistic 3D Perspective Projection |
 | `view ortho` | Switch to classic Orthographic parallel view |
 | `view dark` | Switch viewport to modern Dark Mode (`#0D121A`) |
@@ -102,6 +103,8 @@ Pre-built binaries are not signed with commercial Apple Developer ID or Windows 
 | `plot e all` | Plot element wireframe mesh |
 | `cmap <palette>` | Change colormap (`coolwarm`, `turbo`, `viridis`, `inferno`, `jet`, `classic`) |
 | `anim real` | Start real-time modal or transient animation |
+| `hcpy [name]` | Save viewport screenshot directly to PNG (`hcpy_1.png` or `<name>.png`) |
+| `movie cycle [name.mp4\|name.gif]` | Record 1 full oscillation/sequence cycle to MP4 (via `ffmpeg`) or GIF |
 | `graph <set> l +` | Plot path values along node sequence (high-DPI 2D graph) |
 | `graph <set> f <comp>` | Plot response vs frequency/time across steps for node set |
 | `send all vtu all` | Export entire model and all time-steps to ParaView `.vtu` & `.pvd` |
@@ -110,7 +113,7 @@ Pre-built binaries are not signed with commercial Apple Developer ID or Windows 
 
 ## License & Attribution
 
-This project is free and open-source software distributed under the **GNU General Public License Version 2 (GPL-2.0 or later)**, strictly adhering to the original CalculiX licensing. This project is mantained by Dr. Carlo Monjaraz-Tec.
+This project is free and open-source software distributed under the **GNU General Public License Version 2 (GPL-2.0 or later)**, strictly adhering to the original CalculiX licensing. This project is maintained by Dr. Carlo Monjaraz-Tec.
 
 ### Original Authors & Copyright:
 * **CalculiX GraphiX (CGX)** is created and copyrighted by **Klaus Wittig**.
