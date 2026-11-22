@@ -22,6 +22,9 @@ LicenseFile=..\..\cgx_2.23\COPYING
 OutputDir=..\..\dist
 OutputBaseFilename=CalculiX-GraphiX-GLFW-Setup-windows-x86_64
 SetupIconFile=cgx.ico
+UninstallDisplayIcon={app}\cgx.ico
+UninstallDisplayName={#MyAppName}
+CloseApplications=yes
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -73,6 +76,149 @@ Root: HKA; Subkey: "Software\Classes\CalculiX.INP\shell\open\command"; ValueType
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+const
+  UninstallRegKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{9F784F34-8A87-4C3F-982B-5E77114A1D9A}_is1';
+
+var
+  MaintenancePage: TInputOptionWizardPage;
+  ExistingUninsExe: String;
+  ExistingInstallDir: String;
+  ExistingVersion: String;
+  UninstalledViaMaintenance: Boolean;
+
+function TryReadUninstallKey(RootKey: Integer; var UninsExe, InstallDir, DisplayVer: String): Boolean;
+var
+  RawUnins, RawLoc, RawVer: String;
+begin
+  Result := False;
+  UninsExe := '';
+  InstallDir := '';
+  DisplayVer := '';
+
+  if not RegQueryStringValue(RootKey, UninstallRegKey, 'UninstallString', RawUnins) then
+    exit;
+
+  UninsExe := RemoveQuotes(Trim(RawUnins));
+  if (UninsExe = '') or (not FileExists(UninsExe)) then
+  begin
+    UninsExe := '';
+    exit;
+  end;
+
+  if RegQueryStringValue(RootKey, UninstallRegKey, 'InstallLocation', RawLoc) then
+    InstallDir := RemoveBackslashUnlessRoot(Trim(RawLoc));
+
+  if RegQueryStringValue(RootKey, UninstallRegKey, 'DisplayVersion', RawVer) then
+    DisplayVer := Trim(RawVer);
+
+  Result := True;
+end;
+
+function FindExistingInstall(var UninsExe, InstallDir, DisplayVer: String): Boolean;
+begin
+  Result := False;
+  if IsAdminInstallMode then
+  begin
+    if TryReadUninstallKey(HKLM32, UninsExe, InstallDir, DisplayVer) then
+    begin
+      Result := True;
+      exit;
+    end;
+    if IsWin64 and TryReadUninstallKey(HKLM64, UninsExe, InstallDir, DisplayVer) then
+    begin
+      Result := True;
+      exit;
+    end;
+    if TryReadUninstallKey(HKCU, UninsExe, InstallDir, DisplayVer) then
+    begin
+      Result := True;
+      exit;
+    end;
+  end
+  else
+  begin
+    if TryReadUninstallKey(HKCU, UninsExe, InstallDir, DisplayVer) then
+    begin
+      Result := True;
+      exit;
+    end;
+    if TryReadUninstallKey(HKLM32, UninsExe, InstallDir, DisplayVer) then
+    begin
+      Result := True;
+      exit;
+    end;
+    if IsWin64 and TryReadUninstallKey(HKLM64, UninsExe, InstallDir, DisplayVer) then
+    begin
+      Result := True;
+      exit;
+    end;
+  end;
+end;
+
+procedure InitializeWizard();
+var
+  SubCaption, LocationInfo: String;
+begin
+  UninstalledViaMaintenance := False;
+  MaintenancePage := nil;
+
+  if FindExistingInstall(ExistingUninsExe, ExistingInstallDir, ExistingVersion) and (not WizardSilent) then
+  begin
+    LocationInfo := ExistingInstallDir;
+    if LocationInfo = '' then
+      LocationInfo := ExtractFileDir(ExistingUninsExe);
+
+    SubCaption := 'Detected installation: ' + LocationInfo;
+    if ExistingVersion <> '' then
+      SubCaption := SubCaption + ' (version ' + ExistingVersion + ')';
+    SubCaption := SubCaption + '.' + #13#10 + #13#10 + 'Choose whether to reinstall/upgrade or uninstall:';
+
+    MaintenancePage := CreateInputOptionPage(
+      wpWelcome,
+      'Existing Installation Detected',
+      'CalculiX GraphiX GLFW is already installed on this computer.',
+      SubCaption,
+      True,
+      False
+    );
+    MaintenancePage.Add('Reinstall or upgrade CalculiX GraphiX GLFW');
+    MaintenancePage.Add('Uninstall CalculiX GraphiX GLFW');
+    MaintenancePage.SelectedValueIndex := 0;
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  ResultCode: Integer;
+  DummyUnins, DummyDir, DummyVer: String;
+begin
+  Result := True;
+
+  if (MaintenancePage <> nil) and (CurPageID = MaintenancePage.ID) and (MaintenancePage.SelectedValueIndex = 1) then
+  begin
+    if not Exec(ExistingUninsExe, '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode) then
+    begin
+      ShellExec('runas', ExistingUninsExe, '', '', SW_SHOWNORMAL, ewWaitUntilTerminated, ResultCode);
+    end;
+
+    if not FindExistingInstall(DummyUnins, DummyDir, DummyVer) then
+    begin
+      UninstalledViaMaintenance := True;
+      WizardForm.Close;
+    end;
+    Result := False;
+  end;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  if UninstalledViaMaintenance then
+  begin
+    Cancel := True;
+    Confirm := False;
+  end;
+end;
+
 procedure EnvTarget(var RootKey: Integer; var SubKey: String);
 begin
   if IsAdminInstallMode then
@@ -90,37 +236,47 @@ end;
 procedure EnvAddPath(Dir: String);
 var
   RootKey: Integer;
-  SubKey, Paths: String;
+  SubKey, Paths, CleanDir, UpperPaths, UpperClean: String;
 begin
+  CleanDir := RemoveBackslashUnlessRoot(Trim(Dir));
+  if CleanDir = '' then
+    exit;
+
   EnvTarget(RootKey, SubKey);
   if not RegQueryStringValue(RootKey, SubKey, 'Path', Paths) then
     Paths := '';
 
-  if Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Paths) + ';') > 0 then
+  UpperPaths := ';' + Uppercase(Paths) + ';';
+  UpperClean := Uppercase(CleanDir);
+  if (Pos(';' + UpperClean + ';', UpperPaths) > 0) or (Pos(';' + UpperClean + '\;', UpperPaths) > 0) then
     exit;
 
   if (Paths <> '') and (Paths[Length(Paths)] <> ';') then
     Paths := Paths + ';';
-  Paths := Paths + Dir;
+  Paths := Paths + CleanDir;
 
   RegWriteExpandStringValue(RootKey, SubKey, 'Path', Paths);
 end;
 
 procedure EnvRemovePath(Dir: String);
 var
-  RootKey, P: Integer;
-  SubKey, Paths: String;
+  RootKey: Integer;
+  SubKey, Paths, CleanDir: String;
 begin
+  CleanDir := RemoveBackslashUnlessRoot(Trim(Dir));
+  if CleanDir = '' then
+    exit;
+
   EnvTarget(RootKey, SubKey);
   if not RegQueryStringValue(RootKey, SubKey, 'Path', Paths) then
     exit;
 
-  P := Pos(';' + Uppercase(Dir) + ';', ';' + Uppercase(Paths) + ';');
-  if P = 0 then
-    exit;
-
   Paths := ';' + Paths + ';';
-  StringChangeEx(Paths, ';' + Dir + ';', ';', True);
+  StringChangeEx(Paths, ';' + CleanDir + '\;', ';', True);
+  StringChangeEx(Paths, ';' + CleanDir + ';', ';', True);
+  while Pos(';;', Paths) > 0 do
+    StringChangeEx(Paths, ';;', ';', False);
+
   if (Length(Paths) > 0) and (Paths[1] = ';') then
     Delete(Paths, 1, 1);
   if (Length(Paths) > 0) and (Paths[Length(Paths)] = ';') then
