@@ -19,7 +19,7 @@ YELLOW="\033[1;33m"
 RED="\033[0;31m"
 NC="\033[0m" # No Color
 
-# Helper for interactive reading
+# Helper for interactive reading (handles stdin pipe and non-TTY safely)
 prompt_read() {
     local prompt_msg="$1"
     local default_val="$2"
@@ -32,9 +32,12 @@ prompt_read() {
     fi
 
     if [ -t 0 ]; then
-        read -r -p "$prompt_msg" input_val
-    elif [ -c /dev/tty ]; then
-        read -r -p "$prompt_msg" input_val < /dev/tty
+        read -r -p "$prompt_msg" input_val || true
+    elif [ -f "$0" ]; then
+        printf "%s" "$prompt_msg"
+        IFS= read -r input_val || input_val="$default_val"
+    elif (true < /dev/tty) 2>/dev/null; then
+        read -r -p "$prompt_msg" input_val < /dev/tty || true
     else
         input_val="$default_val"
     fi
@@ -143,6 +146,7 @@ if [ "$FOUND_ITEMS" -eq 0 ]; then
         if [[ "$CHECK_CUSTOM" =~ ^[Yy]$ ]]; then
             prompt_read "Enter custom directory path: " "${DEFAULT_INSTALL_DIR}" CUSTOM_PATH
             CUSTOM_PATH="${CUSTOM_PATH/#\~/$HOME}"
+            INSTALL_DIR="${CUSTOM_PATH}"
             TARGET_BIN="${CUSTOM_PATH}/cgx_glfw${BIN_EXT}"
             TARGET_ALIAS="${CUSTOM_PATH}/cgx${BIN_EXT}"
             TARGET_DEV_ALIAS="${CUSTOM_PATH}/cgx_dev${BIN_EXT}"
@@ -214,9 +218,12 @@ fi
 clean_shell_path() {
     local profile="$1"
     if [ -f "$profile" ] && grep -q "# CalculiX GraphiX PATH" "$profile"; then
-        sed -i.cgxbak '/# CalculiX GraphiX PATH/d' "$profile" 2>/dev/null || true
-        sed -i.cgxbak '/export PATH=.*\.local\/bin:$PATH.*/d' "$profile" 2>/dev/null || true
-        rm -f "${profile}.cgxbak"
+        local tmp_profile="${profile}.cgxbak"
+        awk -v target_line="export PATH=\"${INSTALL_DIR}:\$PATH\"" '
+            $0 == "# CalculiX GraphiX PATH" { skip_next=1; next }
+            skip_next && ($0 == target_line || $0 ~ /^export PATH=".*\.local\/bin:\$PATH"$/) { skip_next=0; next }
+            { skip_next=0; print }
+        ' "$profile" > "$tmp_profile" && mv -f "$tmp_profile" "$profile"
         echo -e "${GREEN}[OK] Cleaned PATH entry from ${profile}${NC}"
     fi
 }
