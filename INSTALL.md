@@ -41,6 +41,9 @@ Pre-compiled standalone binaries, installers, and `SHA256SUMS.txt` checksums are
   # PowerShell 1-Liner (binary + PATH setup):
   irm https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/install.ps1 | iex
   ```
+  For unattended or customized runs:
+  - Local script flags: `.\install.ps1 -Mode binary|build|head|uninstall [-InstallDir <dir>] [-Tag <tag>] [-Force] [-NonInteractive]`
+  - 1-liner environment variables: `$env:CGX_MODE` (`auto` | `binary` | `build` | `head` | `uninstall`), `$env:CGX_INSTALL_DIR`, `$env:CGX_TAG`, `$env:CGX_FORCE=1`, `$env:CGX_NON_INTERACTIVE=1`, `$env:CGX_KEEP_SOURCE=1`, `$env:CGX_SKIP_PATH=1`
 * **Linux (`x86_64` & `arm64` / `aarch64`)**:
   * **Desktop Bundle**: `cgx_glfw-linux-x86_64.tar.gz` or `cgx_glfw-linux-arm64.tar.gz` — extract and run `./install-desktop.sh` to install `cgx_glfw` / `cgx` into `~/.local/bin` and `.desktop`/MIME associations into `~/.local/share` without `sudo`.
   * **Standalone CLI binary**: `cgx_glfw-linux-x86_64` or `cgx_glfw-linux-arm64` — built on Ubuntu 22.04 (`glibc 2.35`) with static GLFW 3.4 (runtime `dlopen` for X11 and Wayland) and static C++ runtime.
@@ -169,12 +172,25 @@ You should see the 3D beam model with dark mode background, 3D perspective proje
 
 ## 6. Uninstallation
 
-To remove `cgx_glfw` from your system:
+### Linux and macOS
+
+Run the universal uninstaller or remove binaries manually:
 
 ```bash
-# Remove installed binary
-rm -f ~/.local/bin/cgx_glfw /usr/local/bin/cgx_glfw
+# Universal 1-liner uninstaller
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/uninstall.sh)"
 
-# Optionally remove cached source repository (if using 1-liner)
+# Or remove installed binary and optional source cache manually
+rm -f ~/.local/bin/cgx_glfw ~/.local/bin/cgx ~/.local/bin/cgx_dev /usr/local/bin/cgx_glfw
 rm -rf ~/.cgx
 ```
+
+### Windows
+
+* **PowerShell 1-Liner**:
+  ```powershell
+  irm https://raw.githubusercontent.com/carlomontec/CalculiX-GraphiX-GLFW/main/uninstall.ps1 | iex
+  ```
+  You can also choose option **`[4] Uninstall`** in `install.ps1` (or run `.\install.ps1 -Mode uninstall`).
+* **Windows Setup (`.exe` installer)**:
+  Re-run `CalculiX-GraphiX-GLFW-Setup-windows-x86_64.exe` and choose **Uninstall**, or uninstall **CalculiX GraphiX GLFW** from Windows **Settings → Apps → Installed apps** (removes binaries, shortcuts, `.frd`/`.fbl`/`.inp` file associations, and `PATH` entry).
