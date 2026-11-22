@@ -42,8 +42,11 @@ extern GLdouble R[4][4];
 extern int perspectiveFlag;
 extern int backgrndcol;
 extern char elemEdgeFlag;
+extern char addDispFlag;
+extern double anim_faktor;
 extern void frame(void);
 extern void selectView(int selection);
+extern void tuneAnimation(int selection);
 
 /* Window definition */
 typedef struct {
@@ -1682,7 +1685,7 @@ static void render_command_bar(int win_w, int win_h)
 /* Lightweight Collapsible HUD Toolbar (Top-Center, Hidden by Default)   */
 /* --------------------------------------------------------------------  */
 
-#define HUD_BTN_COUNT 9
+#define HUD_BTN_COUNT 11
 
 static void draw_chevron_lr(float cx, float cy_gl, float half_w, float half_h, int point_right)
 {
@@ -1821,9 +1824,11 @@ static const char *get_hud_button_label(int idx, int for_width)
     case 3: return "Elem";
     case 4: return "Persp";
     case 5: return "Theme";
-    case 6: return "Spin";
-    case 7: return "Shot";
-    case 8: return "Axes";
+    case 6: return "Disp";
+    case 7: return "1/2";
+    case 8: return "2x";
+    case 9: return "Spin";
+    case 10: return "Axes";
     default: return "";
   }
 }
@@ -1841,8 +1846,9 @@ static int is_hud_button_active(int idx)
     case 2: return g_is_wireframe ? 1 : 0;
     case 3: return (!g_is_wireframe && elemEdgeFlag) ? 1 : 0;
     case 4: return perspectiveFlag ? 1 : 0;
-    case 6: return g_auto_rotate_active ? 1 : 0;
-    case 8: return g_gizmo_visible ? 1 : 0;
+    case 6: return addDispFlag ? 1 : 0;
+    case 9: return g_auto_rotate_active ? 1 : 0;
+    case 10: return g_gizmo_visible ? 1 : 0;
     default: return 0;
   }
 }
@@ -1944,9 +1950,18 @@ static void dispatch_hud_button(int idx)
     case 3: selectView(8); break;
     case 4: queue_command(perspectiveFlag ? "view ortho" : "view persp"); break;
     case 5: queue_command(backgrndcol ? "view bg k" : "view bg w"); break;
-    case 6: cgx_glfw_toggle_auto_rotate(); break;
-    case 7: queue_command("hcpy"); break;
-    case 8: cgx_glfw_toggle_gizmo(); break;
+    case 6: selectView(13); break;
+    case 7:
+    case 8:
+    {
+      char status[64];
+      tuneAnimation((idx == 7) ? 4 : 3);
+      snprintf(status, sizeof(status), "Disp scale: %.3gx", anim_faktor);
+      cgx_set_gui_status(status);
+      break;
+    }
+    case 9: cgx_glfw_toggle_auto_rotate(); break;
+    case 10: cgx_glfw_toggle_gizmo(); break;
     default: break;
   }
 }

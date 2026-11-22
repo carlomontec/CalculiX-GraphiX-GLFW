@@ -78,7 +78,7 @@ static const char *g_fs_surface =
 "    vec4 albedo = u_base_color;\n"
 "    if (u_use_colormap != 0) {\n"
 "        float norm_s = clamp(v_scalar, 0.0, 1.0);\n"
-"        albedo = texture2D(u_colormap_tex, vec2(norm_s, 0.5));\n"
+"        albedo = vec4(texture2D(u_colormap_tex, vec2(norm_s, 0.5)).rgb, u_base_color.a);\n"
 "    }\n"
 "\n"
 "    if (u_use_lighting == 0) {\n"

@@ -10,6 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef BLEND_ALPHA
+#define BLEND_ALPHA 0.33
+#endif
+extern char blendFlag;
+
 CgxMeshVBO* cgx_vbo_create(void)
 {
     CgxMeshVBO *mesh = (CgxMeshVBO*)calloc(1, sizeof(CgxMeshVBO));
@@ -251,7 +256,8 @@ void cgx_vbo_render_surface(CgxMeshVBO *mesh, mat4_t model, mat4_t view, mat4_t 
 
     glUniform1i(prog->loc_u_use_colormap, show_colormap ? 1 : 0);
     glUniform1i(prog->loc_u_use_lighting, use_lighting ? 1 : 0);
-    glUniform4f(prog->loc_u_base_color, 0.75f, 0.80f, 0.88f, 1.0f);
+    float alpha = blendFlag ? (float)BLEND_ALPHA : 1.0f;
+    glUniform4f(prog->loc_u_base_color, 0.75f, 0.80f, 0.88f, alpha);
     glUniform3f(prog->loc_u_light_dir, 0.35f, 0.45f, 0.82f);
     glUniform3f(prog->loc_u_specular_color, 1.0f, 1.0f, 1.0f);
     glUniform1f(prog->loc_u_shininess, 96.0f);
@@ -290,8 +296,30 @@ void cgx_vbo_render_surface(CgxMeshVBO *mesh, mat4_t model, mat4_t view, mat4_t 
         }
     }
 
-    /* Render Triangles */
-    glDrawArrays(GL_TRIANGLES, 0, mesh->vertex_count);
+    /* Render Triangles (two-pass back-then-front blending when transparent) */
+    if (blendFlag) {
+        GLboolean was_cull = glIsEnabled(GL_CULL_FACE);
+        GLint prev_cull_mode = GL_BACK;
+        glGetIntegerv(GL_CULL_FACE_MODE, &prev_cull_mode);
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glDepthMask(GL_FALSE);
+        glEnable(GL_CULL_FACE);
+
+        glCullFace(GL_FRONT);
+        glDrawArrays(GL_TRIANGLES, 0, mesh->vertex_count);
+
+        glCullFace(GL_BACK);
+        glDrawArrays(GL_TRIANGLES, 0, mesh->vertex_count);
+
+        glDepthMask(GL_TRUE);
+        glDisable(GL_BLEND);
+        glCullFace(prev_cull_mode);
+        if (!was_cull) glDisable(GL_CULL_FACE);
+    } else {
+        glDrawArrays(GL_TRIANGLES, 0, mesh->vertex_count);
+    }
 
     /* Cleanup attribute state */
     if (prog->loc_in_position >= 0) glDisableVertexAttribArray(prog->loc_in_position);

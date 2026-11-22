@@ -595,6 +595,8 @@ void nodalDataset( int entity, int lc, Summen *anz, Scale *scale, Nodes *node_du
     allNodesFlag=0;
     for (j=0; j<anzGeo->psets; j++ )
     {
+      if (pset[j].type[0] == ' ' || pset[j].type[0] == '\0') continue;
+      if (pset[j].nr < 0 || pset[j].nr >= anz->sets || set[pset[j].nr].name == NULL) continue;
       if ((set[pset[j].nr].name[0] == 'a')&&(set[pset[j].nr].name[1] == 'l')&&(set[pset[j].nr].name[2] == 'l')&&(set[pset[j].nr].name[3] == 0))
       {
         allNodesFlag=1;
@@ -619,6 +621,7 @@ void nodalDataset( int entity, int lc, Summen *anz, Scale *scale, Nodes *node_du
       if( (settmp=pre_seta( specialset->tmp, "i", 0 )) <0 ) return;
       for (j=0; j<anzGeo->psets; j++ )
       {
+        if (pset[j].nr < 0 || pset[j].nr >= anz->sets || set[pset[j].nr].name == NULL) continue;
         if (pset[j].type[1]=='v')
 	{
           if (pset[j].type[0]=='f') for(i=0; i<set[pset[j].nr].anz_f; i++) seta( settmp, "f", set[pset[j].nr].face[i] );
@@ -4112,6 +4115,7 @@ void selectView( int selection )
   int i;
   static GLint ipuf[2];
   static char  mem_elemEdgeFlag, mem_surfFlag;
+  static char  mem_illumResultFlag = 1;
   char addDispFlagLocal=0;
 
   glutSetWindow( w1);
@@ -4333,33 +4337,37 @@ void selectView( int selection )
       return;
     }
     
-    //printf("psettype:%s\n",pset[0].type);
     blendFlag=!blendFlag;
-    //if((drawMode==1)||(drawMode==5))
+    if(blendFlag)
     {
-      if(blendFlag)
+      mem_illumResultFlag = illumResultFlag;
+      illumResultFlag = 0;
+      glDisable(GL_CULL_FACE);
+      glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
+      for(i=0; i<anzGeo->psets; i++)
       {
-        glDisable(GL_CULL_FACE);
-        glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside);
-        if(pset[0].type[1]=='v')
-	{
-          if(pset[0].type[0]=='f') pset[0].type[2]='b';
-          if(pset[0].type[0]=='e') pset[0].type[2]='b';
-	}
-      }
-      else
-      {
-        glEnable(GL_CULL_FACE);
-        glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_oneside);
-        if(pset[0].type[1]=='v')
-	{
-          if(pset[0].type[0]=='f') pset[0].type[2]=0;
-          if(pset[0].type[0]=='e') pset[0].type[2]=0;
-	}
+        if((pset[i].type[0]=='f')||(pset[i].type[0]=='e'))
+        {
+          if(pset[i].type[1]=='v') pset[i].type[2]='b';
+          else if((drawMode==2)||(pset[i].type[1]==' ')||(pset[i].type[1]=='\0')) pset[i].type[1]='b';
+        }
       }
     }
-    if((drawMode==2)&&(blendFlag)) { pset[0].type[1]='b'; glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_twoside); }
-    else if((drawMode==2)&&(!blendFlag)) { pset[0].type[1]=0; }
+    else
+    {
+      illumResultFlag = mem_illumResultFlag;
+      glEnable(GL_CULL_FACE);
+      glLightModelf(GL_LIGHT_MODEL_TWO_SIDE, lmodel_oneside);
+      for(i=0; i<anzGeo->psets; i++)
+      {
+        if((pset[i].type[0]=='f')||(pset[i].type[0]=='e'))
+        {
+          if(pset[i].type[1]=='v') pset[i].type[2]=0;
+          else if((drawMode==2)||(pset[i].type[1]=='b')) pset[i].type[1]=0;
+        }
+      }
+    }
+    updateDispLists();
     redraw();
     break;
   case 17:
