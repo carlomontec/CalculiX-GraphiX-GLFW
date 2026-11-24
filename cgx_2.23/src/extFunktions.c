@@ -523,8 +523,8 @@ void defineColTextur_load(float alpha)
     contur_tex[n+1]=g;
     contur_tex[n+2]=b;
     contur_tex[n+3]=alpha;
-    n+=4;
     }
+    n+=4;
   }
 
   /*

@@ -289,7 +289,9 @@ void get_cmap_viridis(float v, float **r, float **g, float **b)
     {0.97441665, 0.90358991, 0.13021494},
     {0.98386829, 0.90486726, 0.13689671},
     {0.99324789, 0.90615657, 0.1439362 }};
-  int i = (int)floor(v * 255);
+  int i = (int)floorf(v * 255.0f + 0.5f);
+  if (i < 0) i = 0;
+  if (i > 255) i = 255;
   **r = cmap_data[i][0];
   **g = cmap_data[i][1];
   **b = cmap_data[i][2];
@@ -556,7 +558,9 @@ void get_cmap_turbo(float v, float **r, float **g, float **b)
     {0.50664, 0.02354, 0.00863},
     {0.49321, 0.01963, 0.00955},
     {0.47960, 0.01583, 0.01055}};
-  int i = (int)floor(v * 255);
+  int i = (int)floorf(v * 255.0f + 0.5f);
+  if (i < 0) i = 0;
+  if (i > 255) i = 255;
   **r = cmap_data[i][0];
   **g = cmap_data[i][1];
   **b = cmap_data[i][2];
@@ -823,7 +827,9 @@ void get_cmap_inferno(float v, float **r, float **g, float **b)
     {9.76510983e-01, 9.89753437e-01, 6.16760413e-01},
     {9.82257307e-01, 9.94108844e-01, 6.31017009e-01},
     {9.88362068e-01, 9.98364143e-01, 6.44924005e-01}};
-  int i = (int)floor(v * 255);
+  int i = (int)floorf(v * 255.0f + 0.5f);
+  if (i < 0) i = 0;
+  if (i > 255) i = 255;
   **r = cmap_data[i][0];
   **g = cmap_data[i][1];
   **b = cmap_data[i][2];
@@ -1113,7 +1119,9 @@ void get_cmap_coolwarm(float v, float **r, float **g, float **b)
     {0.712073804257538, 0.0443031972853228, 0.154113900879019},
     {0.706000135911704, 0.0159918240339806, 0.1500000719222},
   };
-  int i = (int)floor(v * 255);
+  int i = (int)floorf(v * 255.0f + 0.5f);
+  if (i < 0) i = 0;
+  if (i > 255) i = 255;
   **r = cmap_data[i][0];
   **g = cmap_data[i][1];
   **b = cmap_data[i][2];
@@ -1381,7 +1389,9 @@ void get_cmap_redblue(float v, float **r, float **g, float **b)
     {0.023914, 0.196540, 0.391926},
     {0.019608, 0.188235, 0.380392},
   };
-  int i = (int)floor(v * 255);
+  int i = (int)floorf(v * 255.0f + 0.5f);
+  if (i < 0) i = 0;
+  if (i > 255) i = 255;
   **r = cmap_data[i][0];
   **g = cmap_data[i][1];
   **b = cmap_data[i][2];
@@ -1649,7 +1659,9 @@ void get_cmap_gray(float v, float **r, float **g, float **b)
     {0.996078, 0.996078, 0.996078},
     {1.000000, 1.000000, 1.000000},
   };
-  int i = (int)floor(v * 255);
+  int i = (int)floorf(v * 255.0f + 0.5f);
+  if (i < 0) i = 0;
+  if (i > 255) i = 255;
   **r = cmap_data[i][0];
   **g = cmap_data[i][1];
   **b = cmap_data[i][2];
@@ -1714,6 +1726,9 @@ void get_cmap_cubehelix(float v, float **r, float **g, float **b)
 // v,r,g,b ∈ [0;1]
 void define_rgb(float v, float *r, float *g, float *b)
 {
+  if (v < 0.0f) v = 0.0f;
+  if (v > 1.0f) v = 1.0f;
+
   if( compare( cmap_name, "viridis", 2)==2)
     get_cmap_viridis(v, &r, &g, &b);
   else if( compare( cmap_name, "turbo", 2)==2)
@@ -1866,6 +1881,8 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
   kb= 1.0/20.;
 
   extern char flipColorFlag;
+  extern Entitycol *entitycol;
+  extern int col_maxc, col_minc;
 
   glPushAttrib(GL_ALL_ATTRIB_BITS);
   glDisable(GL_CULL_FACE);
@@ -1887,23 +1904,37 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
 
   for (i=0; i<divisions; i++)
   {
-    float r1, g1, b1, r2, g2, b2;
-    float v1 = (divisions > 0) ? (float)i / (float)divisions : 0.0f;
-    float v2 = (divisions > 0) ? (float)(i + 1) / (float)divisions : 1.0f;
-    if (flipColorFlag)
+    int buf = i;
+    float r, g, b, v;
+    if (!flipColorFlag)
     {
-      v1 = 1.0f - v1;
-      v2 = 1.0f - v2;
+      if (lnr == 2) buf++;
+      v = (divisions > 1) ? (float)buf / (float)(divisions - 1) : 0.0f;
     }
-    define_rgb(v1, &r1, &g1, &b1);
-    define_rgb(v2, &r2, &g2, &b2);
+    else
+    {
+      if (fnr == 2) buf--;
+      v = (divisions > 1) ? (float)(divisions - 1 - buf) / (float)(divisions - 1) : 0.0f;
+    }
+    define_rgb(v, &r, &g, &b);
+    if (i >= divisions - 1 && lnr == 2)
+    {
+      r = (float)entitycol[col_maxc].r;
+      g = (float)entitycol[col_maxc].g;
+      b = (float)entitycol[col_maxc].b;
+    }
+    else if (i <= 0 && fnr == 2)
+    {
+      r = (float)entitycol[col_minc].r;
+      g = (float)entitycol[col_minc].g;
+      b = (float)entitycol[col_minc].b;
+    }
 
     /* Counter-clockwise front-facing quad */
     glBegin ( GL_POLYGON );
-      glColor3f ( r1, g1, b1 );
+      glColor3f ( r, g, b );
       glVertex2d ( dx-kb*1., dy+kh*0. );
       glVertex2d ( dx-kb*0., dy+kh*0. );
-      glColor3f ( r2, g2, b2 );
       glVertex2d ( dx-kb*0., dy+kh*1. );
       glVertex2d ( dx-kb*1., dy+kh*1. );
     glEnd();
