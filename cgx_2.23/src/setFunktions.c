@@ -16740,6 +16740,8 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
     stos( &string[na], 1, strlen(&string[na]), picture_caption);
     if(inpformat)
     {
+      reshape(width_w0, height_w0);
+      redraw();
       glutSetWindow( w0);
       glutPostRedisplay();
     }
@@ -17250,20 +17252,40 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
   }
   else if (compareStrings(type, "FONT")>0)
   {
-    i=DEF_GLUT_FONT+1;
-    sscanf(&string[na+1],"%s %d",buffer,&i);
-    if((i>0)&&(i<=SUM_GLUT_FONTS))
+    int fidx = DEF_GLUT_FONT + 1;
+    int nread;
+    buffer[0] = '\0';
+    nread = sscanf(&string[na+1], "%s %d", buffer, &fidx);
+    if (nread == 1 && isdigit((unsigned char)buffer[0]))
     {
-      i--;
-      if(compare(buffer, "legend", 1)==1) legend_font=i;
-      else if(compare(buffer, "draw", 1)==1) draw_font=i;
-      else if(compare(buffer, "menu", 1)==1) menu_font=i;
-      else if(compare(buffer, "cl", 1)==1) menu_font=i;
-      else printf(" WARNING: Unknown target:%s\n", buffer);
-      redraw();
-      reshape( width_w0, height_w0 );
+      fidx = atoi(buffer);
+      strcpy(buffer, "all");
     }
-    else printf(" WARNING: Unknown font index:%d\n",i);
+    if ((fidx > 0) && (fidx <= SUM_GLUT_FONTS))
+    {
+      fidx--;
+      if (compare(buffer, "legend", 1)==1) legend_font = fidx;
+      else if (compare(buffer, "draw", 1)==1)
+      {
+        draw_font = fidx;
+        updateDispLists();
+      }
+      else if (compare(buffer, "menu", 1)==1 || compare(buffer, "cl", 1)==1 ||
+               compare(buffer, "ui", 1)==1   || compare(buffer, "hud", 1)==1 ||
+               compare(buffer, "tree", 2)==2 || compare(buffer, "tools", 2)==2) menu_font = fidx;
+      else if (compare(buffer, "all", 1)==1)
+      {
+        legend_font = fidx;
+        draw_font = fidx;
+        menu_font = fidx;
+        updateDispLists();
+      }
+      else printf(" WARNING: Unknown target:%s (use legend|draw|menu|cl|all)\n", buffer);
+      reshape( width_w0, height_w0 );
+      redraw();
+      glutPostRedisplay();
+    }
+    else printf(" WARNING: Unknown font index:%d (valid 1-%d)\n", fidx, SUM_GLUT_FONTS);
   }
   else if (compareStrings(type, "FRAME")>0)
   {
@@ -19101,6 +19123,13 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
   {
     printf(" WARNING: The text command was replaced by ulin. Please use ulin in future.\n");
     stos( &string[na], 1, strlen(&string[na]), picture_text);
+    if(inpformat)
+    {
+      reshape(width_w0, height_w0);
+      redraw();
+      glutSetWindow( w0);
+      glutPostRedisplay();
+    }
   }
   else if (compareStrings(type, "TXT")>0)
   {
@@ -19115,6 +19144,8 @@ int commandoInterpreter( char *type, char **ptr_string, int na, int nb, FILE *ha
     stos( &string[na], 1, strlen(&string[na]), picture_text);
     if(inpformat)
     {
+      reshape(width_w0, height_w0);
+      redraw();
       glutSetWindow( w0);
       glutPostRedisplay();
     }

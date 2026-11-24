@@ -374,7 +374,7 @@ int       pixPerCharx[]=GLUT_FONT_WIDTH;
 int       pixPerChary[]=GLUT_FONT_HEIGHT;
 int       legend_font=DEF_GLUT_FONT;                         /* active font for the legend */
 int       draw_font=DEF_GLUT_FONT;                         /* active font for the annotation of entities */
-int       menu_font=SUM_GLUT_FONTS-1;                         /* active font for the menu */
+int       menu_font=DEF_GLUT_FONT;                         /* active font for the menu */
 int       elemMat[MAX_MATERIALS]={1,1};      /*  Material Numbers, Number of Materials stored in elemMat[0]  */
 int       nasMpc=1;                                       /* 1: areampc generates mpcs; 0: rbes with optional heat-expansion-coefficient */
 double    nasRbeHec=0.; 
@@ -4424,22 +4424,27 @@ void selectFontSize(int value)
   switch (value)
   {
     case 1: /* Small (14pt) */
-      legend_font = 4;
-      draw_font = 4;
+      legend_font = 1;
+      draw_font = 1;
+      menu_font = 1;
       printf("\n [GUI] Font size set to Small (14pt).\n\n");
       break;
     case 2: /* Medium / Default (20pt) */
-      legend_font = 5;
-      draw_font = 5;
+      legend_font = 3;
+      draw_font = 3;
+      menu_font = 3;
       printf("\n [GUI] Font size set to Medium (20pt).\n\n");
       break;
     case 3: /* Big (32pt) */
-      legend_font = 6;
-      draw_font = 6;
+      legend_font = 5;
+      draw_font = 5;
+      menu_font = 5;
       printf("\n [GUI] Font size set to Big (32pt).\n\n");
       break;
   }
   updateDispLists();
+  reshape(width_w0, height_w0);
+  redraw();
   glutSetWindow(w0);
   glutPostRedisplay();
 }
@@ -6002,6 +6007,9 @@ void initModel(char *string)
   static GLint cull;
 
   sscanf(string, "%*s %d %d %d %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %d %d %d %d %d %d %d %d",&width_w0,&height_w0,&cull,&ds,&dtx,&dty,&dtz,&vmem[0],&vmem[1],&vmem[2],&vmem[3],&R[0][0],&R[0][1],&R[0][2],&R[0][3],&R[1][0],&R[1][1],&R[1][2],&R[1][3],&R[2][0],&R[2][1],&R[2][2],&R[2][3],&R[3][0],&R[3][1],&R[3][2],&R[3][3],&lastquat[0],&lastquat[1],&lastquat[2],&lastquat[3],&centerPnt[0],&centerPnt[1],&centerPnt[2],&backgrndcol,&legend_font,&draw_font,&menu_font,&buf[0],&buf[1],&buf[2],&buf[3]);
+  if (legend_font < 0) legend_font = 0; else if (legend_font >= SUM_GLUT_FONTS) legend_font = SUM_GLUT_FONTS - 1;
+  if (draw_font < 0)   draw_font = 0;   else if (draw_font >= SUM_GLUT_FONTS)   draw_font = SUM_GLUT_FONTS - 1;
+  if (menu_font < 0)   menu_font = 0;   else if (menu_font >= SUM_GLUT_FONTS)   menu_font = SUM_GLUT_FONTS - 1;
 
   modelEdgeFlag=buf[0];
   elemEdgeFlag=buf[1];
@@ -7117,35 +7125,55 @@ void iniDrawMenu()
      glVertex3d(-1+(width_menu*19/20+width_w1+1)*2./width_w0, 1-(height_menu/10-1)*2./height_w0, 0. );
     glEnd();
   }
-  maxchars=(width_w0 /pixPerCharx[legend_font]);
+  double ui_sc = 1.0;
+#ifdef USE_GLFW
+  ui_sc = (double)cgx_get_ui_scale();
+#endif
+  double char_w = (double)pixPerCharx[legend_font] * ui_sc;
+  double char_h = (double)pixPerChary[legend_font] * ui_sc;
+  if (char_w < 1.0) char_w = 1.0;
+  maxchars = (int)(width_w0 / char_w);
+
+  int cmd_h = 0;
+#ifdef USE_GLFW
+  if (cgx_glfw_is_command_bar_visible()) cmd_h = cgx_ui_cmd_bar_height();
+#endif
+  double band_top = (double)(height_menu / 10 + height_w1 + 1);
+  double band_bot = (double)(height_w0 - cmd_h);
+  double band_h = band_bot - band_top;
+  if (band_h < char_h) band_h = char_h;
+  int has_ulin = (textFlag && picture_text[0] != '\0') ? 1 : 0;
+
   if (captionFlag)
   {
     i=strlen(picture_caption)-maxchars;
     if (i>0) strcpy(buffer, &picture_caption[i]);
     else strcpy(buffer, picture_caption);
-    double fb_scale = (double)cgx_get_fb_scale();
-    if (fb_scale < 0.5) fb_scale = 1.0;
-    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer) / fb_scale;
-    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * (double)pixPerCharx[legend_font];
+    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer);
+    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * char_w;
     double center_w1 = (double)width_menu * 19.0 / 20.0 + (double)width_w1 * 0.5;
     double start_x = center_w1 - str_width_points * 0.5;
+    double cap_base_px = has_ulin
+      ? (band_top + (band_h - char_h * 1.15) * 0.5 + char_h * 0.26)
+      : (band_top + band_h * 0.5 + char_h * 0.26);
     x = -1.0 + (2.0 * start_x) / (double)width_w0;
-    y = 1.0 - (height_menu / 10.0 + height_w1 + 4.0 + pixPerChary[legend_font]) * 2.0 / (double)height_w0;
+    y = 1.0 - (cap_base_px * 2.0) / (double)height_w0;
     text( x, y, 0., buffer, glut_font[legend_font] );
   }
-  if (textFlag)
+  if (has_ulin)
   {
     i=strlen(picture_text)-maxchars;
     if (i>0) strcpy(buffer, &picture_text[i]);
     else strcpy(buffer, picture_text);
-    double fb_scale = (double)cgx_get_fb_scale();
-    if (fb_scale < 0.5) fb_scale = 1.0;
-    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer) / fb_scale;
-    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * (double)pixPerCharx[legend_font];
+    double str_width_points = (double)glutBitmapLength(glut_font[legend_font], (const unsigned char*)buffer);
+    if (str_width_points <= 0.0) str_width_points = (double)strlen(buffer) * char_w;
     double center_w1 = (double)width_menu * 19.0 / 20.0 + (double)width_w1 * 0.5;
     double start_x = center_w1 - str_width_points * 0.5;
+    double txt_base_px = captionFlag
+      ? (band_top + (band_h - char_h * 1.15) * 0.5 + char_h * 1.41)
+      : (band_top + band_h * 0.5 + char_h * 0.26);
     x = -1.0 + (2.0 * start_x) / (double)width_w0;
-    y = 1.0 - (height_menu / 10.0 + height_w1 + 6.0 + pixPerChary[legend_font] * 2.0) * 2.0 / (double)height_w0;
+    y = 1.0 - (txt_base_px * 2.0) / (double)height_w0;
     text( x, y, 0., buffer, glut_font[legend_font] );
   }
 }
@@ -7166,48 +7194,64 @@ void DrawMenuLoad( void )
   iniDrawMenu();
   if (scalaFlag)
   {
+    double ui_sc = 1.0;
+#ifdef USE_GLFW
+    ui_sc = (double)cgx_get_ui_scale();
+#endif
+    double safe_h0 = (height_w0 > 10) ? (double)height_w0 : 600.0;
+    double line_dy = ((double)pixPerChary[legend_font] * ui_sc + 4.0) * 2.0 / safe_h0;
+    if (line_dy < 0.045) line_dy = 0.045;
+    double ty = 1.0 - line_dy * 1.05;
+
     stringValue(&lcase[cur_lc].value, strvalue);
 
     sprintf (buffer,"%d/%d:%s", lcase[cur_lc].step_number,cur_lc+1,lcase[cur_lc].name);
-    text( -0.99, 0.95, 0.,buffer, glut_font[legend_font]);
+    text( -0.99, ty, 0.,buffer, glut_font[legend_font]); ty -= line_dy;
     if(lcase[cur_lc].analysis_type==2) sprintf (buffer,"Freq:%s", strvalue);
     else sprintf (buffer,"Time:%s", strvalue);
-    text( -0.99, 0.9, 0.,buffer, glut_font[legend_font]);
+    text( -0.99, ty, 0.,buffer, glut_font[legend_font]); ty -= line_dy;
     sprintf (buffer,"Entity:%s", lcase[cur_lc].compName[cur_entity]);
-    text( -0.99, 0.85, 0., buffer, glut_font[legend_font] );
+    text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     if(addDispFlag)
     {
       sprintf (buffer,"+Dispf:%lf", anim_faktor);
-      text( -0.99, 0.80, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     if(scale->format=='f')
     {
       sprintf (buffer,"max: %-10f  ", lcase[cur_lc].max[cur_entity]);
-      text( -0.99, 0.75, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
       sprintf (buffer,"min: %-10f  ", lcase[cur_lc].min[cur_entity]);
-      text( -0.99, 0.71, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     else if(scale->format=='i')
     {
       sprintf (buffer,"max: %-10f  ", lcase[cur_lc].max[cur_entity]);
-      text( -0.99, 0.75, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
       sprintf (buffer,"min: %-10f  ", lcase[cur_lc].min[cur_entity]);
-      text( -0.99, 0.71, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     else
     {
       sprintf (buffer,"max: %5.2e  ", lcase[cur_lc].max[cur_entity]);
-      text( -0.99, 0.75, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
       sprintf (buffer,"min: %5.2e  ", lcase[cur_lc].min[cur_entity]);
-      text( -0.99, 0.71, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     y= 1-(height_menu/10+height_w1+1)*2./height_w0;
+    double bar_ratio = (1.0 - y) / 2.0;
+    double max_bar_top = ty - line_dy * 0.3;
+    if (y + 1.5 * bar_ratio > max_bar_top)
+    {
+      bar_ratio = (max_bar_top - y) / 1.5;
+      if (bar_ratio < 0.1) bar_ratio = 0.1;
+    }
     //printf("halfperiod:%d smin:%f smax:%f   %f %f\n",halfperiod,scale->smin, scale->smax, scale->sminr, scale->smaxr); 
     if ((animFlag==0)||(halfperiod)||((lcase[cur_lc].ictype[0]==12)&&(cur_entity==6))||((lcase[cur_lc].ictype[cur_entity]==2)&&(cur_entity==3))
 	||  ((lcase[cur_lc].ictype[0]==4)&&((cur_entity==6)||(cur_entity==23))) 
 	||  ((lcase[cur_lc].ictype[0]==14)&&((cur_entity==12)||(cur_entity==29)))  )
     {
-      scala_tex((1-y)/2, -0.93, y, steps, scale->smin, scale->smax, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
+      scala_tex(bar_ratio, -0.93, y, steps, scale->smin, scale->smax, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
     }
     else if((!halfperiod)
         && (((lcase[cur_lc].ictype[0]==14)&&((cur_entity==16)||(cur_entity==20)||(cur_entity==24)||(cur_entity==28)||(cur_entity==30)||(cur_entity==31)))
@@ -7217,9 +7261,9 @@ void DrawMenuLoad( void )
     )
     {
       if(abs(scale->smax)>abs(scale->smin))
-        scala_tex((1-y)/2, -0.93, y, steps, -scale->smax, scale->smax, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
+        scala_tex(bar_ratio, -0.93, y, steps, -scale->smax, scale->smax, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
       else
-        scala_tex((1-y)/2, -0.93, y, steps, scale->smin, -scale->smin, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
+        scala_tex(bar_ratio, -0.93, y, steps, scale->smin, -scale->smin, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
     }
   }
   glutSwapBuffers();
@@ -7241,38 +7285,54 @@ void DrawMenuSequence( void )
   iniDrawMenu();
   if (scalaFlag)
   {
+    double ui_sc = 1.0;
+#ifdef USE_GLFW
+    ui_sc = (double)cgx_get_ui_scale();
+#endif
+    double safe_h0 = (height_w0 > 10) ? (double)height_w0 : 600.0;
+    double line_dy = ((double)pixPerChary[legend_font] * ui_sc + 4.0) * 2.0 / safe_h0;
+    if (line_dy < 0.045) line_dy = 0.045;
+    double ty = 1.0 - line_dy * 1.05;
+
     sprintf (buffer,"%d/%d:%s", lcase[lcase_animList].step_number, lcase_animList+1,lcase[lcase_animList].name);
-    text( -0.99, 0.95, 0.,buffer, glut_font[legend_font]);
+    text( -0.99, ty, 0.,buffer, glut_font[legend_font]); ty -= line_dy * 2.0;
     sprintf (buffer,"Entity:%s", lcase[lcase_animList].compName[0]);
-    text( -0.99, 0.85, 0., buffer, glut_font[legend_font] );
+    text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     if(addDispFlag)
     {
       sprintf (buffer,"+Dispf:%lf", anim_faktor);
-      text( -0.99, 0.80, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     if(scale->format=='f')
     {
       sprintf (buffer,"max: %-10f  ", lcase[cur_lc].max[0]);
-      text( -0.99, 0.75, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
       sprintf (buffer,"min: %-10f  ", lcase[cur_lc].min[0]);
-      text( -0.99, 0.71, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     else if(scale->format=='i')
     {
       sprintf (buffer,"max: %-10f  ", lcase[cur_lc].max[0]);
-      text( -0.99, 0.75, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
       sprintf (buffer,"min: %-10f  ", lcase[cur_lc].min[0]);
-      text( -0.99, 0.71, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     else
     {
       sprintf (buffer,"max: %5.2e  ", lcase[cur_lc].max[0]);
-      text( -0.99, 0.75, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
       sprintf (buffer,"min: %5.2e  ", lcase[cur_lc].min[0]);
-      text( -0.99, 0.71, 0., buffer, glut_font[legend_font] );
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] ); ty -= line_dy;
     }
     y= 1-(height_menu/10+height_w1+1)*2./height_w0;
-    scala_tex( (1-y)/2,-0.93, y, steps, scale->smin, scale->smax, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
+    double bar_ratio = (1.0 - y) / 2.0;
+    double max_bar_top = ty - line_dy * 0.3;
+    if (y + 1.5 * bar_ratio > max_bar_top)
+    {
+      bar_ratio = (max_bar_top - y) / 1.5;
+      if (bar_ratio < 0.1) bar_ratio = 0.1;
+    }
+    scala_tex( bar_ratio,-0.93, y, steps, scale->smin, scale->smax, (double)steps/(double)TEX_PIXELS, foregrndcol_rgb, glut_font[legend_font], scale->format, scale->sminr, scale->smaxr);
   }
   glutSwapBuffers();
   if((cur_commandFile>-1)&&(flipflop)) goto redraw;
@@ -7306,22 +7366,33 @@ void DrawMenuAnimate( void )
  redraw:;
   flipflop=!flipflop;
   iniDrawMenu();
-  if ((!sequenceFlag)&&(cur_lc > -1))
   {
-    stringValue(&lcase[cur_lc].value, strvalue);
-    
-    sprintf (buffer,"%d/%d:%s", lcase[cur_lc].step_number, cur_lc+1,lcase[cur_lc].name);
-    text( -0.99, 0.95, 0.,buffer, glut_font[legend_font]);
-    if(lcase[cur_lc].analysis_type==2) sprintf (buffer,"Freq:%s", strvalue);
-    else sprintf (buffer,"Time:%s", strvalue);
-    text( -0.99, 0.9, 0.,buffer, glut_font[legend_font]);
-  }
-  text( -0.99, 0.85, 0., "Animated", glut_font[legend_font] );
-  if (halfperiod)
-  {
-    text( -0.99, 0.8, 0., "Tune-value:", glut_font[legend_font] );
-    sprintf (buffer,"%3.1f", anim_faktor);
-    text( -0.99, 0.76, 0., buffer, glut_font[legend_font] );
+    double ui_sc = 1.0;
+#ifdef USE_GLFW
+    ui_sc = (double)cgx_get_ui_scale();
+#endif
+    double safe_h0 = (height_w0 > 10) ? (double)height_w0 : 600.0;
+    double line_dy = ((double)pixPerChary[legend_font] * ui_sc + 4.0) * 2.0 / safe_h0;
+    if (line_dy < 0.045) line_dy = 0.045;
+    double ty = 1.0 - line_dy * 1.05;
+
+    if ((!sequenceFlag)&&(cur_lc > -1))
+    {
+      stringValue(&lcase[cur_lc].value, strvalue);
+      
+      sprintf (buffer,"%d/%d:%s", lcase[cur_lc].step_number, cur_lc+1,lcase[cur_lc].name);
+      text( -0.99, ty, 0.,buffer, glut_font[legend_font]); ty -= line_dy;
+      if(lcase[cur_lc].analysis_type==2) sprintf (buffer,"Freq:%s", strvalue);
+      else sprintf (buffer,"Time:%s", strvalue);
+      text( -0.99, ty, 0.,buffer, glut_font[legend_font]); ty -= line_dy;
+    }
+    text( -0.99, ty, 0., "Animated", glut_font[legend_font] ); ty -= line_dy;
+    if (halfperiod)
+    {
+      text( -0.99, ty, 0., "Tune-value:", glut_font[legend_font] ); ty -= line_dy;
+      sprintf (buffer,"%3.1f", anim_faktor);
+      text( -0.99, ty, 0., buffer, glut_font[legend_font] );
+    }
   }
   glutSwapBuffers();
   if((cur_commandFile>-1)&&(flipflop)) goto redraw;
@@ -7404,6 +7475,31 @@ void reshape( int width, int height )
 {
   if (width < 10) width = 10;
   if (height < 10) height = 10;
+  double ui_sc = 1.0;
+#ifdef USE_GLFW
+  ui_sc = (double)cgx_get_ui_scale();
+#endif
+  int base_menu_w = (int)ceil((double)INI_MENU_WIDTH * ui_sc);
+  int needed_menu_w = (int)ceil((13.5 * (double)pixPerCharx[legend_font] + 48.0) * ui_sc);
+  width_menu = (needed_menu_w > base_menu_w) ? needed_menu_w : base_menu_w;
+  if (width > 240 && width_menu > width / 2) width_menu = width / 2;
+
+  double char_h = (double)pixPerChary[legend_font] * ui_sc;
+  int cmd_h = 0;
+#ifdef USE_GLFW
+  if (cgx_glfw_is_command_bar_visible()) cmd_h = cgx_ui_cmd_bar_height();
+#endif
+  double text_band_h = 0.0;
+  if (captionFlag) text_band_h += char_h * 1.15 + 10.0 * ui_sc;
+  if (textFlag && picture_text[0] != '\0') text_band_h += char_h * 1.15 + 4.0 * ui_sc;
+  if (text_band_h < 12.0 * ui_sc) text_band_h = 12.0 * ui_sc;
+  double needed_bottom = text_band_h + (double)cmd_h + 4.0 * ui_sc;
+  /* avail_bottom = height_menu - height_menu/10 >= 0.9 * height_menu; +2 covers integer rounding */
+  int calc_menu_h = (int)ceil(needed_bottom / 0.90) + 2;
+  int min_menu_h = (int)ceil(40.0 * ui_sc);
+  height_menu = (calc_menu_h > min_menu_h) ? calc_menu_h : min_menu_h;
+  if (height > 240 && height_menu > height / 2) height_menu = height / 2;
+
   width_w0=width; 
   height_w0=height; 
   width_w1=width - width_menu; 
@@ -8301,6 +8397,9 @@ int main( int argc, char **argv )
   printHash();
 #endif
 
+  glutSetWindow(w0);
+  reshape(glutGet(GLUT_WINDOW_WIDTH), glutGet(GLUT_WINDOW_HEIGHT));
+  glutSetWindow(w1);
   glutMainLoop ();
 #ifdef WIN32
   /* The stdin listener thread (cgx_glut_glfw.c) blocks indefinitely in

@@ -1806,7 +1806,22 @@ void scala_rgb( double dx, double dy, int divisions, double bmin, double bmax, d
       for ( j=0; j<10; j++) glutBitmapCharacter(glut_font, string[j]);
     }
     flag++;
-    if(flag>divisions/MAX_LABELS) flag=0;
+    {
+      extern int height_w0, legend_font, pixPerChary[];
+      double ui_sc = 1.0;
+#ifdef USE_GLFW
+      ui_sc = (double)cgx_get_ui_scale();
+#endif
+      double box_px = kh * 0.5 * (double)(height_w0 > 10 ? height_w0 : 600);
+      double min_label_px = (double)pixPerChary[legend_font] * ui_sc * 1.15;
+      int stride = divisions / MAX_LABELS;
+      if (box_px > 0.5 && box_px < min_label_px)
+      {
+        int needed = (int)ceil(min_label_px / box_px) - 1;
+        if (needed > stride) stride = needed;
+      }
+      if (flag > stride) flag = 0;
+    }
 
     dy+=kh;
     f+=df;
@@ -1923,7 +1938,22 @@ void scala_tex(double ratio, double dx, double dy, int divisions, double bmin, d
       if((fnr)&&(!i)); else { for ( j=0; j<10; j++) glutBitmapCharacter(glut_font, string[j]); }
     }
     flag++;
-    if(flag>divisions/MAX_LABELS) flag=0;
+    {
+      extern int height_w0, legend_font, pixPerChary[];
+      double ui_sc = 1.0;
+#ifdef USE_GLFW
+      ui_sc = (double)cgx_get_ui_scale();
+#endif
+      double box_px = kh * 0.5 * (double)(height_w0 > 10 ? height_w0 : 600);
+      double min_label_px = (double)pixPerChary[legend_font] * ui_sc * 1.15;
+      int stride = divisions / MAX_LABELS;
+      if (box_px > 0.5 && box_px < min_label_px)
+      {
+        int needed = (int)ceil(min_label_px / box_px) - 1;
+        if (needed > stride) stride = needed;
+      }
+      if (flag > stride) flag = 0;
+    }
 
     dy+=kh;
     f+=df;

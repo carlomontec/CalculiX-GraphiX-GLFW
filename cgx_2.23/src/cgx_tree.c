@@ -151,13 +151,17 @@ static void draw_clipped_label(float x, float baseline_y, const char *str, float
 
 static void get_pull_tab_rect(int win_w, int win_h, int *x1, int *y1, int *x2, int *y2)
 {
+  static const float pad_x_tbl[6] = { 7.0f, 9.0f, 10.0f, 11.0f, 13.0f, 16.0f };
+  static const float gap_tbl[6]   = { 5.0f, 6.0f, 6.5f,  7.0f,  9.0f,  11.0f };
+  static const float chev_tbl[6]  = { 5.0f, 6.0f, 7.0f,  8.0f,  10.0f, 12.0f };
   int vx, vy, vw, vh;
   cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
   (void)vw; (void)vh;
-  int tier = cgx_ui_font_tier();
-  int pad_x = (tier == 0) ? 9 : (tier == 1 ? 11 : 15);
-  int gap_chev = (tier == 0) ? 6 : (tier == 1 ? 7 : 10);
-  int chev_w = (tier == 0) ? 6 : (tier == 1 ? 8 : 11);
+  int slot = cgx_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int pad_x = (int)ceil(pad_x_tbl[slot] * ui);
+  int gap_chev = (int)ceil(gap_tbl[slot] * ui);
+  int chev_w = (int)ceil(chev_tbl[slot] * ui);
   int h = cgx_ui_top_tab_height();
   float tw = cgx_ui_text_width("Tree");
   int w = (int)ceil(tw) + gap_chev + chev_w + pad_x * 2;
@@ -169,16 +173,18 @@ static void get_pull_tab_rect(int win_w, int win_h, int *x1, int *y1, int *x2, i
 
 static int get_row_height(void)
 {
-  int tier = cgx_ui_font_tier();
-  if (tier == 0) return 22;
-  if (tier == 1) return 26;
-  return 36;
+  static const float row_h_tbl[6] = { 20.0f, 22.0f, 24.0f, 27.0f, 34.0f, 42.0f };
+  int slot = cgx_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  return (int)ceil(row_h_tbl[slot] * ui);
 }
 
 static void get_drawer_rect(int win_w, int win_h,
                             int *dx1, int *dy1, int *dx2, int *dy2,
                             int *list_y1, int *list_y2)
 {
+  static const float w_tbl[6]     = { 216.0f, 236.0f, 256.0f, 276.0f, 324.0f, 384.0f };
+  static const float hdr_h_tbl[6] = { 25.0f,  28.0f,  31.0f,  34.0f,  42.0f,  50.0f };
   int vx, vy, vw, vh;
   cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
 
@@ -186,14 +192,16 @@ static void get_drawer_rect(int win_w, int win_h,
   get_pull_tab_rect(win_w, win_h, &tx1, &ty1, &tx2, &ty2);
   (void)tx1; (void)ty1; (void)tx2;
 
-  int tier = cgx_ui_font_tier();
-  int w = (tier == 0) ? 236 : (tier == 1 ? 276 : 348);
+  int slot = cgx_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int w = (int)ceil(w_tbl[slot] * ui);
   int max_w = (int)(vw * 0.42f);
   if (w > max_w) w = max_w;
-  if (w < 170) w = 170;
+  int min_w = (int)ceil(170.0f * ui);
+  if (w < min_w) w = min_w;
 
   int cmd_h = cgx_glfw_is_command_bar_visible() ? cgx_ui_cmd_bar_height() : 0;
-  int hdr_h = (tier == 0) ? 28 : (tier == 1 ? 34 : 46);
+  int hdr_h = (int)ceil(hdr_h_tbl[slot] * ui);
   int bottom_lim = win_h - cmd_h - 8;
   if (vy + vh - 4 < bottom_lim) bottom_lim = vy + vh - 4;
 
@@ -227,14 +235,16 @@ static void get_header_button_rects(int dx1, int dy1, int dx2, int ly1,
                                     int out_x1[3], int out_x2[3],
                                     int *out_y1, int *out_y2)
 {
-  int tier = cgx_ui_font_tier();
-  int pad = 6;
-  int gap = 4;
-  int btn_y1 = dy1 + 4;
-  int btn_y2 = ly1 - 4;
+  static const float all_pad_tbl[6] = { 12.0f, 14.0f, 16.0f, 18.0f, 22.0f, 26.0f };
+  int slot = cgx_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int pad = (int)ceil(6.0f * ui);
+  int gap = (int)ceil(4.0f * ui);
+  int btn_y1 = dy1 + (int)ceil(4.0f * ui);
+  int btn_y2 = ly1 - (int)ceil(4.0f * ui);
 
   float all_tw = cgx_ui_text_width("All");
-  int all_w = (g_tree_tab == 0) ? ((int)ceil(all_tw) + ((tier == 0) ? 14 : (tier == 1 ? 18 : 24))) : 0;
+  int all_w = (g_tree_tab == 0) ? ((int)ceil(all_tw) + (int)ceil(all_pad_tbl[slot] * ui)) : 0;
   int avail = (dx2 - dx1) - pad * 2 - gap - ((all_w > 0) ? (all_w + gap) : 0);
   int tab_w = avail / 2;
 
@@ -752,7 +762,7 @@ int cgx_tree_on_mouse_move(int mx, int my, int win_w, int win_h)
       if (g_rows[idx].kind == ROW_SET)
       {
         int solo_w = row_h - 4;
-        int solo_x2 = dx2 - 12;
+        int solo_x2 = dx2 - (int)ceil(12.0f * cgx_get_ui_scale());
         int solo_x1 = solo_x2 - solo_w;
         if (mx >= solo_x1 && mx <= solo_x2) new_solo = 1;
       }
@@ -837,7 +847,7 @@ int cgx_tree_on_mouse_button(int button, int action, int mods, int mx, int my, i
       else if (row.kind == ROW_SET)
       {
         int solo_w = row_h - 4;
-        int solo_x2 = dx2 - 12;
+        int solo_x2 = dx2 - (int)ceil(12.0f * cgx_get_ui_scale());
         int solo_x1 = solo_x2 - solo_w;
         int is_solo = ((mods & GLFW_MOD_SHIFT) || (mx >= solo_x1 && mx <= solo_x2)) ? 1 : 0;
         if (is_solo) action_solo_set(row.id, row.sub_id);
@@ -881,12 +891,16 @@ static void render_pull_tab(int win_w, int win_h)
 {
   if (win_w < 200 || win_h < 120) return;
 
+  static const float pad_x_tbl[6] = { 7.0f, 9.0f, 10.0f, 11.0f, 13.0f, 16.0f };
+  static const float gap_tbl[6]   = { 5.0f, 6.0f, 6.5f,  7.0f,  9.0f,  11.0f };
+  static const float chev_tbl[6]  = { 5.0f, 6.0f, 7.0f,  8.0f,  10.0f, 12.0f };
   int x1, y1, x2, y2;
   get_pull_tab_rect(win_w, win_h, &x1, &y1, &x2, &y2);
-  int tier = cgx_ui_font_tier();
-  int pad_x = (tier == 0) ? 9 : (tier == 1 ? 11 : 15);
-  int gap_chev = (tier == 0) ? 6 : (tier == 1 ? 7 : 10);
-  int chev_w = (tier == 0) ? 6 : (tier == 1 ? 8 : 11);
+  int slot = cgx_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int pad_x = (int)ceil(pad_x_tbl[slot] * ui);
+  int gap_chev = (int)ceil(gap_tbl[slot] * ui);
+  int chev_w = (int)ceil(chev_tbl[slot] * ui);
   int tab_h = y2 - y1;
   int dark = (backgrndcol == 0);
 
@@ -1048,6 +1062,7 @@ void cgx_tree_render(int win_w, int win_h, int fb_w, int fb_h)
   set_current_scroll(get_current_scroll(), list_h);
   int scroll = get_current_scroll();
   int row_h = get_row_height();
+  float ui = cgx_get_ui_scale();
 
   /* Scissor-clip virtualized rows inside the scrollable area */
   double scale_x = (win_w > 0) ? (double)fb_w / (double)win_w : 1.0;
@@ -1092,17 +1107,17 @@ void cgx_tree_render(int win_w, int win_h, int fb_w, int fb_h)
 
       glColor4f(tr, tg, tb, 0.95f);
       glLineWidth(1.4f);
-      float chev_x = (float)dx1 + 12.0f;
+      float chev_x = (float)dx1 + 12.0f * ui;
       float chev_y_gl = (float)win_h - ((float)ry1 + (float)row_h * 0.5f);
       if (g_sec_collapsed[row.id])
-        draw_chevron_lr(chev_x, chev_y_gl, 3.0f, 4.0f, 1);
+        draw_chevron_lr(chev_x, chev_y_gl, 3.0f * ui, 4.0f * ui, 1);
       else
-        draw_chevron_down(chev_x, chev_y_gl, 4.0f, 2.5f);
+        draw_chevron_down(chev_x, chev_y_gl, 4.0f * ui, 2.5f * ui);
 
       char sec_label[64];
       snprintf(sec_label, sizeof(sec_label), "%s (%d)", sec_titles[row.id], row.count);
-      draw_clipped_label((float)(dx1 + 22), (float)baseline, sec_label,
-                         (float)(dx2 - dx1 - 36), tr, tg, tb, win_h);
+      draw_clipped_label((float)dx1 + 22.0f * ui, (float)baseline, sec_label,
+                         (float)(dx2 - dx1) - 36.0f * ui, tr, tg, tb, win_h);
     }
     else if (row.kind == ROW_SET)
     {
@@ -1120,8 +1135,8 @@ void cgx_tree_render(int win_w, int win_h, int fb_w, int fb_h)
       }
 
       /* Checkbox */
-      int box_sz = (row_h <= 22) ? 11 : ((row_h <= 26) ? 13 : 17);
-      int bx1 = dx1 + 12;
+      int box_sz = (int)ceil(row_h * 0.50f);
+      int bx1 = dx1 + (int)ceil(12.0f * ui);
       int bx2 = bx1 + box_sz;
       int by1 = ry1 + (row_h - box_sz) / 2;
       int by2 = by1 + box_sz;
@@ -1153,7 +1168,7 @@ void cgx_tree_render(int win_w, int win_h, int fb_w, int fb_h)
 
       /* Solo 'S' pill */
       int solo_w = row_h - 4;
-      int solo_x2 = dx2 - 12;
+      int solo_x2 = dx2 - (int)ceil(12.0f * ui);
       int solo_x1 = solo_x2 - solo_w;
       int solo_y1 = ry1 + 2;
       int solo_y2 = ry2 - 2;
@@ -1240,10 +1255,10 @@ void cgx_tree_render(int win_w, int win_h, int fb_w, int fb_h)
 
       glColor4f(tr, tg, tb, 0.95f);
       glLineWidth(1.4f);
-      float chev_x = (float)dx1 + 12.0f;
+      float chev_x = (float)dx1 + 12.0f * ui;
       float chev_y_gl = (float)win_h - ((float)ry1 + (float)row_h * 0.5f);
-      if (is_exp) draw_chevron_down(chev_x, chev_y_gl, 4.0f, 2.5f);
-      else        draw_chevron_lr(chev_x, chev_y_gl, 3.0f, 4.0f, 1);
+      if (is_exp) draw_chevron_down(chev_x, chev_y_gl, 4.0f * ui, 2.5f * ui);
+      else        draw_chevron_lr(chev_x, chev_y_gl, 3.0f * ui, 4.0f * ui, 1);
 
       char ds_name[128], label[180];
       trim_trailing_spaces(lcase[lc].name, ds_name, sizeof(ds_name));
@@ -1251,8 +1266,8 @@ void cgx_tree_render(int win_w, int win_h, int fb_w, int fb_h)
         snprintf(label, sizeof(label), "%d %s (%.4g)", lc + 1, ds_name, lcase[lc].value);
       else
         snprintf(label, sizeof(label), "%d %s", lc + 1, ds_name);
-      draw_clipped_label((float)(dx1 + 22), (float)baseline, label,
-                         (float)(dx2 - dx1 - 36), tr, tg, tb, win_h);
+      draw_clipped_label((float)dx1 + 22.0f * ui, (float)baseline, label,
+                         (float)(dx2 - dx1) - 36.0f * ui, tr, tg, tb, win_h);
     }
     else if (row.kind == ROW_COMPONENT)
     {
@@ -1282,8 +1297,8 @@ void cgx_tree_render(int win_w, int win_h, int fb_w, int fb_h)
       else
         snprintf(comp_name, sizeof(comp_name), "Comp %d", comp + 1);
 
-      draw_clipped_label((float)(dx1 + 28), (float)baseline, comp_name,
-                         (float)(dx2 - dx1 - 42), tr, tg, tb, win_h);
+      draw_clipped_label((float)dx1 + 28.0f * ui, (float)baseline, comp_name,
+                         (float)(dx2 - dx1) - 42.0f * ui, tr, tg, tb, win_h);
     }
     else if (row.kind == ROW_INFO)
     {

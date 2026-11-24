@@ -124,14 +124,19 @@ extern "C" {
 #define GLUT_INIT_WINDOW_WIDTH          800
 #define GLUT_INIT_WINDOW_HEIGHT         801
 
-/* Modern Typography Font Handles */
-#define GLUT_BITMAP_9_BY_15             ((void*)1)
-#define GLUT_BITMAP_8_BY_13             ((void*)2)
-#define GLUT_BITMAP_TIMES_ROMAN_10      ((void*)3)
-#define GLUT_BITMAP_TIMES_ROMAN_24      ((void*)4)
-#define GLUT_BITMAP_HELVETICA_10        ((void*)5)
-#define GLUT_BITMAP_HELVETICA_12        ((void*)6)
-#define GLUT_BITMAP_HELVETICA_18        ((void*)7)
+/* Modern Vector Typography Font Handles (6-step scale: 12..32pt) */
+#define CGX_FONT_12                     ((void*)1)
+#define CGX_FONT_14                     ((void*)2)
+#define CGX_FONT_17                     ((void*)3)
+#define CGX_FONT_20                     ((void*)4)
+#define CGX_FONT_26                     ((void*)5)
+#define CGX_FONT_32                     ((void*)6)
+
+#define GLUT_BITMAP_HELVETICA_10        CGX_FONT_12
+#define GLUT_BITMAP_HELVETICA_12        CGX_FONT_14
+#define GLUT_BITMAP_8_BY_13             CGX_FONT_17
+#define GLUT_BITMAP_9_BY_15             CGX_FONT_20
+#define GLUT_BITMAP_HELVETICA_18        CGX_FONT_26
 
 /* GLUT API Function Prototypes */
 void glutInit(int *argcp, char **argv);
@@ -220,12 +225,14 @@ void cgx_glfw_queue_command(const char *cmd);
 void  cgx_ui_draw_text(float x, float y, const char *str, float r, float g, float b, int win_h);
 float cgx_ui_text_width(const char *str);
 int   cgx_ui_font_tier(void);
+int   cgx_ui_font_slot(void);
 int   cgx_ui_cmd_bar_height(void);
 int   cgx_ui_top_tab_height(void);
 void  cgx_ui_get_viewport_rect(int win_w, int win_h, int *out_x, int *out_y, int *out_w, int *out_h);
 
 /* DPI and Line/Point Width Utilities */
 float cgx_get_fb_scale(void);
+float cgx_get_ui_scale(void);
 void  cgx_glLineWidth(float width);
 void  cgx_glPointSize(float size);
 void  cgx_enable_smooth_lines(int enable);

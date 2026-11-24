@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdint.h>
 
 #define MAX_WINDOWS 16
 #define MAX_MENUS   128
@@ -217,11 +218,28 @@ GLFWwindow *cgx_glfw_get_window(void)
   return g_glfw_window;
 }
 
+static void trigger_root_reshape(void)
+{
+  if (!g_glfw_window) return;
+  int win_w = 1, win_h = 1;
+  glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
+  if (win_w < 10) win_w = 10;
+  if (win_h < 10) win_h = 10;
+  CGXWindow *root = get_window(1);
+  if (root)
+  {
+    root->width = win_w;
+    root->height = win_h;
+    if (root->reshape_func) root->reshape_func(win_w, win_h);
+  }
+}
+
 void cgx_glfw_toggle_command_bar(void)
 {
   g_cmd_bar_visible = !g_cmd_bar_visible;
   if (g_cmd_bar_visible) printf("\n Command Line Bar shown.\n\n");
   else printf("\n Command Line Bar hidden.\n\n");
+  trigger_root_reshape();
   g_need_redisplay = 1;
 }
 
@@ -426,6 +444,12 @@ int glutCreateWindow(const char *title)
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
   glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
   glfwWindowHint(GLFW_DEPTH_BITS, 24);
+#ifdef GLFW_SCALE_TO_MONITOR
+  glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+#endif
+#ifdef GLFW_COCOA_RETINA_FRAMEBUFFER
+  glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_TRUE);
+#endif
 
   g_glfw_window = glfwCreateWindow(g_init_w, g_init_h, title, NULL, NULL);
   if (!g_glfw_window)
@@ -462,6 +486,11 @@ int glutCreateWindow(const char *title)
     glfwSetWindowIcon(g_glfw_window, 1, &icon);
   }
 
+  int actual_w = g_init_w, actual_h = g_init_h;
+  glfwGetWindowSize(g_glfw_window, &actual_w, &actual_h);
+  if (actual_w <= 0) actual_w = g_init_w;
+  if (actual_h <= 0) actual_h = g_init_h;
+
   id = 1;
   win = &g_windows[g_num_windows++];
   memset(win, 0, sizeof(CGXWindow));
@@ -469,8 +498,8 @@ int glutCreateWindow(const char *title)
   win->parent_id = 0;
   win->x = 0;
   win->y = 0;
-  win->width = g_init_w;
-  win->height = g_init_h;
+  win->width = actual_w;
+  win->height = actual_h;
   win->visible = 1;
   for (int b = 0; b < 5; b++) win->attached_menu[b] = 0;
 
@@ -786,9 +815,87 @@ float cgx_get_fb_scale(void)
   return (scale > 0.5f) ? scale : 1.0f;
 }
 
+static float cgx_get_env_scale_once(int *out_has_explicit, float *out_desktop_fallback)
+{
+  static int parsed = 0;
+  static int has_explicit = 0;
+  static float explicit_val = 1.0f;
+  static float desktop_val = 1.0f;
+  if (!parsed)
+  {
+    parsed = 1;
+    const char *env_cgx = getenv("CGX_SCALE");
+    if (env_cgx && *env_cgx)
+    {
+      float v = (float)atof(env_cgx);
+      if (v >= 0.5f && v <= 4.0f)
+      {
+        has_explicit = 1;
+        explicit_val = v;
+      }
+    }
+    const char *env_vars[3] = { "GDK_DPI_SCALE", "QT_SCALE_FACTOR", "GDK_SCALE" };
+    for (int i = 0; i < 3; i++)
+    {
+      const char *ev = getenv(env_vars[i]);
+      if (ev && *ev)
+      {
+        float v = (float)atof(ev);
+        if (v > 1.01f && v <= 4.0f)
+        {
+          desktop_val = v;
+          break;
+        }
+      }
+    }
+  }
+  if (out_has_explicit) *out_has_explicit = has_explicit;
+  if (out_desktop_fallback) *out_desktop_fallback = desktop_val;
+  return explicit_val;
+}
+
+static float cgx_get_pixel_scale(void)
+{
+  if (!g_glfw_window) return 1.0f;
+  float fb_scale = cgx_get_fb_scale();
+  float csx = 1.0f, csy = 1.0f;
+#if (GLFW_VERSION_MAJOR > 3) || (GLFW_VERSION_MAJOR == 3 && GLFW_VERSION_MINOR >= 3)
+  glfwGetWindowContentScale(g_glfw_window, &csx, &csy);
+#endif
+  if (csy > csx) csx = csy;
+  if (csx < 0.5f) csx = 1.0f;
+
+  float px = (fb_scale > csx) ? fb_scale : csx;
+
+  int has_explicit = 0;
+  float desktop_fallback = 1.0f;
+  float explicit_val = cgx_get_env_scale_once(&has_explicit, &desktop_fallback);
+  if (px <= 1.01f && desktop_fallback > 1.01f)
+  {
+    px = desktop_fallback;
+  }
+  if (has_explicit)
+  {
+    px *= explicit_val;
+  }
+  if (px < 1.0f) px = 1.0f;
+  if (px > 4.0f) px = 4.0f;
+  return px;
+}
+
+float cgx_get_ui_scale(void)
+{
+  if (!g_glfw_window) return 1.0f;
+  float fb = cgx_get_fb_scale();
+  float px = cgx_get_pixel_scale();
+  float ui = (fb > 0.1f) ? (px / fb) : 1.0f;
+  if (ui < 0.75f) ui = 0.75f;
+  return ui;
+}
+
 void cgx_glLineWidth(float width)
 {
-  float scale = cgx_get_fb_scale();
+  float scale = cgx_get_pixel_scale();
   float final_w = width * scale;
   if (final_w < 1.0f) final_w = 1.0f;
   glLineWidth(final_w);
@@ -796,7 +903,7 @@ void cgx_glLineWidth(float width)
 
 void cgx_glPointSize(float size)
 {
-  float scale = cgx_get_fb_scale();
+  float scale = cgx_get_pixel_scale();
   float final_sz = size * scale * 1.5f;
   if (final_sz < 2.0f) final_sz = 2.0f;
   glPointSize(final_sz);
@@ -874,8 +981,10 @@ static void handle_command_bar_paste(void)
   /* Check if clipboard contains any newline characters */
   int has_newlines = (strchr(clip, '\n') != NULL || strchr(clip, '\r') != NULL);
 
+  int was_visible = g_cmd_bar_visible;
   g_cmd_bar_visible = 1;
   g_cmd_focused = 1;
+  if (!was_visible) trigger_root_reshape();
 
   if (!has_newlines)
   {
@@ -981,49 +1090,75 @@ typedef struct {
   GLuint tex_id;
   stbtt_bakedchar cdata[96];
   float font_size;
+  int tex_dim;
 } CGXFontAtlas;
 
-static CGXFontAtlas g_font_atlas[3]; /* 0: 14pt (Small), 1: 20pt (Medium / Default), 2: 32pt (Big) */
+/* 6-step logical font scale matching CGX 'font <d|l|m|c|a> <1-6>':
+   0: 12pt, 1: 14pt (Small), 2: 17pt, 3: 20pt (Medium / Default), 4: 26pt, 5: 32pt (Big) */
+static CGXFontAtlas g_font_atlas[6];
+static const float g_base_font_pt[6] = { 12.0f, 14.0f, 17.0f, 20.0f, 26.0f, 32.0f };
 static int g_font_atlas_ready = 0;
+static float g_baked_pixel_scale = 0.0f;
+static int g_font_banner_printed = 0;
+
+static int font_handle_to_slot(void *font)
+{
+  uintptr_t h = (uintptr_t)font;
+  if (h >= 1 && h <= 6) return (int)(h - 1);
+  extern int draw_font;
+  int s = draw_font;
+  if (s < 0) s = 0;
+  if (s > 5) s = 5;
+  return s;
+}
+
+static int get_ui_font_slot(void)
+{
+  extern int menu_font;
+  int s = menu_font;
+  if (s < 0) s = 0;
+  if (s > 5) s = 5;
+  return s;
+}
 
 static int get_ui_font_tier(void)
 {
-  extern int draw_font;
-  if (draw_font <= 4) return 0; /* Small (14pt) */
-  if (draw_font == 5) return 1; /* Medium / Default (20pt) */
-  return 2; /* Big (32pt) */
+  int slot = get_ui_font_slot();
+  if (slot <= 1) return 0; /* Small (12pt-14pt) */
+  if (slot <= 3) return 1; /* Medium / Default (17pt-20pt) */
+  return 2; /* Big (26pt-32pt) */
 }
 
 static int get_menu_item_height(void)
 {
-  int t = get_ui_font_tier();
-  if (t == 0) return 24;
-  if (t == 1) return 30;
-  return 44;
+  static const int item_h_tbl[6] = { 22, 24, 27, 30, 37, 44 };
+  int slot = get_ui_font_slot();
+  return (int)ceil((double)item_h_tbl[slot] * (double)cgx_get_ui_scale());
 }
 
 static int get_menu_box_width(void)
 {
-  int t = get_ui_font_tier();
-  if (t == 0) return 240;
-  if (t == 1) return 280;
-  return 400;
+  static const int menu_w_tbl[6] = { 220, 240, 260, 280, 340, 400 };
+  int slot = get_ui_font_slot();
+  return (int)ceil((double)menu_w_tbl[slot] * (double)cgx_get_ui_scale());
 }
 
 static int get_cmd_bar_height(void)
 {
-  int t = get_ui_font_tier();
-  if (t == 0) return 34;
-  if (t == 1) return 42;
-  return 58;
+  static const int cmd_h_tbl[6] = { 30, 34, 38, 42, 50, 58 };
+  int slot = get_ui_font_slot();
+  return (int)ceil((double)cmd_h_tbl[slot] * (double)cgx_get_ui_scale());
 }
 
 extern const unsigned char g_iosevka_ss05_ttf[];
 extern const unsigned int g_iosevka_ss05_ttf_len;
 
-static void init_truetype_fonts(void)
+static void ensure_truetype_fonts(void)
 {
-  if (g_font_atlas_ready) return;
+  if (!g_glfw_window) return;
+
+  float px_scale = cgx_get_pixel_scale();
+  if (g_font_atlas_ready && fabsf(px_scale - g_baked_pixel_scale) <= 0.02f) return;
 
   const unsigned char *ttf_buffer = NULL;
   unsigned char *allocated_ttf = NULL;
@@ -1031,7 +1166,11 @@ static void init_truetype_fonts(void)
   if (g_iosevka_ss05_ttf_len > 0)
   {
     ttf_buffer = g_iosevka_ss05_ttf;
-    printf(" [Font] Typography Engine: stb_truetype loaded embedded 'Iosevka SS05 Medium' (%u KB)\n", g_iosevka_ss05_ttf_len / 1024);
+    if (!g_font_banner_printed)
+    {
+      g_font_banner_printed = 1;
+      printf(" [Font] Typography Engine: stb_truetype loaded embedded 'Iosevka SS05 Medium' (%u KB)\n", g_iosevka_ss05_ttf_len / 1024);
+    }
   }
   else
   {
@@ -1074,7 +1213,11 @@ static void init_truetype_fonts(void)
       }
     }
     if (!f) return;
-    printf(" [Font] Typography Engine: stb_truetype loaded '%s'\n", loaded_font_path);
+    if (!g_font_banner_printed)
+    {
+      g_font_banner_printed = 1;
+      printf(" [Font] Typography Engine: stb_truetype loaded '%s'\n", loaded_font_path);
+    }
 
     fseek(f, 0, SEEK_END);
     long size = ftell(f);
@@ -1094,42 +1237,60 @@ static void init_truetype_fonts(void)
     ttf_buffer = allocated_ttf;
   }
 
+  if (g_font_atlas_ready)
+  {
+    for (int s = 0; s < 6; s++)
+    {
+      if (g_font_atlas[s].tex_id != 0)
+      {
+        glDeleteTextures(1, &g_font_atlas[s].tex_id);
+        g_font_atlas[s].tex_id = 0;
+      }
+    }
+  }
+
   int offset = stbtt_GetFontOffsetForIndex(ttf_buffer, 0);
   if (offset < 0) offset = 0;
 
-  int win_w = 800, win_h = 600, fb_w = 800, fb_h = 600;
-  if (g_glfw_window)
+  for (int slot = 0; slot < 6; slot++)
   {
-    glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
-    glfwGetFramebufferSize(g_glfw_window, &fb_w, &fb_h);
-  }
-  float fb_scale = (win_w > 0) ? (float)fb_w / (float)win_w : 1.0f;
-  if (fb_scale < 1.0f) fb_scale = 1.0f;
-
-  float sizes[3] = { 14.0f * fb_scale, 20.0f * fb_scale, 32.0f * fb_scale };
-  int tex_dim = 1024;
-
-  for (int tier = 0; tier < 3; tier++)
-  {
-    unsigned char *temp_bitmap = (unsigned char *)calloc(tex_dim * tex_dim, 1);
+    float px_size = g_base_font_pt[slot] * px_scale;
+    int tex_dim = (px_size > 48.0f) ? 2048 : 1024;
+    unsigned char *temp_bitmap = (unsigned char *)calloc((size_t)tex_dim * (size_t)tex_dim, 1);
     if (!temp_bitmap) continue;
 
-    int res = stbtt_BakeFontBitmap(ttf_buffer, offset, sizes[tier], temp_bitmap, tex_dim, tex_dim, 32, 96, g_font_atlas[tier].cdata);
+    int res = stbtt_BakeFontBitmap(ttf_buffer, offset, px_size, temp_bitmap, tex_dim, tex_dim, 32, 96, g_font_atlas[slot].cdata);
+    if (res <= 0 && tex_dim < 2048)
+    {
+      free(temp_bitmap);
+      tex_dim = 2048;
+      temp_bitmap = (unsigned char *)calloc((size_t)tex_dim * (size_t)tex_dim, 1);
+      if (!temp_bitmap) continue;
+      res = stbtt_BakeFontBitmap(ttf_buffer, offset, px_size, temp_bitmap, tex_dim, tex_dim, 32, 96, g_font_atlas[slot].cdata);
+    }
+
     if (res > 0)
     {
-      glGenTextures(1, &g_font_atlas[tier].tex_id);
-      glBindTexture(GL_TEXTURE_2D, g_font_atlas[tier].tex_id);
+      glGenTextures(1, &g_font_atlas[slot].tex_id);
+      glBindTexture(GL_TEXTURE_2D, g_font_atlas[slot].tex_id);
       glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
       glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, tex_dim, tex_dim, 0, GL_ALPHA, GL_UNSIGNED_BYTE, temp_bitmap);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
       glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-      g_font_atlas[tier].font_size = sizes[tier];
+      g_font_atlas[slot].font_size = px_size;
+      g_font_atlas[slot].tex_dim = tex_dim;
     }
     free(temp_bitmap);
   }
 
   if (allocated_ttf) free(allocated_ttf);
+  g_baked_pixel_scale = px_scale;
   g_font_atlas_ready = 1;
+}
+
+static void init_truetype_fonts(void)
+{
+  ensure_truetype_fonts();
 }
 
 /* --------------------------------------------------------------------  */
@@ -1138,7 +1299,6 @@ static void init_truetype_fonts(void)
 
 void glutBitmapCharacter(void *font, int character)
 {
-  (void)font;
   if (character < 32 || character >= 128) return;
 
   GLboolean valid = GL_FALSE;
@@ -1148,10 +1308,11 @@ void glutBitmapCharacter(void *font, int character)
   GLfloat rpos[4];
   glGetFloatv(GL_CURRENT_RASTER_POSITION, rpos);
 
-  int tier = get_ui_font_tier();
-  if (!g_font_atlas_ready || g_font_atlas[tier].tex_id == 0) return;
+  ensure_truetype_fonts();
+  int slot = font_handle_to_slot(font);
+  if (!g_font_atlas_ready || g_font_atlas[slot].tex_id == 0) return;
 
-  int tex_dim = 1024;
+  int tex_dim = g_font_atlas[slot].tex_dim;
 
   int win_w = 800, win_h = 600, fb_w = 800, fb_h = 600;
   if (g_glfw_window)
@@ -1167,7 +1328,7 @@ void glutBitmapCharacter(void *font, int character)
   glDisable(GL_CULL_FACE);
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   glEnable(GL_TEXTURE_2D);
-  glBindTexture(GL_TEXTURE_2D, g_font_atlas[tier].tex_id);
+  glBindTexture(GL_TEXTURE_2D, g_font_atlas[slot].tex_id);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1186,7 +1347,7 @@ void glutBitmapCharacter(void *font, int character)
   float cur_y = (float)fb_h - rpos[1];
 
   stbtt_aligned_quad q;
-  stbtt_GetBakedQuad(g_font_atlas[tier].cdata, tex_dim, tex_dim, character - 32, &cur_x, &cur_y, &q, 1);
+  stbtt_GetBakedQuad(g_font_atlas[slot].cdata, tex_dim, tex_dim, character - 32, &cur_x, &cur_y, &q, 1);
 
   glBegin(GL_QUADS);
     glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, (float)fb_h - q.y0);
@@ -1203,43 +1364,50 @@ void glutBitmapCharacter(void *font, int character)
   glPopAttrib();
 
   /* Advance raster position in framebuffer pixels for next character */
-  float adv = g_font_atlas[tier].cdata[character - 32].xadvance;
+  float adv = g_font_atlas[slot].cdata[character - 32].xadvance;
   glBitmap(0, 0, 0.0f, 0.0f, adv, 0.0f, NULL);
 }
 
 int glutBitmapWidth(void *font, int character)
 {
-  (void)font;
-  if (character < 32 || character >= 128) return 8;
-  int tier = get_ui_font_tier();
-  if (!g_font_atlas_ready) return 10;
-  return (int)ceil(g_font_atlas[tier].cdata[character - 32].xadvance);
+  static const int fallback_w[6] = { 6, 7, 9, 10, 13, 16 };
+  int slot = font_handle_to_slot(font);
+  if (!g_glfw_window) return fallback_w[slot];
+  if (character < 32 || character >= 128) return fallback_w[slot];
+  ensure_truetype_fonts();
+  if (!g_font_atlas_ready) return fallback_w[slot];
+  float fb_scale = cgx_get_fb_scale();
+  return (int)ceil(g_font_atlas[slot].cdata[character - 32].xadvance / fb_scale);
 }
 
 int glutBitmapLength(void *font, const unsigned char *string)
 {
-  (void)font;
+  static const int fallback_w[6] = { 6, 7, 9, 10, 13, 16 };
   if (!string || !*string) return 0;
-  int tier = get_ui_font_tier();
-  if (!g_font_atlas_ready) return (int)strlen((const char*)string) * 10;
+  int slot = font_handle_to_slot(font);
+  if (!g_glfw_window) return (int)strlen((const char*)string) * fallback_w[slot];
+  ensure_truetype_fonts();
+  if (!g_font_atlas_ready) return (int)strlen((const char*)string) * fallback_w[slot];
+  float fb_scale = cgx_get_fb_scale();
   float width = 0.0f;
   while (*string)
   {
     int ch = (unsigned char)*string;
     if (ch >= 32 && ch < 128)
-      width += g_font_atlas[tier].cdata[ch - 32].xadvance;
+      width += g_font_atlas[slot].cdata[ch - 32].xadvance;
     else
-      width += g_font_atlas[tier].font_size * 0.5f;
+      width += g_font_atlas[slot].font_size * 0.5f;
     string++;
   }
-  return (int)ceil(width);
+  return (int)ceil(width / fb_scale);
 }
 
 static void draw_ui_text_dynamic(float x, float y, const char *str, float r, float g, float b, int win_h)
 {
   if (!str || !*str) return;
-  int tier = get_ui_font_tier();
-  if (!g_font_atlas_ready || g_font_atlas[tier].tex_id == 0) return;
+  ensure_truetype_fonts();
+  int slot = get_ui_font_slot();
+  if (!g_font_atlas_ready || g_font_atlas[slot].tex_id == 0) return;
 
   int win_w = 800, fb_w = 800, fb_h = 600;
   if (g_glfw_window)
@@ -1250,13 +1418,13 @@ static void draw_ui_text_dynamic(float x, float y, const char *str, float r, flo
   float scale_x = (win_w > 0) ? (float)fb_w / (float)win_w : 1.0f;
   float scale_y = (win_h > 0) ? (float)fb_h / (float)win_h : 1.0f;
 
-  int tex_dim = 1024;
+  int tex_dim = g_font_atlas[slot].tex_dim;
 
   glPushAttrib(GL_ENABLE_BIT | GL_TEXTURE_BIT | GL_CURRENT_BIT | GL_COLOR_BUFFER_BIT | GL_VIEWPORT_BIT | GL_POLYGON_BIT);
   glViewport(0, 0, fb_w, fb_h);
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
   glEnable(GL_TEXTURE_2D);
-  glBindTexture(GL_TEXTURE_2D, g_font_atlas[tier].tex_id);
+  glBindTexture(GL_TEXTURE_2D, g_font_atlas[slot].tex_id);
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   glColor4f(r, g, b, 1.0f);
@@ -1280,7 +1448,7 @@ static void draw_ui_text_dynamic(float x, float y, const char *str, float r, flo
     if (ch >= 32 && ch < 128)
     {
       stbtt_aligned_quad q;
-      stbtt_GetBakedQuad(g_font_atlas[tier].cdata, tex_dim, tex_dim, ch - 32, &cur_x, &cur_y, &q, 1);
+      stbtt_GetBakedQuad(g_font_atlas[slot].cdata, tex_dim, tex_dim, ch - 32, &cur_x, &cur_y, &q, 1);
 
       glTexCoord2f(q.s0, q.t0); glVertex2f(q.x0, (float)fb_h - q.y0);
       glTexCoord2f(q.s1, q.t0); glVertex2f(q.x1, (float)fb_h - q.y0);
@@ -1289,7 +1457,7 @@ static void draw_ui_text_dynamic(float x, float y, const char *str, float r, flo
     }
     else
     {
-      cur_x += g_font_atlas[tier].font_size * 0.5f;
+      cur_x += g_font_atlas[slot].font_size * 0.5f;
     }
     str++;
   }
@@ -1306,8 +1474,9 @@ static void draw_ui_text_dynamic(float x, float y, const char *str, float r, flo
 static float get_text_width_dynamic(const char *str)
 {
   if (!str || !*str) return 0.0f;
-  int tier = get_ui_font_tier();
-  if (!g_font_atlas_ready || g_font_atlas[tier].tex_id == 0) return 0.0f;
+  ensure_truetype_fonts();
+  int slot = get_ui_font_slot();
+  if (!g_font_atlas_ready || g_font_atlas[slot].tex_id == 0) return 0.0f;
 
   int win_w = 800, fb_w = 800;
   if (g_glfw_window)
@@ -1323,9 +1492,9 @@ static float get_text_width_dynamic(const char *str)
   {
     int ch = (unsigned char)*str;
     if (ch >= 32 && ch < 128)
-      width += g_font_atlas[tier].cdata[ch - 32].xadvance;
+      width += g_font_atlas[slot].cdata[ch - 32].xadvance;
     else
-      width += g_font_atlas[tier].font_size * 0.5f;
+      width += g_font_atlas[slot].font_size * 0.5f;
     str++;
   }
   return width / scale_x;
@@ -1366,6 +1535,11 @@ int cgx_ui_font_tier(void)
   return get_ui_font_tier();
 }
 
+int cgx_ui_font_slot(void)
+{
+  return get_ui_font_slot();
+}
+
 int cgx_ui_cmd_bar_height(void)
 {
   return get_cmd_bar_height();
@@ -1373,9 +1547,12 @@ int cgx_ui_cmd_bar_height(void)
 
 int cgx_ui_top_tab_height(void)
 {
-  int tier = get_ui_font_tier();
-  int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
-  int outer = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
+  static const float btn_h_tbl[6] = { 20.0f, 24.0f, 27.0f, 30.0f, 36.0f, 44.0f };
+  static const float outer_tbl[6] = { 3.0f,  4.0f,  4.0f,  5.0f,  6.0f,  7.0f };
+  int slot = get_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int btn_h = (int)ceil(btn_h_tbl[slot] * ui);
+  int outer = (int)ceil(outer_tbl[slot] * ui);
   return btn_h + outer * 2;
 }
 
@@ -1409,13 +1586,28 @@ void cgx_ui_get_viewport_rect(int win_w, int win_h, int *out_x, int *out_y, int 
 /* Multi-Level Recursive Popup Menu Engine                               */
 /* --------------------------------------------------------------------  */
 
+static int get_menu_width_for(CGXMenu *menu)
+{
+  int min_w = get_menu_box_width();
+  if (!menu) return min_w;
+  float ui = cgx_get_ui_scale();
+  float extra = 48.0f * ui; /* left pad + right submenu arrow + right margin */
+  int best = min_w;
+  for (int i = 0; i < menu->num_items; i++)
+  {
+    int need = (int)ceil(get_text_width_dynamic(menu->items[i].label) + extra);
+    if (need > best) best = need;
+  }
+  return best;
+}
+
 static void open_cascade_root(int menu_id, int x, int y, int win_w, int win_h)
 {
   CGXMenu *menu = get_menu(menu_id);
   if (!menu) return;
 
   int item_h = get_menu_item_height();
-  int menu_w = get_menu_box_width();
+  int menu_w = get_menu_width_for(menu);
   int bar_h = g_cmd_bar_visible ? get_cmd_bar_height() : 0;
   int total_h = menu->num_items * item_h;
   if (x + menu_w > win_w) x = win_w - menu_w - 6;
@@ -1438,7 +1630,6 @@ static void update_cascade_hover(int mouse_x, int mouse_y, int win_w, int win_h)
   if (g_cascade_depth <= 0) return;
 
   int item_h = get_menu_item_height();
-  int menu_w = get_menu_box_width();
   int bar_h = g_cmd_bar_visible ? get_cmd_bar_height() : 0;
 
   int match_lvl = -1;
@@ -1472,7 +1663,7 @@ static void update_cascade_hover(int mouse_x, int mouse_y, int win_w, int win_h)
         if (sub_menu && sub_menu->num_items > 0)
         {
           int next_lvl = match_lvl + 1;
-          int sub_w = menu_w;
+          int sub_w = get_menu_width_for(sub_menu);
           int sub_h = sub_menu->num_items * item_h;
 
           int sub_x = c->x + c->width;
@@ -1574,6 +1765,9 @@ static void draw_cascade_menu(CGXMenuCascade *c, int win_h)
   glEnd();
 
   int text_baseline_offset = (int)(item_h * 0.70f);
+  float ui = cgx_get_ui_scale();
+  float pad_l = 12.0f * ui;
+  float pad_r = 22.0f * ui;
 
   for (int i = 0; i < menu->num_items; i++)
   {
@@ -1589,18 +1783,18 @@ static void draw_cascade_menu(CGXMenuCascade *c, int win_h)
       glColor4f(0.25f, 0.75f, 1.0f, 1.0f);
       glRectf(start_x + 2, win_h - (item_y + item_h), start_x + 5, win_h - item_y);
 
-      draw_ui_text_dynamic(start_x + 12, item_y + text_baseline_offset, menu->items[i].label, 1.0f, 1.0f, 1.0f, win_h);
+      draw_ui_text_dynamic(start_x + pad_l, item_y + text_baseline_offset, menu->items[i].label, 1.0f, 1.0f, 1.0f, win_h);
       if (menu->items[i].is_submenu)
       {
-        draw_ui_text_dynamic(start_x + menu_w - 22, item_y + text_baseline_offset, ">", 0.40f, 0.85f, 1.0f, win_h);
+        draw_ui_text_dynamic(start_x + menu_w - pad_r, item_y + text_baseline_offset, ">", 0.40f, 0.85f, 1.0f, win_h);
       }
     }
     else
     {
-      draw_ui_text_dynamic(start_x + 12, item_y + text_baseline_offset, menu->items[i].label, 0.90f, 0.94f, 0.98f, win_h);
+      draw_ui_text_dynamic(start_x + pad_l, item_y + text_baseline_offset, menu->items[i].label, 0.90f, 0.94f, 0.98f, win_h);
       if (menu->items[i].is_submenu)
       {
-        draw_ui_text_dynamic(start_x + menu_w - 22, item_y + text_baseline_offset, ">", 0.45f, 0.58f, 0.72f, win_h);
+        draw_ui_text_dynamic(start_x + menu_w - pad_r, item_y + text_baseline_offset, ">", 0.45f, 0.58f, 0.72f, win_h);
       }
     }
   }
@@ -1609,11 +1803,26 @@ static void draw_cascade_menu(CGXMenuCascade *c, int win_h)
 /* --------------------------------------------------------------------  */
 /* Modern In-Window Command Bar (Bottom Strip)                           */
 /* --------------------------------------------------------------------  */
+static void get_cmd_send_btn_x(int win_w, int *out_x1, int *out_x2)
+{
+  float ui = cgx_get_ui_scale();
+  int pad_btn = (int)ceil(28.0f * ui);
+  int min_w   = (int)ceil(80.0f * ui);
+  int margin  = (int)ceil(10.0f * ui);
+  int btn_w = (int)ceil(get_text_width_dynamic("SEND")) + pad_btn;
+  if (btn_w < min_w) btn_w = min_w;
+  *out_x2 = win_w - margin;
+  *out_x1 = *out_x2 - btn_w;
+}
+
 static void render_command_bar(int win_w, int win_h)
 {
   int bar_h = get_cmd_bar_height();
   int bar_y = win_h - bar_h;
   int baseline_y = bar_y + (int)(bar_h * 0.68f);
+  float ui = cgx_get_ui_scale();
+  float prompt_x = 12.0f * ui;
+  float text_x   = 30.0f * ui;
 
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
@@ -1630,29 +1839,29 @@ static void render_command_bar(int win_w, int win_h)
   glEnd();
 
   /* Prompt Symbol (Bright Cyan >) */
-  draw_ui_text_dynamic(12, baseline_y, ">", 0.25f, 0.80f, 1.0f, win_h);
+  draw_ui_text_dynamic(prompt_x, baseline_y, ">", 0.25f, 0.80f, 1.0f, win_h);
 
   /* Input Text, Status Feedback, or Placeholder */
   if (g_cmd_len > 0)
   {
-    draw_ui_text_dynamic(30, baseline_y, g_cmd_buf, 1.0f, 1.0f, 1.0f, win_h);
+    draw_ui_text_dynamic(text_x, baseline_y, g_cmd_buf, 1.0f, 1.0f, 1.0f, win_h);
   }
   else if ((glfwGetTime() - g_gui_status_time) < 6.0 && g_gui_status_msg[0] != '\0')
   {
-    draw_ui_text_dynamic(30, baseline_y, g_gui_status_msg, 1.0f, 0.78f, 0.35f, win_h);
+    draw_ui_text_dynamic(text_x, baseline_y, g_gui_status_msg, 1.0f, 0.78f, 0.35f, win_h);
   }
   else
   {
-    draw_ui_text_dynamic(30, baseline_y, "Type command (e.g. ds 1 e 4, plot f all, view sh, frame, help)...", 0.38f, 0.46f, 0.56f, win_h);
+    draw_ui_text_dynamic(text_x, baseline_y, "Type command (e.g. ds 1 e 4, plot f all, view sh, frame, help)...", 0.38f, 0.46f, 0.56f, win_h);
   }
 
   /* Send Button */
-  int btn_w = (int)(get_text_width_dynamic("SEND") + 28);
-  if (btn_w < 80) btn_w = 80;
-  int btn_x1 = win_w - btn_w - 10;
-  int btn_x2 = win_w - 10;
-  int btn_y1 = bar_y + 4;
-  int btn_y2 = bar_y + bar_h - 4;
+  int btn_x1, btn_x2;
+  get_cmd_send_btn_x(win_w, &btn_x1, &btn_x2);
+  int btn_w = btn_x2 - btn_x1;
+  int btn_pad_y = (int)ceil(4.0f * ui);
+  int btn_y1 = bar_y + btn_pad_y;
+  int btn_y2 = bar_y + bar_h - btn_pad_y;
 
   if (g_send_hovered)
   {
@@ -1699,15 +1908,17 @@ static void draw_chevron_lr(float cx, float cy_gl, float half_w, float half_h, i
 
 static void get_hud_pull_tab_rect(int win_w, int win_h, int *x1, int *y1, int *x2, int *y2)
 {
+  static const float pad_x_tbl[6] = { 7.0f, 9.0f, 10.0f, 11.0f, 13.0f, 16.0f };
+  static const float gap_tbl[6]   = { 5.0f, 6.0f, 6.5f,  7.0f,  9.0f,  11.0f };
+  static const float chev_tbl[6]  = { 5.0f, 6.0f, 7.0f,  8.0f,  10.0f, 12.0f };
   int vx, vy, vw, vh;
   cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
-  int tier = get_ui_font_tier();
-  int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
-  int outer = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
-  int pad_x = (tier == 0) ? 9  : (tier == 1 ? 11 : 15);
-  int gap_chev = (tier == 0) ? 6 : (tier == 1 ? 7 : 10);
-  int chev_w = (tier == 0) ? 6 : (tier == 1 ? 8 : 11);
-  int h = btn_h + outer * 2;
+  int slot = get_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int pad_x = (int)ceil(pad_x_tbl[slot] * ui);
+  int gap_chev = (int)ceil(gap_tbl[slot] * ui);
+  int chev_w = (int)ceil(chev_tbl[slot] * ui);
+  int h = cgx_ui_top_tab_height();
   float tw = get_text_width_dynamic("Tools");
   int w = (int)ceil(tw) + gap_chev + chev_w + pad_x * 2;
   *x2 = vx + vw;
@@ -1728,12 +1939,16 @@ static void render_hud_pull_tab(int win_w, int win_h)
 {
   if (win_w < 200 || win_h < 120) return;
 
+  static const float pad_x_tbl[6] = { 7.0f, 9.0f, 10.0f, 11.0f, 13.0f, 16.0f };
+  static const float gap_tbl[6]   = { 5.0f, 6.0f, 6.5f,  7.0f,  9.0f,  11.0f };
+  static const float chev_tbl[6]  = { 5.0f, 6.0f, 7.0f,  8.0f,  10.0f, 12.0f };
   int x1, y1, x2, y2;
   get_hud_pull_tab_rect(win_w, win_h, &x1, &y1, &x2, &y2);
-  int tier = get_ui_font_tier();
-  int pad_x = (tier == 0) ? 9 : (tier == 1 ? 11 : 15);
-  int gap_chev = (tier == 0) ? 6 : (tier == 1 ? 7 : 10);
-  int chev_w = (tier == 0) ? 6 : (tier == 1 ? 8 : 11);
+  int slot = get_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int pad_x = (int)ceil(pad_x_tbl[slot] * ui);
+  int gap_chev = (int)ceil(gap_tbl[slot] * ui);
+  int chev_w = (int)ceil(chev_tbl[slot] * ui);
   int tab_h = y2 - y1;
   int dark = (backgrndcol == 0);
 
@@ -1863,18 +2078,24 @@ static void compute_hud_toolbar_layout(int win_w, int win_h,
   int vx, vy, vw, vh;
   cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
 
-  int tier = get_ui_font_tier();
-  int btn_h = (tier == 0) ? 24 : (tier == 1 ? 30 : 42);
-  int pad_x = (tier == 0) ? 8  : (tier == 1 ? 11 : 15);
-  int gap   = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
-  int outer = (tier == 0) ? 4  : (tier == 1 ? 5  : 7);
+  static const float btn_h_tbl[6] = { 20.0f, 24.0f, 27.0f, 30.0f, 36.0f, 44.0f };
+  static const float pad_x_tbl[6] = { 6.0f,  8.0f,  9.5f,  11.0f, 13.0f, 15.0f };
+  static const float gap_tbl[6]   = { 3.0f,  4.0f,  4.5f,  5.0f,  6.0f,  7.0f };
+  static const float outer_tbl[6] = { 3.0f,  4.0f,  4.0f,  5.0f,  6.0f,  7.0f };
+  int slot = get_ui_font_slot();
+  float ui = cgx_get_ui_scale();
+  int btn_h = (int)ceil(btn_h_tbl[slot] * ui);
+  int pad_x = (int)ceil(pad_x_tbl[slot] * ui);
+  int gap   = (int)ceil(gap_tbl[slot] * ui);
+  int outer = (int)ceil(outer_tbl[slot] * ui);
 
   int widths[HUD_BTN_COUNT];
+  float tw_cache[HUD_BTN_COUNT];
   int total_btn_w = 0;
   for (int i = 0; i < HUD_BTN_COUNT; i++)
   {
-    float tw = get_text_width_dynamic(get_hud_button_label(i, 1));
-    widths[i] = (int)ceil(tw) + pad_x * 2;
+    tw_cache[i] = get_text_width_dynamic(get_hud_button_label(i, 1));
+    widths[i] = (int)ceil(tw_cache[i]) + pad_x * 2;
     total_btn_w += widths[i];
   }
   total_btn_w += gap * (HUD_BTN_COUNT - 1);
@@ -1883,6 +2104,25 @@ static void compute_hud_toolbar_layout(int win_w, int win_h,
   get_hud_pull_tab_rect(win_w, win_h, &tx1, &ty1, &tx2, &ty2);
 
   int bar_w = total_btn_w + outer * 2;
+  int avail_w = tx1 - vx;
+  if (bar_w > avail_w && avail_w > 0)
+  {
+    int min_pad = (int)ceil(3.0f * ui);
+    int min_gap = (int)ceil(2.0f * ui);
+    while (bar_w > avail_w && (pad_x > min_pad || gap > min_gap))
+    {
+      if (pad_x > min_pad) pad_x--;
+      if (gap > min_gap) gap--;
+      total_btn_w = 0;
+      for (int i = 0; i < HUD_BTN_COUNT; i++)
+      {
+        widths[i] = (int)ceil(tw_cache[i]) + pad_x * 2;
+        total_btn_w += widths[i];
+      }
+      total_btn_w += gap * (HUD_BTN_COUNT - 1);
+      bar_w = total_btn_w + outer * 2;
+    }
+  }
   int bar_x2 = tx1;
   int bar_x1 = bar_x2 - bar_w;
   if (bar_x1 < vx)
@@ -2064,16 +2304,19 @@ typedef struct {
 
 static void get_gizmo_metrics(int win_w, int win_h, float *cx, float *cy_top, float *radius, float *arm, float *dot_r)
 {
+  static const float radius_tbl[6] = { 36.0f, 40.0f, 44.0f, 48.0f, 56.0f, 64.0f };
+  static const float dot_r_tbl[6]  = { 7.5f,  8.5f,  9.5f,  10.5f, 12.5f, 14.5f };
   int vx, vy, vw, vh;
   cgx_ui_get_viewport_rect(win_w, win_h, &vx, &vy, &vw, &vh);
-  int tier = get_ui_font_tier();
+  int slot = get_ui_font_slot();
+  float ui = cgx_get_ui_scale();
   int tx1, ty1, tx2, ty2;
   get_hud_pull_tab_rect(win_w, win_h, &tx1, &ty1, &tx2, &ty2);
-  *radius = (tier == 0) ? 40.0f : (tier == 1 ? 48.0f : 60.0f);
+  *radius = radius_tbl[slot] * ui;
   *arm    = (*radius) * 0.68f;
-  *dot_r  = (tier == 0) ? 8.5f : (tier == 1 ? 10.5f : 13.5f);
-  *cx     = (float)(vx + vw) - (*radius) - 12.0f;
-  *cy_top = (float)ty2 + (*radius) + 10.0f;
+  *dot_r  = dot_r_tbl[slot] * ui;
+  *cx     = (float)(vx + vw) - (*radius) - 12.0f * ui;
+  *cy_top = (float)ty2 + (*radius) + 10.0f * ui;
 }
 
 static void build_gizmo_handles(int win_w, int win_h, CGXGizmoHandle handles[6])
@@ -2201,9 +2444,10 @@ static void render_orientation_gizmo(int win_w, int win_h)
   float cx, cy_top, radius, arm, dot_r;
   get_gizmo_metrics(win_w, win_h, &cx, &cy_top, &radius, &arm, &dot_r);
   float cy_gl = (float)win_h - cy_top;
+  static const float cap_half_tbl[6] = { 4.0f, 4.5f, 5.5f, 6.5f, 8.5f, 10.5f };
   int dark = (backgrndcol == 0);
-  int tier = get_ui_font_tier();
-  float cap_half = (tier == 0) ? 4.5f : (tier == 1 ? 6.5f : 10.5f);
+  int slot = get_ui_font_slot();
+  float cap_half = cap_half_tbl[slot] * cgx_get_ui_scale();
 
   CGXGizmoHandle handles[6];
   build_gizmo_handles(win_w, win_h, handles);
@@ -2496,7 +2740,9 @@ static void glfw_cursor_pos_callback(GLFWwindow *window, double xpos, double ypo
   int bar_h = get_cmd_bar_height();
 
   /* Send button hover check */
-  if (g_cmd_bar_visible && ypos >= win_h - bar_h && xpos >= win_w - 96 && xpos <= win_w - 10)
+  int send_x1, send_x2;
+  get_cmd_send_btn_x(win_w, &send_x1, &send_x2);
+  if (g_cmd_bar_visible && ypos >= win_h - bar_h && xpos >= send_x1 && xpos <= send_x2)
   {
     g_send_hovered = 1;
     g_need_redisplay = 1;
@@ -2676,7 +2922,9 @@ static void glfw_mouse_button_callback(GLFWwindow *window, int button, int actio
   /* Handle Command Bar Click */
   if (g_cmd_bar_visible && action == GLFW_PRESS && g_last_mouse_y >= win_h - bar_h)
   {
-    if (g_last_mouse_x >= win_w - 96 && g_last_mouse_x <= win_w - 10)
+    int send_x1, send_x2;
+    get_cmd_send_btn_x(win_w, &send_x1, &send_x2);
+    if (g_last_mouse_x >= send_x1 && g_last_mouse_x <= send_x2)
     {
       submit_command_bar();
       return;
@@ -2888,6 +3136,25 @@ static void glfw_framebuffer_size_callback(GLFWwindow *window, int width, int he
   g_need_redisplay = 1;
 }
 
+#if (GLFW_VERSION_MAJOR > 3) || (GLFW_VERSION_MAJOR == 3 && GLFW_VERSION_MINOR >= 3)
+static void glfw_window_content_scale_callback(GLFWwindow *window, float xscale, float yscale)
+{
+  (void)window; (void)xscale; (void)yscale;
+  int win_w = 1, win_h = 1;
+  if (g_glfw_window) glfwGetWindowSize(g_glfw_window, &win_w, &win_h);
+  if (win_w < 10) win_w = 10;
+  if (win_h < 10) win_h = 10;
+  CGXWindow *root = get_window(1);
+  if (root)
+  {
+    root->width = win_w;
+    root->height = win_h;
+    if (root->reshape_func) root->reshape_func(win_w, win_h);
+  }
+  g_need_redisplay = 1;
+}
+#endif
+
 /* --------------------------------------------------------------------  */
 /* Main Render Loop                                                      */
 /* --------------------------------------------------------------------  */
@@ -2898,6 +3165,9 @@ void glutMainLoop(void)
 
   glfwSetWindowSizeCallback(g_glfw_window, glfw_window_size_callback);
   glfwSetFramebufferSizeCallback(g_glfw_window, glfw_framebuffer_size_callback);
+#if (GLFW_VERSION_MAJOR > 3) || (GLFW_VERSION_MAJOR == 3 && GLFW_VERSION_MINOR >= 3)
+  glfwSetWindowContentScaleCallback(g_glfw_window, glfw_window_content_scale_callback);
+#endif
   glfwSetKeyCallback(g_glfw_window, glfw_key_callback);
   glfwSetCharCallback(g_glfw_window, glfw_char_callback);
   glfwSetCursorPosCallback(g_glfw_window, glfw_cursor_pos_callback);
