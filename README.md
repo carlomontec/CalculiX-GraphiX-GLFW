@@ -1,6 +1,6 @@
 # CalculiX GraphiX (GLFW Edition)
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](cgx_2.23/COPYING)
+[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](LICENSE)
 [![Platform: Linux (x86_64, ARM64) | macOS | Windows](https://img.shields.io/badge/Platform-Linux%20x86__64%20%2F%20ARM64%20%7C%20macOS%20%7C%20Windows-brightgreen.svg)](#quick-install)
 [![Graphics: GLFW3 + OpenGL](https://img.shields.io/badge/Graphics-GLFW3%20%2B%20OpenGL%20%2B%20stb__truetype-orange.svg)](#highlights)
 [![Export: ParaView VTU/PVD](https://img.shields.io/badge/Export-ParaView%20VTU%2FPVD-purple.svg)](#paraview-export)
@@ -173,7 +173,7 @@ Every push and pull request to `main` is built and tested in GitHub Actions acro
 
 ## Relationship to upstream CalculiX
 
-This repository tracks upstream CalculiX GraphiX 2.23 (`cgx_2.23`). Upstream geometry, meshing (`libSNL`), batch execution, `.fbl` macro syntax, and solver file interfaces are kept compatible so existing CalculiX workflows run unmodified.
+This repository is a modified version of CalculiX GraphiX 2.23 (`cgx_2.23`). It is not an official CalculiX release and is not affiliated with or endorsed by the CalculiX authors; please report problems with this edition here. Upstream geometry, meshing (`libSNL`), batch execution, `.fbl` macro syntax, and solver file interfaces are kept compatible so existing CalculiX workflows run unmodified.
 
 ## Companion project: CalculiX CrunchiX Multi-Solver Edition
 
@@ -185,7 +185,9 @@ For the finite-element solver side, see [CalculiX CrunchiX Multi-Solver Edition]
 |:---|:---|
 | [INSTALL.md](INSTALL.md) | Prerequisites, installers, CMake options, manual builds, checksum verification |
 | [`cgx_2.23/doc/cgx.pdf`](cgx_2.23/doc/cgx.pdf) | Upstream CalculiX GraphiX user manual |
-| [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) | Licenses for bundled third-party libraries and headers |
+| [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) | Licenses for bundled third-party libraries, headers and fonts |
+| [NOTICE.md](NOTICE.md) | Origin of this edition, copyright and summary of modifications |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to build, test and submit changes |
 | [`tests/run_tests.py`](tests/run_tests.py) | Automated headless test suite runner (24 tests across 5 categories) |
 
 ## About this project
@@ -196,9 +198,11 @@ The project was also developed as a practical exploration of AI-assisted program
 
 ## Attribution and license
 
-CalculiX GraphiX is free software distributed under the GNU General Public License version 2 ([`cgx_2.23/COPYING`](cgx_2.23/COPYING)). CalculiX GraphiX was created by **Klaus Wittig**, and CalculiX CrunchiX is written and maintained by **Dr. Guido Dhondt**. This edition is maintained by **Dr. Carlo Monjaraz-Tec** ([@carlomontec](https://github.com/carlomontec)).
+CalculiX GraphiX was created by **Klaus Wittig** (Copyright (C) 1996 Klaus Wittig), and CalculiX CrunchiX is written and maintained by **Dr. Guido Dhondt**. This edition is a modified version of CalculiX GraphiX 2.23, maintained by **Dr. Carlo Monjaraz-Tec** ([@carlomontec](https://github.com/carlomontec)). The original copyright notices are kept in all source files.
+
+CalculiX GraphiX and this modified version are free software distributed under the GNU General Public License, version 2 ([LICENSE](LICENSE), identical to [`cgx_2.23/COPYING`](cgx_2.23/COPYING)). See [NOTICE.md](NOTICE.md) for the origin of this edition and a summary of the modifications.
 
 - CalculiX: [calculix.de](https://www.calculix.de) and [dhondt.de](https://www.dhondt.de)
 - Community: [CalculiX Discourse](https://calculix.discourse.group)
 
-Bundled third-party components (GLFW3, TetGen, `stb_truetype.h`, `stb_image_write.h`, `msf_gif.h`, `libSNL`) retain their respective open-source licenses; see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+Bundled third-party components (GLFW3, TetGen, `stb_truetype.h`, `stb_image_write.h`, `msf_gif.h`, `libSNL`, the Iosevka font) keep their own licenses; see [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). Contributions are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
